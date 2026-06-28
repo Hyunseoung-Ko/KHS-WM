@@ -267,6 +267,35 @@ input{font-family:inherit}
 .pstat-leg{font-size:11px;color:var(--sub);font-weight:500;margin-top:7px}
 .pstat-leg b{font-weight:700;color:var(--ink)}
 
+/* 리포트 배포/정리 모달 (원본 toss 디자인) */
+.dep-head{display:flex;align-items:center;gap:13px;margin-bottom:18px}
+.dep-head .dep-ic{width:46px;height:46px;border-radius:13px;background:var(--primary-l);color:var(--primary-d);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.dep-head .dep-ic svg{width:24px;height:24px;stroke:currentColor;fill:none}
+.dep-head h3{margin:0;font-size:18px;font-weight:800}
+.dep-head .msub{margin:2px 0 0}
+.dep-lbl{display:block;font-size:13px;font-weight:700;color:var(--sub2);margin:16px 0 8px}
+.dep-cats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.dep-cat{border:1px solid var(--line);background:#fff;color:var(--sub2);border-radius:12px;padding:13px 10px;font-size:14px;font-weight:700;transition:.12s}
+.dep-cat:hover{background:var(--inset)}
+.dep-cat.on{border-color:var(--primary);background:var(--primary-l);color:var(--primary-d);box-shadow:0 0 0 1px var(--primary) inset}
+.dep-drop{border:2px dashed #D5DEEB;border-radius:14px;padding:30px 20px;text-align:center;background:var(--inset);cursor:pointer;transition:.15s}
+.dep-drop.drag{border-color:var(--primary);background:var(--primary-l)}
+.dep-drop .dd-ic{width:48px;height:48px;border-radius:50%;background:var(--primary-l);color:var(--primary-d);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.dep-drop .dd-ic svg{width:24px;height:24px;stroke:currentColor;fill:none}
+.dep-drop b{display:block;font-size:15px;color:var(--ink);margin-bottom:5px}
+.dep-drop span{font-size:12.5px;color:var(--sub)}
+.dep-files{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.dep-file{display:flex;align-items:center;gap:10px;background:var(--inset);border-radius:10px;padding:9px 12px;font-size:13px}
+.dep-file .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dep-file .dup{font-size:11px;font-weight:700;color:var(--warn-d);background:#FCF3E0;border-radius:6px;padding:2px 7px}
+.dep-file .x{color:var(--sub);font-size:16px;cursor:pointer;padding:0 4px}
+.btn.primary:disabled{background:#C9D6EA;box-shadow:none;cursor:not-allowed}
+.cln-list{display:flex;flex-direction:column;gap:6px;max-height:42vh;overflow:auto;margin-top:12px}
+.cln-item{display:flex;align-items:center;gap:11px;border:1px solid var(--line);border-radius:11px;padding:10px 12px;cursor:pointer}
+.cln-item.on{border-color:var(--primary);background:var(--primary-l)}
+.cln-item input{width:18px;height:18px;accent-color:var(--primary);flex-shrink:0}
+.cln-item .nm{flex:1;min-width:0;font-weight:600;font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cln-item .meta{font-size:11.5px;color:var(--sub);white-space:nowrap}
 .rep-log{display:flex;flex-direction:column;gap:5px;max-height:50vh;overflow:auto;margin-top:6px}
 .rep-logline{font-size:13px;padding:7px 11px;border-radius:9px;background:var(--inset);color:var(--sub2);font-weight:600}
 .rep-logline.ok{background:#EAF6EF;color:#0F9D58}
@@ -361,7 +390,8 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <a data-view="insurance"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10V5l7-2 7 2v6c0 5.5-7 10-7 10z"/><path d="M9 11l2 2 4-4"/></svg></span> 보험</a>
       <a data-view="reports"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z" transform="translate(-1 0)"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></span> 리포트</a>
       <div class="nav-label">도구 (보험)</div>
-      <a href="https://hyunseoung-ko.github.io/toss-reports/dashboard.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h7v7H4z"/><path d="M13 4h7v4h-7z"/><path d="M13 11h7v9h-7z"/><path d="M4 14h7v6H4z"/></svg></span> 리포트 배포·관리</a>
+      <a style="cursor:pointer" onclick="openDeployModal()"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span> 리포트 배포</a>
+      <a style="cursor:pointer" onclick="openCleanupModal()"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg></span> 오래된 링크 정리</a>
       <a href="https://hyunseoung-ko.github.io/toss-reports/CRM_가입설계_입력변환.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4"/><path d="M21 6v12"/></svg></span> CRM 데이터 변환</a>
       <a href="https://hyunseoung-ko.github.io/toss-reports/checklist.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span> 보험 체크리스트 1</a>
       <a href="https://hyunseoung-ko.github.io/toss-reports/checklist2.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span> 보험 체크리스트 2</a>
@@ -1973,14 +2003,16 @@ async function renderReports(){
         <button data-rs="oldest" class="${reportSort==='oldest'?'on':''}">오래된순</button>
         <button data-rs="name" class="${reportSort==='name'?'on':''}">이름순</button>
       </div>
-      <button class="btn primary sm" id="repDeployBtn">🚀 배포·관리 도구 열기</button>
+      <button class="btn ghost sm" id="repCleanBtn">🧹 오래된 링크 정리</button>
+      <button class="btn primary sm" id="repDeployBtn">＋ 새 리포트 배포</button>
     </div>
     <div class="search"><span>🔍</span><input id="repSearch" placeholder="리포트 이름 검색" value="${esc(reportSearch)}"></div>
     <div class="card" style="padding:8px 14px"><div class="list">${rowHtml||'<div class="empty">'+(counts.all?'검색 결과 없음':'아직 배포된 리포트가 없습니다')+'</div>'}</div></div>
   </div>`;
   v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{reportCat=b.dataset.rc;renderReports();});
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{reportSort=b.dataset.rs;renderReports();});
-  $('#repDeployBtn').onclick=()=>openTool(TOSS_BASE+'dashboard.html');
+  $('#repDeployBtn').onclick=openDeployModal;
+  const rcb=$('#repCleanBtn');if(rcb)rcb.onclick=openCleanupModal;
   const s=$('#repSearch');s.oninput=()=>{reportSearch=s.value.trim();const cur=s.selectionStart;renderReports();const ns=$('#repSearch');if(ns){ns.focus();ns.setSelectionRange(cur,cur);}};
 }
 function repConnect(){const t=prompt('toss-reports 접근 토큰(github_pat_...) 붙여넣기\n· 보험 고객 가져오기·리포트 배포에 쓰는 동일 토큰');if(!t)return;localStorage.setItem(TOSS_PAT_KEY,t.trim());reportsLoaded=false;reportsErr='';renderReports();}
@@ -1989,61 +2021,152 @@ function closeRepModal(){$('#repModal').classList.add('hidden');}
 window.repCopy=repCopy;window.closeRepModal=closeRepModal;
 
 /* 배포 모달 — 파일별 카테고리 확인 후 일괄 업로드 */
-async function openReportDeploy(fileList){
-  const files=[...fileList].filter(f=>/\.html?$/i.test(f.name));if(!files.length){toast('HTML 파일을 선택하세요');return;}
-  REP_PENDING=[];
-  for(const f of files){let text='';try{text=await f.text();}catch(e){}REP_PENDING.push({file:f,text,cat:detectRepCat(f.name)});}
-  const card=$('#repModalCard');
-  const opt=(c,sel)=>`<option value="${c}"${sel===c?' selected':''}>${REP_LABEL[c]}</option>`;
-  card.innerHTML=`<button class="modal-x" onclick="closeRepModal()">✕</button>
-    <h3>리포트 배포 (${REP_PENDING.length}건)</h3>
-    <p class="msub">toss-reports에 업로드되고 공유 링크가 생성됩니다. 카테고리를 확인하세요. (OG 미리보기 태그 자동 삽입)</p>
-    <div style="display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto">
-    ${REP_PENDING.map((p,i)=>`<div style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px">
-      <div style="flex:1;min-width:0;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.file.name)}</div>
-      <select class="cat-sel" data-i="${i}" style="padding:8px 10px;border:1px solid var(--line);border-radius:10px;font-size:13px">${opt('analysis',p.cat)}${opt('proposal',p.cat)}${opt('guide',p.cat)}</select>
-    </div>`).join('')}
-    </div>
-    <div class="modal-btns"><button class="btn ghost sm" onclick="closeRepModal()">취소</button><button class="btn primary sm" id="repDoDeploy">배포</button></div>`;
-  card.querySelectorAll('.cat-sel').forEach(s=>s.onchange=()=>{REP_PENDING[+s.dataset.i].cat=s.value;});
-  $('#repDoDeploy').onclick=()=>deployReports();
-  $('#repModal').classList.remove('hidden');
+/* ===== 새 리포트 배포 모달 (원본 디자인 · 앱 내장) ===== */
+let depCat=null, depFiles=[];
+function ensureTossPAT(){
+  if(tossPAT())return true;
+  const t=prompt('toss-reports 접근 토큰(github_pat_...) 붙여넣기\n· 보험 가져오기·리포트에 쓰는 동일 토큰');
+  if(!t)return false;localStorage.setItem(TOSS_PAT_KEY,t.trim());return !!tossPAT();
 }
-async function deployReports(){
-  const card=$('#repModalCard');const items=REP_PENDING;if(!items.length)return;
+const UPLOAD_SVG='<svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>';
+function openDeployModal(){
+  toggleDrawer(false);
+  if(!ensureTossPAT())return;
+  depCat=null;depFiles=[];drawDeployModal();$('#repModal').classList.remove('hidden');
+  if(!reportsLoaded)loadReports().then(()=>{if($('#depDrop'))drawDeployModal();});  // 중복표시용 목록 백그라운드 로드
+}
+function drawDeployModal(){
+  const card=$('#repModalCard');
+  const catBtn=c=>`<button class="dep-cat${depCat===c?' on':''}" data-c="${c}">${REP_LABEL[c]}</button>`;
+  const fileRows=depFiles.map((p,i)=>`<div class="dep-file"><span class="nm">${esc(p.file.name)}</span>${p.dup?'<span class="dup">덮어쓰기</span>':''}<span class="x" data-i="${i}">✕</span></div>`).join('');
+  card.innerHTML=`<button class="modal-x" onclick="closeRepModal()">✕</button>
+    <div class="dep-head"><div class="dep-ic">${UPLOAD_SVG}</div>
+      <div><h3>새 리포트 배포</h3><p class="msub">HTML 파일을 올리면 공유 링크가 생성됩니다</p></div></div>
+    <label class="dep-lbl">카테고리</label>
+    <div class="dep-cats">${catBtn('analysis')}${catBtn('proposal')}${catBtn('guide')}</div>
+    <label class="dep-lbl">리포트 파일</label>
+    <div id="depDrop" class="dep-drop"><div class="dd-ic">${UPLOAD_SVG}</div>
+      <b>HTML 파일을 여기에 끌어다 놓으세요</b><span>또는 클릭하여 파일 선택 · 여러 파일 한 번에 추가 가능</span></div>
+    <div class="dep-files" id="depFilesBox">${fileRows}</div>
+    <div class="modal-btns"><button class="btn ghost sm" onclick="closeRepModal()">취소</button>
+      <button class="btn primary sm" id="depConfirm" ${(depCat&&depFiles.length)?'':'disabled'}>배포하고 링크 생성</button></div>`;
+  card.querySelectorAll('.dep-cat').forEach(b=>b.onclick=()=>{depCat=b.dataset.c;drawDeployModal();});
+  const drop=$('#depDrop');
+  drop.onclick=()=>$('#reportFileInput').click();
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag');};
+  drop.ondragleave=()=>drop.classList.remove('drag');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');depAddFiles(e.dataTransfer.files);};
+  card.querySelectorAll('.dep-file .x').forEach(x=>x.onclick=()=>{depFiles.splice(+x.dataset.i,1);drawDeployModal();});
+  const cf=$('#depConfirm');if(cf)cf.onclick=deployRun;
+}
+async function depAddFiles(fileList){
+  const files=[...fileList].filter(f=>/\.html?$/i.test(f.name));
+  if(!files.length){toast('HTML 파일만 가능합니다');return;}
+  const all=[...(REPORTS.analysis||[]),...(REPORTS.proposal||[]),...(REPORTS.guide||[])];
+  for(const f of files){
+    if(depFiles.some(p=>p.file.name===f.name))continue;
+    let text='';try{text=await f.text();}catch(e){}
+    depFiles.push({file:f,text,dup:all.includes(f.name)});
+    if(!depCat)depCat=detectRepCat(f.name);   // 첫 파일로 카테고리 자동 추정
+  }
+  drawDeployModal();
+}
+async function deployRun(){
+  if(!depCat||!depFiles.length)return;
+  const dups=depFiles.filter(p=>p.dup);
+  if(dups.length&&!confirm('이미 존재하는 파일을 덮어씁니다:\n· '+dups.map(p=>p.file.name).join('\n· ')+'\n계속할까요?'))return;
+  const card=$('#repModalCard');const items=depFiles.slice();const cat=depCat;
   const lines=[];const ok=[];
   const paint=()=>{card.innerHTML=`<h3>배포 중…</h3><div class="rep-log">${lines.map(l=>`<div class="rep-logline ${l[1]}">${esc(l[0])}</div>`).join('')}</div>`;};
-  const log=(m,cls)=>{lines.push([m,cls||'']);paint();};
-  paint();
-  for(const it of items){
-    const fn=it.file.name;
-    try{
-      const html=injectOgTags(it.text,it.cat,fn);
+  const log=(m,cls)=>{lines.push([m,cls||'']);paint();};paint();
+  for(const it of items){const fn=it.file.name;
+    try{const html=injectOgTags(it.text,cat,fn);
       let sha=null;try{const cur=await tossGet(fn);sha=cur&&cur.sha;}catch(e){if(e.status!==404)throw e;}
       await tossPutRetry(fn,utf8ToB64(html),(sha?'report: update ':'report: ')+fn,sha);
-      ok.push({fn,cat:it.cat});log('✓ '+fn+' 업로드','ok');
-    }catch(e){log('✗ '+fn+' — '+(e.message||e),'err');if(e.status===401){localStorage.removeItem(TOSS_PAT_KEY);}}
-  }
+      ok.push(fn);log('✓ '+fn+' 업로드','ok');
+    }catch(e){log('✗ '+fn+' — '+(e.message||e),'err');if(e.status===401)localStorage.removeItem(TOSS_PAT_KEY);}}
   if(ok.length){
     try{const j=await tossGet('reports.json');const d=JSON.parse(b64ToUtf8(j.content));
       d.analysis=d.analysis||[];d.proposal=d.proposal||[];d.guide=d.guide||[];
-      ok.forEach(({fn,cat})=>{if(!d[cat].includes(fn))d[cat].push(fn);});
-      await tossPutRetry('reports.json',utf8ToB64(JSON.stringify(d,null,2)),'reports.json: +'+ok.length,j.sha);
-      log('✓ reports.json 갱신','ok');
+      ok.forEach(fn=>{if(!d[cat].includes(fn))d[cat].push(fn);});
+      await tossPutRetry('reports.json',utf8ToB64(JSON.stringify(d,null,2)),'reports.json: +'+ok.length,j.sha);log('✓ reports.json 갱신','ok');
     }catch(e){log('✗ reports.json — '+(e.message||e),'err');}
     try{const dj=await tossGet('dashboard.html');let dh=b64ToUtf8(dj.content);let ch=0;
-      ok.forEach(({fn,cat})=>{const r=updateReportsArrayInDash(dh,cat,fn);if(!r.skipped){dh=r.html;ch++;}});
+      ok.forEach(fn=>{const r=updateReportsArrayInDash(dh,cat,fn);if(!r.skipped){dh=r.html;ch++;}});
       if(ch)await tossPutRetry('dashboard.html',utf8ToB64(dh),'dashboard: +'+ch,dj.sha);}catch(e){}
   }
-  const linksHtml=ok.map(({fn})=>`<a class="rep-link" href="${escapeAttr(TOSS_BASE+encodeURIComponent(fn))}" target="_blank" rel="noopener">🔗 ${esc(TOSS_BASE+fn)}</a>`).join('');
+  const linksHtml=ok.map(fn=>`<a class="rep-link" href="${escapeAttr(TOSS_BASE+encodeURIComponent(fn))}" target="_blank" rel="noopener">🔗 ${esc(TOSS_BASE+fn)}</a>`).join('');
   card.innerHTML=`<h3>${ok.length?'배포 완료':'배포 실패'} · ${ok.length}/${items.length}건</h3>
     <div class="rep-log">${lines.map(l=>`<div class="rep-logline ${l[1]}">${esc(l[0])}</div>`).join('')}</div>
     ${linksHtml?`<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">${linksHtml}</div>`:''}
     <p class="msub" style="margin-top:10px">공유 링크는 1분 내 반영됩니다.</p>
-    <div class="modal-btns"><button class="btn primary sm" onclick="closeRepModal();reportsLoaded=false;renderReports()">완료</button></div>`;
-  REP_PENDING=[];
+    <div class="modal-btns"><button class="btn primary sm" onclick="closeRepModal();reportsLoaded=false;if(curView==='reports')renderReports()">완료</button></div>`;
+  depFiles=[];depCat=null;
 }
-window.openReportDeploy=openReportDeploy;
+window.openDeployModal=openDeployModal;
+
+/* ===== 오래된 링크 정리 모달 (원본 디자인 · 앱 내장) ===== */
+let clnMonths=6, clnCands=[], clnSel=new Set();
+async function openCleanupModal(){
+  toggleDrawer(false);
+  if(!ensureTossPAT())return;
+  $('#repModalCard').innerHTML='<h3>오래된 링크 정리</h3><p class="msub">불러오는 중…</p>';
+  $('#repModal').classList.remove('hidden');
+  if(!reportsLoaded)await loadReports();
+  if(reportsErr){$('#repModalCard').innerHTML=`<button class="modal-x" onclick="closeRepModal()">✕</button><h3>오래된 링크 정리</h3><p class="msub" style="color:var(--rise)">${esc(reportsErr)}</p>`;return;}
+  clnMonths=6;clnScan();drawCleanup();
+}
+function clnScan(){
+  const cut=new Date();cut.setHours(0,0,0,0);cut.setMonth(cut.getMonth()-clnMonths);
+  clnCands=[];
+  ['analysis','proposal'].forEach(t=>(REPORTS[t]||[]).forEach(f=>{
+    const ds=repExtractDate(f);if(!ds)return;
+    const dt=new Date(+ds.slice(0,4),+ds.slice(4,6)-1,+ds.slice(6,8));
+    if(dt<cut)clnCands.push({file:f,type:t,date:ds});
+  }));
+  clnCands.sort((a,b)=>a.date.localeCompare(b.date));
+  clnSel=new Set(clnCands.map(c=>c.file));
+}
+function drawCleanup(){
+  const card=$('#repModalCard');
+  const pBtn=m=>`<button class="dep-cat${clnMonths===m?' on':''}" data-m="${m}">${m}개월</button>`;
+  const items=clnCands.map(c=>`<label class="cln-item${clnSel.has(c.file)?' on':''}" data-f="${escapeAttr(c.file)}">
+      <input type="checkbox" ${clnSel.has(c.file)?'checked':''}>
+      <span class="nm">${esc(repName(c.file))}</span><span class="meta">${REP_LABEL[c.type]} · ${repFmtDate(c.date)}</span></label>`).join('');
+  card.innerHTML=`<button class="modal-x" onclick="closeRepModal()">✕</button>
+    <h3>오래된 링크 정리</h3>
+    <p class="msub"><b>${clnMonths}개월</b>이 지난 <b>보장분석·보장제안</b> 리포트를 정리합니다 (가이드 제외)</p>
+    <div class="dep-cats">${pBtn(3)}${pBtn(6)}${pBtn(12)}</div>
+    <div class="cln-list">${items||'<div class="empty" style="padding:24px">정리할 대상이 없어요</div>'}</div>
+    <div class="modal-btns"><button class="btn ghost sm" onclick="closeRepModal()">취소</button>
+      <button class="btn primary sm" id="clnDelete" ${clnSel.size?'':'disabled'} style="background:${clnSel.size?'var(--danger)':''}">${clnSel.size}건 삭제</button></div>`;
+  card.querySelectorAll('.dep-cat').forEach(b=>b.onclick=()=>{clnMonths=+b.dataset.m;clnScan();drawCleanup();});
+  card.querySelectorAll('.cln-item').forEach(it=>it.onclick=e=>{e.preventDefault();const f=it.dataset.f;if(clnSel.has(f))clnSel.delete(f);else clnSel.add(f);drawCleanup();});
+  const db=$('#clnDelete');if(db)db.onclick=clnRun;
+}
+async function clnRun(){
+  const files=[...clnSel];if(!files.length)return;
+  if(!confirm(files.length+'건의 리포트를 삭제합니다. 파일·공유링크가 제거됩니다(고객 연결도 해제).\n계속할까요?'))return;
+  const card=$('#repModalCard');const lines=[];const done=[];
+  const paint=()=>{card.innerHTML=`<h3>정리 중…</h3><div class="rep-log">${lines.map(l=>`<div class="rep-logline ${l[1]}">${esc(l[0])}</div>`).join('')}</div>`;};
+  const log=(m,cls)=>{lines.push([m,cls||'']);paint();};paint();
+  for(const f of files){
+    try{let sha=null;try{const cur=await tossGet(f);sha=cur&&cur.sha;}catch(e){if(e.status!==404)throw e;}
+      if(sha)await tossDelete(f,sha,'report: delete '+f);
+      done.push(f);log('✓ '+repName(f)+' 삭제','ok');
+    }catch(e){log('✗ '+repName(f)+' — '+(e.message||e),'err');}
+  }
+  if(done.length){
+    try{const j=await tossGet('reports.json');const d=JSON.parse(b64ToUtf8(j.content));
+      REP_CATS.forEach(c=>{if(Array.isArray(d[c]))d[c]=d[c].filter(x=>!done.includes(x));});
+      await tossPutRetry('reports.json',utf8ToB64(JSON.stringify(d,null,2)),'reports.json: -'+done.length,j.sha);log('✓ reports.json 갱신','ok');
+    }catch(e){log('✗ reports.json — '+(e.message||e),'err');}
+    let changed=false;Object.values(CRM).forEach(cr=>{if(cr.linkIds&&cr.linkIds.some(x=>done.includes(x))){cr.linkIds=cr.linkIds.filter(x=>!done.includes(x));cr.updatedAt=new Date().toISOString();crmPut(cr);changed=true;}});
+    if(changed&&syncOn())syncNow(true);
+  }
+  card.innerHTML+=`<div class="modal-btns"><button class="btn primary sm" onclick="closeRepModal();reportsLoaded=false;if(curView==='reports')renderReports()">완료</button></div>`;
+}
+window.openCleanupModal=openCleanupModal;
 
 /* 리포트 ↔ 고객 연결 모달 */
 let linkReportFile=null,linkReportQuery='';
@@ -2417,7 +2540,7 @@ function bindGlobal(){
   $('#btnSecurity').onclick=doSecurity;
   $('#btnCrmImport').onclick=()=>$('#crmFileInput').click();
   $('#btnInsImport').onclick=migrateInsurance;
-  $('#reportFileInput').onchange=e=>{if(e.target.files.length)openReportDeploy(e.target.files);e.target.value='';};
+  $('#reportFileInput').onchange=e=>{if(e.target.files.length)depAddFiles(e.target.files);e.target.value='';};
   $('#repModal').addEventListener('click',e=>{if(e.target.id==='repModal')closeRepModal();});
   $('#crmFileInput').onchange=e=>{const f=e.target.files[0];if(f)importCrmExcel(f);e.target.value='';};
   $('#btnImport').onclick=()=>$('#importInput').click();
