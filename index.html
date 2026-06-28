@@ -361,9 +361,10 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <a data-view="insurance"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10V5l7-2 7 2v6c0 5.5-7 10-7 10z"/><path d="M9 11l2 2 4-4"/></svg></span> 보험</a>
       <a data-view="reports"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z" transform="translate(-1 0)"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></span> 리포트</a>
       <div class="nav-label">도구 (보험)</div>
-      <a href="https://hyunseoung-ko.github.io/toss-reports/CRM_가입설계_입력변환.html" target="_blank" rel="noopener"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4"/><path d="M21 6v12"/></svg></span> CRM 데이터 변환</a>
-      <a href="https://hyunseoung-ko.github.io/toss-reports/checklist.html" target="_blank" rel="noopener"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span> 보험 체크리스트 1</a>
-      <a href="https://hyunseoung-ko.github.io/toss-reports/checklist2.html" target="_blank" rel="noopener"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span> 보험 체크리스트 2</a>
+      <a href="https://hyunseoung-ko.github.io/toss-reports/dashboard.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h7v7H4z"/><path d="M13 4h7v4h-7z"/><path d="M13 11h7v9h-7z"/><path d="M4 14h7v6H4z"/></svg></span> 리포트 배포·관리</a>
+      <a href="https://hyunseoung-ko.github.io/toss-reports/CRM_가입설계_입력변환.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4"/><path d="M21 6v12"/></svg></span> CRM 데이터 변환</a>
+      <a href="https://hyunseoung-ko.github.io/toss-reports/checklist.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span> 보험 체크리스트 1</a>
+      <a href="https://hyunseoung-ko.github.io/toss-reports/checklist2.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span> 보험 체크리스트 2</a>
     </nav>
     <div class="side-foot">
       <button id="btnSync" class="foot-ic" aria-label="새로고침">
@@ -458,7 +459,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
     </div>
     <div class="cf2">
       <div><label>투자성향 <span style="font-weight:500;color:var(--sub)">· 한투</span></label><select id="cf_risk"><option value="">-</option><option>안정형</option><option>안정추구형</option><option>위험중립형</option><option>적극투자형</option><option>공격투자형</option></select></div>
-      <div><label>보험 관리월 <span style="font-weight:500;color:var(--sub)">· 분기 연락</span></label><select id="cf_anchor"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select></div>
+      <div><label>연락 관리월 <span style="font-weight:500;color:var(--sub)">· 분기(한투·보험 공용)</span></label><select id="cf_anchor"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select></div>
     </div>
     <label>최근접촉일 <span style="font-weight:500;color:var(--sub)">· 한투 분기 연락 기준</span></label><input id="cf_contact" type="date">
     <label>운용상품 보유 <span style="font-weight:500;color:var(--sub)">· 자산자료 자동연결</span></label>
@@ -500,6 +501,10 @@ const eok=v=>{const a=Math.abs(v);if(a>=1e8)return(v/1e8).toFixed(2)+'억';if(a>
 const pct=v=>(v>0?'+':'')+v.toFixed(1)+'%';
 const dnorm=s=>{s=String(s||'').trim();if(!s)return '';const m=s.replace(/[.]/g,'/').match(/(\d{4})\/?(\d{1,2})\/?(\d{1,2})?/);if(!m)return s;return m[1]+'-'+String(m[2]).padStart(2,'0')+(m[3]?'-'+String(m[3]).padStart(2,'0'):'');};
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2200);}
+/* 도구 페이지를 별도 창(팝업)으로 열기 */
+function openTool(url){const w=Math.min(1280,screen.availWidth||1280),h=Math.min(940,screen.availHeight||940);
+  window.open(url,'_blank','noopener,noreferrer,width='+w+',height='+h+',left='+Math.max(0,((screen.availWidth||1280)-w)/2)+',top='+Math.max(0,((screen.availHeight||940)-h)/2));return false;}
+window.openTool=openTool;
 
 /* ---------- IndexedDB ---------- */
 let db;
@@ -813,27 +818,41 @@ function render(){killCharts();
 }
 
 /* ----- HOME ----- */
-/* 오늘 연락할 고객 — 한투 자산영업 + 보험 분기연락 통합 카드 (홈) */
+/* 오늘 연락할 고객 — 고객 기준 통합 리스트 (한투+보험 분기 균등배분) */
+let homeContactQ='';
 function homeContactCard(){
-  const cs=contactStats();                     // 한투
-  const list=insList();                         // 보험
-  let insOver=0,insToday=0,insUp=0,insBdayN=0;
-  if(list.length){const due=insDueThisMonth(list);
-    insOver=due.filter(c=>c._st==='overdue').length;insToday=due.filter(c=>c._st==='today').length;insUp=due.filter(c=>c._st==='upcoming').length;
-    list.forEach(c=>{const b=insBday(c);if(b&&b.days<=7)insBdayN++;});}
-  if(!cs.total&&!list.length)return '';
-  const totDue=cs.due+insOver,totToday=cs.today+insToday;
-  const krow=cs.total?`<div class="row" id="hcKis"><div><div class="nm">🏦 한투 자산영업 <small>${cs.total}명</small></div>
-      <div class="tags"><span class="tag" style="color:#E0344B;background:#FDECEE">밀림 ${cs.due}</span><span class="tag" style="color:#C98A0B;background:#FCF3E0">오늘 ${cs.today}</span><span class="tag">예정 ${cs.upcoming}</span></div></div><span class="chev">›</span></div>`:'';
-  const irow=list.length?`<div class="row" id="hcIns"><div><div class="nm">🛡️ 보험 분기연락 <small>${list.length}명</small></div>
-      <div class="tags"><span class="tag" style="color:#E0344B;background:#FDECEE">밀림 ${insOver}</span><span class="tag" style="color:#C98A0B;background:#FCF3E0">오늘 ${insToday}</span><span class="tag">예정 ${insUp}</span>${insBdayN?`<span class="tag" style="color:#C98A0B;background:#FCF3E0">생일 ${insBdayN}</span>`:''}</div></div><span class="chev">›</span></div>`:'';
-  return `<div class="card"><h3>📞 오늘 연락할 고객<span class="meta">한투 + 보험 통합</span></h3>
-    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:baseline;padding:4px 2px 12px;border-bottom:1px solid var(--line2);margin-bottom:8px">
-      <div><span style="font-size:28px;font-weight:800;color:#E0344B">${totDue}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
-      <div><span style="font-size:28px;font-weight:800;color:#C98A0B">${totToday}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
-      ${insBdayN?`<div><span style="font-size:28px;font-weight:800;color:var(--primary)">${insBdayN}</span><span style="color:var(--sub);margin-left:5px">명 생일임박</span></div>`:''}
+  if(!Object.keys(CRM).length)return '';
+  const due=unifiedDue();
+  const over=due.filter(c=>c._st==='overdue'),tod=due.filter(c=>c._st==='today'),up=due.filter(c=>c._st==='upcoming'),done=due.filter(c=>c._st==='done');
+  let list=[...over.sort((a,b)=>a._dateIso.localeCompare(b._dateIso)),...tod];
+  const q=homeContactQ.trim().toLowerCase();
+  if(q)list=due.filter(c=>c.name.toLowerCase().includes(q)||String((c.crm&&c.crm.phone)||'').includes(q));
+  const shown=list.slice(0,15);
+  return `<div class="card"><h3>📞 오늘 연락할 고객<span class="meta">고객 기준 · 분기 1회 · 한투+보험 통합</span></h3>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;padding:4px 2px 12px;border-bottom:1px solid var(--line2);margin-bottom:8px">
+      <div><span style="font-size:28px;font-weight:800;color:#E0344B">${over.length}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
+      <div><span style="font-size:28px;font-weight:800;color:#C98A0B">${tod.length}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
+      <div><span style="font-size:28px;font-weight:800;color:var(--sub2)">${up.length}</span><span style="color:var(--sub);margin-left:5px">명 예정</span></div>
+      <div><span style="font-size:28px;font-weight:800;color:var(--ok-d)">${done.length}</span><span style="color:var(--sub);margin-left:5px">명 완료</span></div>
     </div>
-    <div class="list">${krow}${irow}</div></div>`;
+    <div class="search" style="margin-bottom:10px"><span>🔍</span><input id="hcSearch" placeholder="이름 · 연락처 검색" value="${esc(homeContactQ)}"></div>
+    <div class="list" id="hcList">${shown.map(unifiedRow).join('')||`<div class="empty" style="padding:20px">${q?'검색 결과 없음':'오늘·밀린 연락 대상이 없어요'}</div>`}</div>
+    <div id="hcMore" style="text-align:center;padding:8px;color:var(--sub);font-size:12.5px">${list.length>shown.length?'외 '+(list.length-shown.length)+'명 더 있음':''}</div></div>`;
+}
+/* 홈 연락 카드의 검색·행 클릭 바인딩 (홈 두 분기 공용) */
+function bindHomeContact(){
+  const hs=$('#hcSearch');if(!hs)return;
+  const rebind=()=>$('#hcList').querySelectorAll('.row[data-name]').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
+  rebind();
+  hs.oninput=()=>{homeContactQ=hs.value;const cur=hs.selectionStart;
+    const due=unifiedDue();const over=due.filter(c=>c._st==='overdue'),tod=due.filter(c=>c._st==='today');
+    let list=[...over.sort((a,b)=>a._dateIso.localeCompare(b._dateIso)),...tod];
+    const q=homeContactQ.trim().toLowerCase();if(q)list=due.filter(c=>c.name.toLowerCase().includes(q)||String((c.crm&&c.crm.phone)||'').includes(q));
+    const shown=list.slice(0,15);
+    $('#hcList').innerHTML=shown.map(unifiedRow).join('')||`<div class="empty" style="padding:20px">${q?'검색 결과 없음':'대상 없음'}</div>`;
+    $('#hcMore').textContent=list.length>shown.length?'외 '+(list.length-shown.length)+'명 더 있음':'';
+    rebind();const n=$('#hcSearch');if(n){n.focus();n.setSelectionRange(cur,cur);}
+  };
 }
 function renderHome(){
   const snap=latest();
@@ -860,8 +879,7 @@ function renderHome(){
     html+=homeContactCard()+`</div>`;
     v.innerHTML=html;bindUpload();bindCollapsers(v);
     const ei=$('#emptyImport');if(ei)ei.onclick=()=>$('#importInput').click();
-    const hk=$('#hcKis');if(hk)hk.onclick=()=>{stratTab='contact';setView('strategy');};
-    const hi=$('#hcIns');if(hi)hi.onclick=()=>setView('insurance');
+    bindHomeContact();
     return;}
 
   const t=snap.totals;
@@ -905,8 +923,7 @@ function renderHome(){
   drawBar('cBranch',t.branches,'#3182F6');
   drawBar('cPB',t.pbs,'#16b5d0');
   v.querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
-  const hk=$('#hcKis');if(hk)hk.onclick=()=>{stratTab='contact';setView('strategy');};
-  const hi=$('#hcIns');if(hi)hi.onclick=()=>setView('insurance');
+  bindHomeContact();
 }
 
 /* 투자성향 색상 코딩 (토스 디자인 위험도 순) */
@@ -1657,7 +1674,7 @@ function addMonths(d,n){const p=d.split('-');const dt=new Date(+p[0],+p[1]-1+n,+
    토스 customers.html 로직 포팅 → 통합 CRM(channels '보험') 기반
    완료 여부는 crm.history(연락일 배열)로 판정, 동기화에 함께 실림
    ========================================================= */
-let insTab='today';
+let insTab='today',insQ='';
 const INS_HOLIDAYS=new Set(['2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-02','2026-05-05','2026-05-25','2026-06-06','2026-08-15','2026-08-17','2026-09-24','2026-09-25','2026-09-28','2026-10-05','2026-10-09','2026-12-25']);
 const insPad=n=>String(n).padStart(2,'0');
 const insIso=d=>`${d.getFullYear()}-${insPad(d.getMonth()+1)}-${insPad(d.getDate())}`;
@@ -1715,6 +1732,49 @@ async function insUndo(name){
   if(syncOn())syncNow(true);renderInsurance();
 }
 window.insMarkDone=insMarkDone;window.insUndo=insUndo;
+
+/* ===== 통합 연락 (한투+보험 · 고객 기준 · 분기 1회 균등배분) =====
+   모든 CRM 고객을 분기(3개월) 1회 연락 대상으로 보고, 관리월(없으면 자동배분)로
+   영업일에 고르게 배치. 완료는 history/lastContact 공용. 채널 무관 고객 기준 표시. */
+function effAnchor(c){
+  if(c&&c.crm&&c.crm.anchorMonth)return c.crm.anchorMonth;
+  let h=0;const n=(c&&c.name)||'';for(let i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))>>>0;
+  return (h%12)+1;   // 관리월 미지정 고객 자동 균등배분(이름 기반·안정)
+}
+function unifiedLastContact(c){const a=insLastContact(c)||'',b=(c.crm&&c.crm.lastContact)||'';return a>b?a:b;}
+function unifiedDue(){
+  const NOW=new Date();NOW.setHours(0,0,0,0);
+  const TY=NOW.getFullYear(),TM=NOW.getMonth()+1,TODAY=insIso(NOW),monthFirst=`${TY}-${insPad(TM)}-01`;
+  const all=Object.values(curCustomers()).filter(c=>c.crm);
+  const due=all.filter(c=>(effAnchor(c)%3)===(TM%3));
+  due.sort((a,b)=>effAnchor(a)-effAnchor(b)||a.name.localeCompare(b.name,'ko'));
+  const bd=insBizDaysOfMonth(TY,TM),N=due.length;
+  due.forEach((c,i)=>{
+    const di=N<=1?0:Math.min(bd.length-1,Math.floor(i*bd.length/N));
+    c._day=bd[di];c._dateIso=insIso(new Date(TY,TM-1,c._day));
+    const lc=unifiedLastContact(c);c._doneCycle=lc&&lc>=monthFirst;
+    c._st=c._doneCycle?'done':c._dateIso<TODAY?'overdue':c._dateIso===TODAY?'today':'upcoming';
+  });
+  return due;
+}
+async function contactDone(name){
+  const cr=CRM[name];if(!cr)return;const t=todayStr();
+  cr.history=cr.history||[];if(!cr.history.includes(t))cr.history.push(t);
+  cr.lastContact=t;cr.updatedAt=new Date().toISOString();
+  await crmPut(cr);CRM[name]=cr;toast(name+' · 연락완료 '+t);
+  if(syncOn())syncNow(true);render();
+}
+window.contactDone=contactDone;
+function unifiedRow(c){
+  const m={overdue:['#E0344B','#FDECEE','밀림'],today:['#1B64DA','#EBF2FE','오늘'],upcoming:['#4E5968','#EDEFF2',c._day+'일 예정'],done:['#0F9D58','#E5F8EE','완료']}[c._st];
+  const ph=(c.crm&&c.crm.phone)||'';
+  const act=c._st==='done'?`<button class="btn ghost sm" onclick="event.stopPropagation();contactDone('${esc(c.name)}')" title="다시 표시">완료됨</button>`
+    :`${ph?`<a class="btn ghost sm" href="tel:${esc(ph)}" onclick="event.stopPropagation()">📞</a>`:''}<button class="btn primary sm" onclick="event.stopPropagation();contactDone('${esc(c.name)}')">✓ 완료</button>`;
+  return `<div class="row" data-name="${esc(c.name)}"><div style="min-width:0">
+    <div class="nm">${esc(c.name)} <span class="tag" style="color:${m[0]};background:${m[1]};font-weight:700">${m[2]}</span></div>
+    <div class="tags">${chBadges(c)}<span class="tag">관리 ${effAnchor(c)}월</span>${c.totalEval>0?`<span class="tag">${eok(c.totalEval)}</span>`:''}${ph?`<span class="tag">${esc(ph)}</span>`:''}</div></div>
+    <div class="right" style="display:flex;gap:6px;align-items:center">${act}</div><span class="chev">›</span></div>`;
+}
 const telA=p=>'tel:'+String(p||'').replace(/[^0-9]/g,'');
 const smsA=p=>'sms:'+String(p||'').replace(/[^0-9]/g,'');
 function insContactRow(c){
@@ -1777,9 +1837,14 @@ function renderInsurance(){
       <button data-t="today" class="${insTab==='today'?'on':''}">오늘 연락 ${over.length+tod.length?'· '+(over.length+tod.length):''}</button>
       <button data-t="bday" class="${insTab==='bday'?'on':''}">생일 ${bToday.length+bSoon.length?'· '+(bToday.length+bSoon.length):''}</button>
     </div></div>
+    <div class="search" style="margin-bottom:14px"><span>🔍</span><input id="insSearch" placeholder="보험 고객 이름 검색" value="${esc(insQ)}"></div>
     ${body}</div>`;
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{insTab=b.dataset.t;renderInsurance();});
   v.querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
+  const isq=$('#insSearch');
+  const filterIns=()=>{const q=(isq.value||'').trim().toLowerCase();
+    v.querySelectorAll('.list .row').forEach(r=>{const nm=(r.dataset.name||'').toLowerCase();r.style.display=(!q||nm.includes(q))?'':'none';});};
+  if(isq){isq.oninput=()=>{insQ=isq.value;filterIns();};if(insQ)filterIns();}
 }
 
 /* =========================================================
@@ -1909,14 +1974,14 @@ async function renderReports(){
         <button data-rs="oldest" class="${reportSort==='oldest'?'on':''}">오래된순</button>
         <button data-rs="name" class="${reportSort==='name'?'on':''}">이름순</button>
       </div>
-      <button class="btn primary sm" id="repDeployBtn">＋ 리포트 배포</button>
+      <button class="btn primary sm" id="repDeployBtn">🚀 배포·관리 도구 열기</button>
     </div>
     <div class="search"><span>🔍</span><input id="repSearch" placeholder="리포트 이름 검색" value="${esc(reportSearch)}"></div>
     <div class="card" style="padding:8px 14px"><div class="list">${rowHtml||'<div class="empty">'+(counts.all?'검색 결과 없음':'아직 배포된 리포트가 없습니다')+'</div>'}</div></div>
   </div>`;
   v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{reportCat=b.dataset.rc;renderReports();});
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{reportSort=b.dataset.rs;renderReports();});
-  $('#repDeployBtn').onclick=()=>$('#reportFileInput').click();
+  $('#repDeployBtn').onclick=()=>openTool(TOSS_BASE+'dashboard.html');
   const s=$('#repSearch');s.oninput=()=>{reportSearch=s.value.trim();const cur=s.selectionStart;renderReports();const ns=$('#repSearch');if(ns){ns.focus();ns.setSelectionRange(cur,cur);}};
 }
 function repConnect(){const t=prompt('toss-reports 접근 토큰(github_pat_...) 붙여넣기\n· 보험 고객 가져오기·리포트 배포에 쓰는 동일 토큰');if(!t)return;localStorage.setItem(TOSS_PAT_KEY,t.trim());reportsLoaded=false;reportsErr='';renderReports();}
