@@ -317,12 +317,13 @@ html.m .page-title{font-size:19px}
 html.m .sim .two{grid-template-columns:1fr}
 html.m .cf2{grid-template-columns:1fr}
 html.m .crmgrid{grid-template-columns:1fr}
-html.m #bottomNav{display:flex;justify-content:center;gap:8px;position:fixed;left:0;right:0;bottom:0;min-height:74px;background:#fff;border-top:1px solid var(--line);z-index:55;padding-bottom:env(safe-area-inset-bottom);transition:transform .26s ease}
+html.m #bottomNav{display:flex;justify-content:space-around;gap:2px;position:fixed;left:0;right:0;bottom:0;min-height:64px;background:#fff;border-top:1px solid var(--line);z-index:55;padding:0 4px env(safe-area-inset-bottom);transition:transform .26s ease}
 html.m #bottomNav.hide{transform:translateY(110%)}
-html.m #bottomNav a{position:relative;flex:0 0 auto;width:62px;display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--sub);border-radius:14px;transition:.12s}
-html.m #bottomNav a svg{width:24px;height:24px}
+html.m #bottomNav a{position:relative;flex:1 1 0;min-width:0;max-width:80px;height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;color:var(--sub);font-size:10px;font-weight:600;border-radius:12px;transition:.12s}
+html.m #bottomNav a svg{width:22px;height:22px}
+html.m #bottomNav a .bnl{line-height:1}
 html.m #bottomNav a.active{color:var(--primary)}
-html.m #bottomNav a.active::after{content:"";position:absolute;bottom:9px;width:5px;height:5px;border-radius:50%;background:var(--primary)}
+html.m #bottomNav a.active .bnl{font-weight:800}
 html.m #bottomNav a:active{background:var(--bg)}
 html.m .seg{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;scrollbar-width:none}
 html.m .seg::-webkit-scrollbar{display:none}
@@ -359,6 +360,10 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <a data-view="strategy"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg></span> 영업</a>
       <a data-view="insurance"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10V5l7-2 7 2v6c0 5.5-7 10-7 10z"/><path d="M9 11l2 2 4-4"/></svg></span> 보험</a>
       <a data-view="reports"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z" transform="translate(-1 0)"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></span> 리포트</a>
+      <div class="nav-label">도구 (보험)</div>
+      <a href="https://hyunseoung-ko.github.io/toss-reports/CRM_가입설계_입력변환.html" target="_blank" rel="noopener"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4"/><path d="M21 6v12"/></svg></span> CRM 데이터 변환</a>
+      <a href="https://hyunseoung-ko.github.io/toss-reports/checklist.html" target="_blank" rel="noopener"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span> 보험 체크리스트 1</a>
+      <a href="https://hyunseoung-ko.github.io/toss-reports/checklist2.html" target="_blank" rel="noopener"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span> 보험 체크리스트 2</a>
     </nav>
     <div class="side-foot">
       <button id="btnSync" class="foot-ic" aria-label="새로고침">
@@ -395,12 +400,12 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
   </div>
 
   <nav id="bottomNav" aria-label="메인 메뉴">
-    <a data-view="home" class="active" aria-label="홈"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7"/><path d="M5 9.5V20h14V9.5"/></svg></a>
-    <a data-view="clients" aria-label="고객"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3.2 2.8-5 5.5-5s5.1 1.8 5.5 5"/><path d="M16 6.6a3 3 0 0 1 0 5.5"/><path d="M17.6 19c-.2-2-1-3.5-2.2-4.4"/></svg></a>
-    <a data-view="assets" aria-label="자산"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg></a>
-    <a data-view="strategy" aria-label="영업"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg></a>
-    <a data-view="insurance" aria-label="보험"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10V5l7-2 7 2v6c0 5.5-7 10-7 10z"/><path d="M9 11l2 2 4-4"/></svg></a>
-    <a data-view="reports" aria-label="리포트"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h6l5 5v13H7z"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></a>
+    <a data-view="home" class="active" aria-label="홈"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7"/><path d="M5 9.5V20h14V9.5"/></svg><span class="bnl">홈</span></a>
+    <a data-view="clients" aria-label="고객"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3.2 2.8-5 5.5-5s5.1 1.8 5.5 5"/><path d="M16 6.6a3 3 0 0 1 0 5.5"/><path d="M17.6 19c-.2-2-1-3.5-2.2-4.4"/></svg><span class="bnl">고객</span></a>
+    <a data-view="assets" aria-label="자산"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg><span class="bnl">자산</span></a>
+    <a data-view="strategy" aria-label="영업"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg><span class="bnl">영업</span></a>
+    <a data-view="insurance" aria-label="보험"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10V5l7-2 7 2v6c0 5.5-7 10-7 10z"/><path d="M9 11l2 2 4-4"/></svg><span class="bnl">보험</span></a>
+    <a data-view="reports" aria-label="리포트"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h6l5 5v13H7z"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><span class="bnl">리포트</span></a>
   </nav>
 </div>
 
@@ -808,19 +813,27 @@ function render(){killCharts();
 }
 
 /* ----- HOME ----- */
-/* 보험 분기 연락 요약 카드 (홈) — 보험 고객 있을 때만 */
-function homeInsCard(){
-  const list=insList();if(!list.length)return '';
-  const due=insDueThisMonth(list);
-  const over=due.filter(c=>c._st==='overdue').length,tod=due.filter(c=>c._st==='today').length;
-  let bSoon=0;list.forEach(c=>{const b=insBday(c);if(b&&b.days<=7)bSoon++;});
-  return `<div class="card" id="homeIns" style="cursor:pointer">
-    <h3>🛡️ 보험 분기 연락<span class="meta">보험 고객 ${list.length}명 · 클릭 시 보험</span></h3>
-    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;padding:4px 2px">
-      <div><span style="font-size:26px;font-weight:800;color:#E0344B">${over}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
-      <div><span style="font-size:26px;font-weight:800;color:var(--primary)">${tod}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
-      <div><span style="font-size:26px;font-weight:800;color:#C98A0B">${bSoon}</span><span style="color:var(--sub);margin-left:5px">명 생일임박</span></div>
-    </div></div>`;
+/* 오늘 연락할 고객 — 한투 자산영업 + 보험 분기연락 통합 카드 (홈) */
+function homeContactCard(){
+  const cs=contactStats();                     // 한투
+  const list=insList();                         // 보험
+  let insOver=0,insToday=0,insUp=0,insBdayN=0;
+  if(list.length){const due=insDueThisMonth(list);
+    insOver=due.filter(c=>c._st==='overdue').length;insToday=due.filter(c=>c._st==='today').length;insUp=due.filter(c=>c._st==='upcoming').length;
+    list.forEach(c=>{const b=insBday(c);if(b&&b.days<=7)insBdayN++;});}
+  if(!cs.total&&!list.length)return '';
+  const totDue=cs.due+insOver,totToday=cs.today+insToday;
+  const krow=cs.total?`<div class="row" id="hcKis"><div><div class="nm">🏦 한투 자산영업 <small>${cs.total}명</small></div>
+      <div class="tags"><span class="tag" style="color:#E0344B;background:#FDECEE">밀림 ${cs.due}</span><span class="tag" style="color:#C98A0B;background:#FCF3E0">오늘 ${cs.today}</span><span class="tag">예정 ${cs.upcoming}</span></div></div><span class="chev">›</span></div>`:'';
+  const irow=list.length?`<div class="row" id="hcIns"><div><div class="nm">🛡️ 보험 분기연락 <small>${list.length}명</small></div>
+      <div class="tags"><span class="tag" style="color:#E0344B;background:#FDECEE">밀림 ${insOver}</span><span class="tag" style="color:#C98A0B;background:#FCF3E0">오늘 ${insToday}</span><span class="tag">예정 ${insUp}</span>${insBdayN?`<span class="tag" style="color:#C98A0B;background:#FCF3E0">생일 ${insBdayN}</span>`:''}</div></div><span class="chev">›</span></div>`:'';
+  return `<div class="card"><h3>📞 오늘 연락할 고객<span class="meta">한투 + 보험 통합</span></h3>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:baseline;padding:4px 2px 12px;border-bottom:1px solid var(--line2);margin-bottom:8px">
+      <div><span style="font-size:28px;font-weight:800;color:#E0344B">${totDue}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
+      <div><span style="font-size:28px;font-weight:800;color:#C98A0B">${totToday}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
+      ${insBdayN?`<div><span style="font-size:28px;font-weight:800;color:var(--primary)">${insBdayN}</span><span style="color:var(--sub);margin-left:5px">명 생일임박</span></div>`:''}
+    </div>
+    <div class="list">${krow}${irow}</div></div>`;
 }
 function renderHome(){
   const snap=latest();
@@ -844,10 +857,11 @@ function renderHome(){
   if(!snap){html+=`<div class="card empty"><div class="big">📥</div><b>아직 데이터가 없습니다</b>
     <p style="margin:10px 0 16px;color:var(--sub);font-size:13.5px;line-height:1.6">위에서 엑셀을 올리거나, PC에서 쓰던 데이터는<br><b style="color:var(--ink)">백업 파일(JSON)</b>을 불러오세요.<br><span style="font-size:12.5px">※ 데이터는 기기마다 따로 저장됩니다 (PC ↔ 휴대폰 별도)</span></p>
     <button class="btn primary" id="emptyImport">⬆ 백업 불러오기</button></div>`;
-    html+=homeInsCard()+`</div>`;
+    html+=homeContactCard()+`</div>`;
     v.innerHTML=html;bindUpload();bindCollapsers(v);
     const ei=$('#emptyImport');if(ei)ei.onclick=()=>$('#importInput').click();
-    const hi=$('#homeIns');if(hi)hi.onclick=()=>setView('insurance');
+    const hk=$('#hcKis');if(hk)hk.onclick=()=>{stratTab='contact';setView('strategy');};
+    const hi=$('#hcIns');if(hi)hi.onclick=()=>setView('insurance');
     return;}
 
   const t=snap.totals;
@@ -861,18 +875,8 @@ function renderHome(){
       <div class="delta ${t.profit>=0?'up':'down'}">수익률 ${(t.principal>0?t.profit/t.principal*100:0).toFixed(1)}%${(()=>{const a=annualize(t.principal>0?t.profit/t.principal*100:0,snapYears(snap));return a!=null?` · 연환산 ${(a>=0?'+':'')+a.toFixed(1)}%`:'';})()}</div></div>
   </div>`;
 
-  // 오늘 연락할 고객 요약 (CRM 보유 고객 · 90일 주기)
-  const cs=contactStats();
-  if(cs.total>0){
-    html+=`<div class="card" id="homeContact" style="cursor:pointer">
-      <h3>📞 오늘 연락할 고객<span class="meta">${CONTACT_START} 시작 · ${CONTACT_CYCLE_DAYS}일 분산 · 클릭 시 영업</span></h3>
-      <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;padding:4px 2px">
-        <div><span style="font-size:26px;font-weight:800;color:#E0344B">${cs.due}</span><span style="color:var(--sub);margin-left:5px">명 기간 지남</span></div>
-        <div><span style="font-size:26px;font-weight:800;color:#C98A0B">${cs.today}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
-        <div><span style="font-size:26px;font-weight:800;color:var(--sub2)">${cs.upcoming}</span><span style="color:var(--sub);margin-left:5px">명 예정</span></div>
-      </div></div>`;
-  }
-  html+=homeInsCard();
+  // 오늘 연락할 고객 — 한투+보험 통합 카드
+  html+=homeContactCard();
 
   // pie + trend
   html+=`<div class="grid2">
@@ -901,8 +905,8 @@ function renderHome(){
   drawBar('cBranch',t.branches,'#3182F6');
   drawBar('cPB',t.pbs,'#16b5d0');
   v.querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
-  const hc=$('#homeContact');if(hc)hc.onclick=()=>{stratTab='contact';setView('strategy');};
-  const hi=$('#homeIns');if(hi)hi.onclick=()=>setView('insurance');
+  const hk=$('#hcKis');if(hk)hk.onclick=()=>{stratTab='contact';setView('strategy');};
+  const hi=$('#hcIns');if(hi)hi.onclick=()=>setView('insurance');
 }
 
 /* 투자성향 색상 코딩 (토스 디자인 위험도 순) */
@@ -1840,10 +1844,22 @@ function repStatus(file,type){if(type==='guide')return['var(--ok)','게시중'];
 function linkedCustomersFor(file){return Object.values(CRM).filter(cr=>(cr.linkIds||[]).includes(file)).map(cr=>cr.name);}
 function reportsForCustomer(name){const cr=CRM[name];return cr&&cr.linkIds?cr.linkIds.slice():[];}
 
+/* repo 루트가 아닌 실제 배포 리포트가 아닌 시스템/도구 파일 */
+const REP_EXCLUDE=new Set(['dashboard.html','customers.html','checklist.html','checklist2.html','CRM_가입설계_입력변환.html','test.html','index.html']);
 async function loadReports(){
   reportsErr='';
-  try{const j=await tossGet('reports.json');const d=JSON.parse(b64ToUtf8(j.content));
-    REPORTS={analysis:d.analysis||[],proposal:d.proposal||[],guide:d.guide||[]};reportsLoaded=true;}
+  try{
+    // 1) toss-reports 루트의 실제 HTML 파일 = 배포된 리포트 전체(완전한 목록)
+    const listing=await tossApi('?ref='+TOSS_BRANCH+'&t='+Date.now());
+    const files=(Array.isArray(listing)?listing:[]).filter(x=>x&&x.type==='file'&&/\.html?$/i.test(x.name)&&!REP_EXCLUDE.has(x.name)).map(x=>x.name);
+    // 2) reports.json 카테고리 힌트(있으면 우선, 없으면 파일명으로 자동 분류)
+    const hint={};
+    try{const j=await tossGet('reports.json');const d=JSON.parse(b64ToUtf8(j.content));
+      REP_CATS.forEach(c=>(d[c]||[]).forEach(f=>{hint[f]=c;}));}catch(e){}
+    const R={analysis:[],proposal:[],guide:[]};
+    files.forEach(f=>{const c=hint[f]||detectRepCat(f);(R[c]||R.analysis).push(f);});
+    REPORTS=R;reportsLoaded=true;
+  }
   catch(e){reportsErr=(e.status===401||e.status===403)?'토큰 권한이 없습니다 — 다시 연결하세요':(e.message||'불러오기 실패');reportsLoaded=false;}
 }
 function repTokenCard(extra){
