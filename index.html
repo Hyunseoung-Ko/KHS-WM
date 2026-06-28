@@ -2105,8 +2105,8 @@ async function deployRun(){
 }
 window.openDeployModal=openDeployModal;
 
-/* ===== 오래된 링크 정리 모달 (원본 디자인 · 앱 내장) ===== */
-let clnMonths=6, clnCands=[], clnSel=new Set();
+/* ===== 오래된 링크 정리 모달 (원본 디자인 · 기간정리 + 지정삭제 2모드) ===== */
+let clnMode='period', clnMonths=6, clnManualType='analysis', clnManualQ='', clnCands=[], clnSel=new Set(), clnConfirm=false;
 async function openCleanupModal(){
   toggleDrawer(false);
   if(!ensureTossPAT())return;
@@ -2114,9 +2114,11 @@ async function openCleanupModal(){
   $('#repModal').classList.remove('hidden');
   if(!reportsLoaded)await loadReports();
   if(reportsErr){$('#repModalCard').innerHTML=`<button class="modal-x" onclick="closeRepModal()">✕</button><h3>오래된 링크 정리</h3><p class="msub" style="color:var(--rise)">${esc(reportsErr)}</p>`;return;}
-  clnMonths=6;clnScan();drawCleanup();
+  clnMode='period';clnMonths=6;clnManualType='analysis';clnManualQ='';clnConfirm=false;
+  clnPeriodScan();clnSel=new Set(clnCands.map(c=>c.file));drawCleanup();
 }
-function clnScan(){
+/* 기간 정리: 보장분석·보장제안 중 N개월 지난 것 */
+function clnPeriodScan(){
   const cut=new Date();cut.setHours(0,0,0,0);cut.setMonth(cut.getMonth()-clnMonths);
   clnCands=[];
   ['analysis','proposal'].forEach(t=>(REPORTS[t]||[]).forEach(f=>{
@@ -2125,28 +2127,65 @@ function clnScan(){
     if(dt<cut)clnCands.push({file:f,type:t,date:ds});
   }));
   clnCands.sort((a,b)=>a.date.localeCompare(b.date));
-  clnSel=new Set(clnCands.map(c=>c.file));
+}
+/* 지정 삭제: 선택 카테고리 전체에서 이름 검색 */
+function clnManualItems(){
+  const q=clnManualQ.trim().toLowerCase();
+  return (REPORTS[clnManualType]||[]).map(f=>({file:f,type:clnManualType,date:repExtractDate(f)}))
+    .filter(c=>!q||repName(c.file).toLowerCase().includes(q))
+    .sort((a,b)=>(b.date||'').localeCompare(a.date||'')||repName(a.file).localeCompare(repName(b.file),'ko'));
 }
 function drawCleanup(){
   const card=$('#repModalCard');
-  const pBtn=m=>`<button class="dep-cat${clnMonths===m?' on':''}" data-m="${m}">${m}개월</button>`;
-  const items=clnCands.map(c=>`<label class="cln-item${clnSel.has(c.file)?' on':''}" data-f="${escapeAttr(c.file)}">
+  const list=clnMode==='period'?clnCands:clnManualItems();
+  const seg=`<div class="seg" style="margin-bottom:14px">
+    <button class="${clnMode==='period'?'on':''}" data-md="period">기간 정리</button>
+    <button class="${clnMode==='manual'?'on':''}" data-md="manual">지정 삭제</button></div>`;
+  let body='';
+  if(clnMode==='period'){
+    const pBtn=m=>`<button class="dep-cat${clnMonths===m?' on':''}" data-m="${m}">${m}개월</button>`;
+    body=`<div class="dep-lbl">유지 기간 (오늘 기준)</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <div class="dep-cats" style="flex:1">${pBtn(3)}${pBtn(6)}${pBtn(12)}</div>
+        <input id="clnMonthsInput" type="number" min="1" max="120" value="${clnMonths}" style="width:64px;padding:11px 8px;border:1px solid var(--line);border-radius:10px;text-align:center;font-size:14px">
+        <span style="color:var(--sub);font-size:13px">개월</span></div>
+      <p class="msub" style="margin:0 0 4px"><b>${clnMonths}개월</b> 지난 보장분석·보장제안 ${clnCands.length}건 (가이드 제외)</p>`;
+  }else{
+    const cBtn=t=>`<button class="dep-cat${clnManualType===t?' on':''}" data-mt="${t}">${REP_LABEL[t]}</button>`;
+    body=`<div class="dep-lbl">카테고리</div><div class="dep-cats">${cBtn('analysis')}${cBtn('proposal')}${cBtn('guide')}</div>
+      <div class="search" style="margin:10px 0 2px"><span>🔍</span><input id="clnManualSearch" placeholder="이름 검색" value="${esc(clnManualQ)}"></div>`;
+  }
+  const allSel=list.length>0&&list.every(c=>clnSel.has(c.file));
+  const items=list.map(c=>`<label class="cln-item${clnSel.has(c.file)?' on':''}" data-f="${escapeAttr(c.file)}">
       <input type="checkbox" ${clnSel.has(c.file)?'checked':''}>
-      <span class="nm">${esc(repName(c.file))}</span><span class="meta">${REP_LABEL[c.type]} · ${repFmtDate(c.date)}</span></label>`).join('');
+      <span class="nm">${esc(repName(c.file))}</span><span class="meta">${REP_LABEL[c.type]}${c.date?' · '+repFmtDate(c.date):''}</span></label>`).join('');
+  const canDelete=clnSel.size&&clnConfirm;
   card.innerHTML=`<button class="modal-x" onclick="closeRepModal()">✕</button>
-    <h3>오래된 링크 정리</h3>
-    <p class="msub"><b>${clnMonths}개월</b>이 지난 <b>보장분석·보장제안</b> 리포트를 정리합니다 (가이드 제외)</p>
-    <div class="dep-cats">${pBtn(3)}${pBtn(6)}${pBtn(12)}</div>
-    <div class="cln-list">${items||'<div class="empty" style="padding:24px">정리할 대상이 없어요</div>'}</div>
+    <h3>오래된 링크 정리</h3><p class="msub">기준일보다 오래된 배포 링크를 삭제합니다</p>
+    ${seg}${body}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:8px 2px 4px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="clnAll" ${allSel?'checked':''} style="width:16px;height:16px;accent-color:var(--primary)">전체 선택</label>
+      <span style="font-size:12.5px;color:var(--sub)">${clnSel.size}건 선택 / ${list.length}건</span></div>
+    <div class="cln-list">${items||'<div class="empty" style="padding:24px">대상이 없어요</div>'}</div>
+    <label style="display:flex;align-items:center;gap:8px;margin:14px 2px 4px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--danger)"><input type="checkbox" id="clnConfirmChk" ${clnConfirm?'checked':''} style="width:18px;height:18px;accent-color:var(--danger)">위 선택 파일 삭제를 확인했습니다</label>
     <div class="modal-btns"><button class="btn ghost sm" onclick="closeRepModal()">취소</button>
-      <button class="btn primary sm" id="clnDelete" ${clnSel.size?'':'disabled'} style="background:${clnSel.size?'var(--danger)':''}">${clnSel.size}건 삭제</button></div>`;
-  card.querySelectorAll('.dep-cat').forEach(b=>b.onclick=()=>{clnMonths=+b.dataset.m;clnScan();drawCleanup();});
+      <button class="btn primary sm" id="clnDelete" ${canDelete?'':'disabled'} style="background:${canDelete?'var(--danger)':''}">${clnSel.size}건 삭제</button></div>`;
+  card.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{clnMode=b.dataset.md;clnConfirm=false;
+    if(clnMode==='period'){clnPeriodScan();clnSel=new Set(clnCands.map(c=>c.file));}else{clnSel=new Set();}drawCleanup();});
+  if(clnMode==='period'){
+    card.querySelectorAll('.dep-cat').forEach(b=>b.onclick=()=>{clnMonths=+b.dataset.m;clnPeriodScan();clnSel=new Set(clnCands.map(c=>c.file));drawCleanup();});
+    const mi=$('#clnMonthsInput');if(mi)mi.oninput=()=>{clnMonths=Math.max(1,Math.min(120,+mi.value||1));clnPeriodScan();clnSel=new Set(clnCands.map(c=>c.file));drawCleanup();$('#clnMonthsInput')&&$('#clnMonthsInput').focus();};
+  }else{
+    card.querySelectorAll('.dep-cat').forEach(b=>b.onclick=()=>{clnManualType=b.dataset.mt;clnSel=new Set();drawCleanup();});
+    const ms=$('#clnManualSearch');if(ms)ms.oninput=()=>{clnManualQ=ms.value;const cur=ms.selectionStart;drawCleanup();const n=$('#clnManualSearch');if(n){n.focus();n.setSelectionRange(cur,cur);}};
+  }
+  const al=$('#clnAll');if(al)al.onchange=e=>{if(e.target.checked)list.forEach(c=>clnSel.add(c.file));else list.forEach(c=>clnSel.delete(c.file));drawCleanup();};
   card.querySelectorAll('.cln-item').forEach(it=>it.onclick=e=>{e.preventDefault();const f=it.dataset.f;if(clnSel.has(f))clnSel.delete(f);else clnSel.add(f);drawCleanup();});
+  const cc=$('#clnConfirmChk');if(cc)cc.onchange=e=>{clnConfirm=e.target.checked;drawCleanup();};
   const db=$('#clnDelete');if(db)db.onclick=clnRun;
 }
 async function clnRun(){
-  const files=[...clnSel];if(!files.length)return;
-  if(!confirm(files.length+'건의 리포트를 삭제합니다. 파일·공유링크가 제거됩니다(고객 연결도 해제).\n계속할까요?'))return;
+  const files=[...clnSel];if(!files.length||!clnConfirm)return;
   const card=$('#repModalCard');const lines=[];const done=[];
   const paint=()=>{card.innerHTML=`<h3>정리 중…</h3><div class="rep-log">${lines.map(l=>`<div class="rep-logline ${l[1]}">${esc(l[0])}</div>`).join('')}</div>`;};
   const log=(m,cls)=>{lines.push([m,cls||'']);paint();};paint();
