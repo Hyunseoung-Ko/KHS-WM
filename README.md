@@ -22,14 +22,15 @@
 
 ## 배포 방법 (GitHub Pages)
 
-1. GitHub에서 새 저장소 생성 (예: `unified-dashboard`).
-2. 이 폴더 내용을 푸시:
+저장소 이름: **KHS-WM** · 접속 주소: **https://hyunseoung-ko.github.io/KHS-WM/**
+
+1. GitHub에서 새 저장소 `KHS-WM` 생성 (빈 저장소, README 추가 안 함).
+2. 이 폴더에서 푸시 (git remote는 이미 설정됨):
    ```
-   git remote add origin https://github.com/<계정>/unified-dashboard.git
    git push -u origin main
    ```
 3. 저장소 **Settings → Pages → Source: main / (root)** 로 설정.
-4. 접속: `https://<계정>.github.io/unified-dashboard/`
+4. 접속: `https://hyunseoung-ko.github.io/KHS-WM/`
 
 ## 최초 설정 (앱 안에서)
 
@@ -42,10 +43,10 @@
 
 ## 기존 URL 연결 (선택)
 
-기존 주소를 통합본으로 보내려면 각 저장소의 진입 파일에 아래 리다이렉트를 넣으세요 (최종 URL 확정 후):
+기존 주소를 통합본으로 보내려면 각 저장소의 진입 파일에 아래 리다이렉트를 넣으세요:
 
 ```html
-<meta http-equiv="refresh" content="0; url=https://<계정>.github.io/unified-dashboard/">
+<meta http-equiv="refresh" content="0; url=https://hyunseoung-ko.github.io/KHS-WM/">
 ```
 
 - `kis-dashboard/index.html` → 통합본
