@@ -1,0 +1,2477 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>통합 대시보드 · 한투+보험</title>
+<style>
+/* 로컬 번들 폰트 (외부 CDN 아님) — 한투/토스 계열 Pretendard */
+@font-face{font-family:'Pretendard';font-weight:45 920;font-display:swap;font-style:normal;
+  src:url('lib/PretendardVariable.woff2') format('woff2-variations');}
+:root{
+  /* 토스 스타일 디자인 토큰 */
+  --bg:#F2F4F6; --card:#ffffff; --inset:#F8F9FA; --line:#EDEFF2; --line2:#F2F4F6;
+  --ink:#191F28; --sub:#8B95A1; --sub2:#4E5968; --sub3:#6B7684; --faint:#B0B8C1;
+  --primary:#3182F6; --primary-d:#1B64DA; --primary-l:#EBF2FE; --warn:#F7B23B; --warn-d:#C98A0B;
+  --ok:#15B370; --ok-d:#0F9D58; --accent:#15B370; --purple:#8B5CF6; --vip:#E0640F; --danger:#F04452;
+  /* 한국 증시 관례: 상승=빨강, 하락=파랑 */
+  --rise:#F04452; --fall:#3182F6;
+  --shadow:0 1px 3px rgba(0,0,0,.04);
+  --shadow-pri:0 8px 24px rgba(49,130,246,.25);
+  --radius:18px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}   /* iOS 회전 시 글자 자동확대 방지 */
+body{overflow-x:hidden}   /* 회전 시 가로 넘침 방지 */
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+  font-family:'Pretendard',-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Segoe UI","Malgun Gothic","Noto Sans KR",sans-serif;
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+button{font-family:inherit;cursor:pointer}
+input{font-family:inherit}
+.hidden{display:none!important}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:#C4CCD8;border-radius:8px}
+
+/* ---------- PIN GATE (토스 스타일 · 밝은 배경) ---------- */
+#gate{position:fixed;inset:0;z-index:200;background:linear-gradient(170deg,#F2F4F6,#E7ECF3);
+  display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--ink)}
+.gate-logo{width:60px;height:60px;border-radius:18px;background:linear-gradient(145deg,#3182F6,#1B64DA);
+  display:flex;align-items:center;justify-content:center;margin-bottom:22px;box-shadow:0 12px 30px rgba(49,130,246,.32)}
+.gate-logo svg{width:30px;height:30px;stroke:#fff}
+#gate h1{font-size:21px;margin:0 0 7px;letter-spacing:-.4px;font-weight:700}
+#gate p{color:var(--sub);font-size:14px;margin:0 0 0}
+.pin-box{display:flex;gap:14px;margin:34px 0 30px}
+.pin-dot{width:40px;height:50px;border-radius:11px;background:#fff;
+  border:1px solid #E5E8EB;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--primary);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.bio-btn{margin-top:26px;display:flex;align-items:center;gap:9px;background:#fff;color:var(--sub2);
+  border:1px solid #E5E8EB;border-radius:14px;padding:13px 22px;font-size:14px;font-weight:600;transition:.12s}
+.bio-btn:hover{background:var(--inset)}
+.bio-btn:active{transform:scale(.97)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,84px);gap:14px}
+.pin-pad button{height:64px;border-radius:18px;border:none;background:#fff;
+  color:var(--ink);font-size:24px;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:transform .08s}
+.pin-pad button:active{transform:scale(.93)}
+.pin-pad .alt{font-size:13px;font-weight:500;color:var(--sub)}
+#gateErr{color:var(--danger);font-size:13px;height:18px;margin-top:14px;font-weight:600}
+
+/* ---------- LAYOUT ---------- */
+#app{display:flex;min-height:100vh}
+#sidebar{width:236px;background:#fff;border-right:1px solid var(--line);position:fixed;top:0;bottom:0;left:0;
+  display:flex;flex-direction:column;z-index:50}
+.brand{padding:22px 20px 14px;display:flex;align-items:center;gap:11px}
+.brand .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(145deg,#3182F6,#1B64DA);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:19px}
+.brand b{font-size:16px;letter-spacing:-.3px;font-weight:800}
+.brand small{display:block;color:var(--sub);font-size:11px;font-weight:500}
+.nav{padding:8px 12px;flex:1}
+.nav-label{font-size:11px;letter-spacing:.4px;color:var(--faint);font-weight:600;padding:8px 11px 8px}
+.nav a{display:flex;align-items:center;gap:12px;padding:11px 11px;border-radius:12px;color:var(--sub2);
+  text-decoration:none;font-weight:500;font-size:14.5px;margin-bottom:2px;transition:color .15s,background .15s}
+.nav a .ic{width:19px;height:19px;display:flex;align-items:center;justify-content:center;font-size:17px}
+.nav a .ic svg{width:19px;height:19px;stroke:currentColor;fill:none}
+.nav a:hover{background:var(--inset);color:var(--ink)}
+.nav a.active{background:var(--primary-l);color:var(--primary);font-weight:700}
+.side-foot{padding:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.side-foot button{width:100%;padding:9px;border-radius:11px;border:1px solid var(--line);background:#fff;
+  color:var(--sub2);font-weight:600;font-size:12.5px}
+.side-foot button:hover{background:var(--inset);color:var(--ink)}
+.foot-toggle{display:flex!important;align-items:center;justify-content:center;gap:6px}
+.foot-toggle .caret{transition:transform .2s}
+.foot-toggle.open .caret{transform:rotate(180deg)}
+.foot-group{display:flex;flex-direction:column;gap:8px}
+.foot-group.hidden{display:none}
+.foot-help{display:block;text-align:center;text-decoration:none;color:var(--sub);font-weight:600;font-size:12.5px;padding:9px;border-radius:10px;cursor:pointer}
+.foot-help:hover{background:var(--inset);color:var(--ink)}
+.foot-help.active{color:var(--primary);background:var(--primary-l)}
+.foot-ic{display:flex!important;align-items:center;gap:9px;color:var(--sub)}
+.foot-ic svg{width:18px;height:18px;flex:0 0 auto;stroke:currentColor}
+.side-foot>.foot-ic{justify-content:flex-start;font-size:12.5px}
+.collapser{cursor:pointer;user-select:none}
+.collapse-body.collapsed{display:none}
+
+.drawer-close{display:none}
+#main{flex:1;margin-left:230px;padding:0 0 40px}
+.topbar{display:none}
+#drawerBackdrop{display:none}
+#bottomNav{display:none}
+
+.wrap{max-width:1120px;margin:0 auto;padding:26px 28px 40px}
+.page-title{font-size:24px;font-weight:800;letter-spacing:-.6px;margin:0 0 2px}
+.page-sub{color:var(--sub3);font-size:14px;margin:0 0 22px}
+
+/* ---------- CARDS ---------- */
+.card{background:var(--card);border:1px solid transparent;border-radius:var(--radius);box-shadow:var(--shadow);padding:22px;margin-bottom:14px}
+.card h3{margin:0 0 14px;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:space-between;gap:8px;letter-spacing:-.2px}
+.card h3 .meta{font-size:12.5px;color:var(--sub);font-weight:600}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.kpi{background:var(--card);border:1px solid transparent;border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+.kpi .lab{color:var(--sub);font-size:13px;font-weight:600;margin-bottom:10px}
+.kpi .val{font-size:27px;font-weight:800;letter-spacing:-.8px}
+.kpi .val.sm{font-size:22px}
+.kpi .delta{font-size:13px;font-weight:700;margin-top:7px}
+.up{color:var(--rise)} .down{color:var(--fall)} .flat{color:var(--sub)}
+.val,.amt,.rate,.delta,.pamt,.prate,.kpi .lab+*{font-variant-numeric:tabular-nums}
+
+/* ---------- UPLOAD ---------- */
+#drop{border:2px dashed #D5DEEB;border-radius:14px;padding:30px 20px;text-align:center;color:var(--sub);
+  background:var(--inset);transition:.15s;cursor:pointer}
+#drop.drag{border-color:var(--primary);background:var(--primary-l);color:var(--primary-d)}
+#drop b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
+.up-row{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap}
+.up-row input[type=date]{padding:10px 12px;border:1px solid var(--line);border-radius:12px;font-size:14px}
+.btn{padding:11px 18px;border-radius:13px;border:none;font-weight:700;font-size:14px;transition:.12s}
+.btn.primary{background:var(--primary);color:#fff;box-shadow:0 4px 12px rgba(49,130,246,.2)}
+.btn.primary:hover{background:var(--primary-d)}
+.btn.ghost{background:#fff;border:1px solid #E5E8EB;color:var(--sub2)}
+.btn.ghost:hover{background:var(--inset);color:var(--ink)}
+.btn.sm{padding:8px 13px;font-size:12.5px;border-radius:10px}
+.filechips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.chip{background:var(--primary-l);color:var(--primary-d);border-radius:9px;padding:5px 11px;font-size:12px;font-weight:600}
+.chip.ok::before{content:"✓ "}
+.chip.miss{background:#FDECEE;color:var(--danger)}
+
+/* ---------- TABLE / LIST ---------- */
+.toolbar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.search{flex:1;min-width:160px;display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid transparent;
+  border-radius:12px;padding:11px 14px}
+.search input{border:none;outline:none;flex:1;font-size:14.5px;background:transparent}
+.seg{display:flex;gap:2px;border-bottom:1.5px solid var(--line);width:100%}
+.seg button{border:none;background:transparent;padding:11px 15px;font-weight:700;font-size:14.5px;color:var(--sub);position:relative;letter-spacing:-.02em;transition:color .15s}
+.seg button.on{color:var(--primary)}
+.seg button.on::after{content:"";position:absolute;left:12px;right:12px;bottom:-1.5px;height:2.5px;background:var(--primary);border-radius:2px}
+
+.list .row{display:flex;align-items:center;gap:10px;padding:14px 8px;border-bottom:1px solid var(--line2);cursor:pointer;transition:.1s}
+.list .row:hover{background:#FAFBFC}
+.list .row:last-child{border-bottom:none}
+.list .row>div:first-child{flex:1;min-width:0}
+.row .nm{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .nm small{color:var(--sub);font-weight:500;font-size:12px;margin-left:6px}
+.row .tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.tag{font-size:11px;font-weight:600;padding:3px 8px;border-radius:7px;background:var(--line2);color:var(--sub3);white-space:nowrap}
+.tag.b{background:var(--primary-l);color:var(--primary-d)}
+.row .right{margin-left:auto;text-align:right;white-space:nowrap;flex-shrink:0}
+.row .amt{font-weight:700;font-size:15px;white-space:nowrap}
+.row .rate{font-size:12.5px;font-weight:700;margin-left:8px}
+.row .rate small.ann{display:block;font-weight:600;font-size:10.5px;color:var(--sub);margin-top:1px}
+.row .chev{color:#C4CCD8;margin-left:6px;font-size:18px}
+
+.chartbox{position:relative;width:100%}
+.legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:8px;justify-content:center}
+.legend span{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--sub);font-weight:600}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+.empty{text-align:center;padding:50px 20px;color:var(--sub)}
+.empty .big{font-size:40px;margin-bottom:10px}
+
+/* detail */
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--sub);font-weight:600;font-size:14px;
+  background:none;border:none;padding:6px 0;margin-bottom:6px}
+.prodsec h4{font-size:13px;color:var(--primary-d);font-weight:700;margin:18px 0 6px;padding-top:6px}
+.prod{border-bottom:1px solid var(--line2);padding:12px 6px}
+.prod .pmain{display:flex;align-items:center;gap:10px;cursor:pointer}
+.prod .pname{font-weight:600;font-size:14px;flex:1;min-width:0;overflow-wrap:anywhere;word-break:break-word}
+.prod .pamt{font-weight:700;font-size:14px}
+.prod .prate{font-size:12.5px;font-weight:700;width:62px;text-align:right}
+.prod .pdetail{margin-top:8px;background:var(--inset);border-radius:12px;padding:10px 12px;font-size:12.5px}
+.prod .pdetail div{display:flex;justify-content:space-between;padding:3px 0;color:var(--sub)}
+.prod .pdetail div b{color:var(--ink);font-weight:600}
+.prod .pdot{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;flex:0 0 auto;vertical-align:middle}
+.prod .pcat{font-size:11px;color:var(--sub);font-weight:600;margin-left:6px}
+
+/* ----- 계좌(상품계좌)별 그룹 (접기/펼침) ----- */
+.acct{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:#fff}
+.acct-head{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;user-select:none;background:var(--inset);transition:.1s}
+.acct-head:hover{background:var(--line2)}
+.acct-head .aname{font-weight:700;font-size:14.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acct-head .aname small{color:var(--sub);font-weight:500;font-size:11.5px;margin-left:6px}
+.acct-head .aright{display:flex;align-items:center;gap:8px;white-space:nowrap;flex-shrink:0}
+.acct-head .aamt{font-weight:800;font-size:14.5px}
+.acct-head .acash{font-size:11px;font-weight:700;color:var(--ok-d);background:#EAF6EF;border-radius:7px;padding:2px 7px}
+.acct-head .azero{font-size:11px;font-weight:700;color:var(--sub);background:var(--line2);border-radius:7px;padding:2px 7px}
+.acct-head .arate{font-size:12.5px;font-weight:700;display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;white-space:nowrap}
+.acct-head .arate small{font-weight:600;font-size:10.5px;color:var(--sub)}
+.acct-head .acaret{color:var(--faint);font-size:12px;transition:transform .2s}
+.acct-head.open .acaret{transform:rotate(180deg)}
+.acct-body{padding:2px 12px 6px}
+.acct-body.collapsed{display:none}
+.acct-empty{color:var(--sub);font-size:12.5px;padding:12px 4px}
+
+/* retirement sim */
+.sim label{font-size:12.5px;color:var(--sub);font-weight:600;display:block;margin:10px 0 4px}
+.sim .simrow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.sim .simrow b{font-weight:700}
+.sim input[type=range]{width:100%}
+.sim .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.sim input[type=number]{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:12px;font-size:14px;text-align:right}
+.sim .res{background:var(--primary-l);border-radius:14px;padding:14px 16px;margin-top:14px}
+.sim .res .big{font-size:24px;font-weight:800;color:var(--primary-d)}
+
+/* help / manual */
+.help h3{margin-top:0}
+.help .step{display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+.help .step:last-child{border-bottom:none}
+.help .num{flex:0 0 28px;height:28px;border-radius:9px;background:var(--primary);color:#fff;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center}
+.help .step b{font-size:14.5px}
+.help .step p{margin:3px 0 0;color:var(--sub);font-size:13.5px}
+.help .step p code{background:var(--line2);padding:1px 6px;border-radius:6px;font-size:12.5px;color:var(--ink)}
+.help ul{margin:6px 0 0;padding-left:18px;color:var(--sub);font-size:13.5px}
+.help ul li{margin:4px 0}
+.help .warn-card{background:#FCF3E0;border:1px solid #F3E2BC}
+.help .warn-card h3{color:var(--warn-d)}
+.help .tip{background:var(--primary-l);border:1px solid #D6E4FD}
+.help .tip h3{color:var(--primary-d)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:12px 20px;border-radius:13px;font-size:13.5px;font-weight:600;z-index:300;box-shadow:0 8px 30px rgba(0,0,0,.3);opacity:0;transition:.25s;pointer-events:none}
+.toast.show{opacity:1;bottom:34px}
+/* sync modal */
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.35);backdrop-filter:blur(3px);z-index:120;display:flex;align-items:center;justify-content:center;padding:18px}
+.modal.hidden{display:none}
+.modal-card{background:#fff;border-radius:22px;padding:28px;width:100%;max-width:440px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.25);max-height:92vh;overflow:auto}
+.modal-card h3{margin:0 0 4px;font-size:18px;font-weight:800}
+.modal-card .msub{color:var(--sub);font-size:12.5px;margin:0 0 14px;line-height:1.5}
+.modal-card label{display:block;font-size:12px;color:var(--sub);font-weight:600;margin:11px 0 4px}
+.modal-card input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;font-size:14px}
+.modal-btns{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;flex-wrap:wrap}
+.modal-x{position:absolute;top:18px;right:18px;border:none;background:var(--bg);width:32px;height:32px;border-radius:10px;color:var(--sub);font-size:16px}
+.systat{margin-top:12px;font-size:12.5px;font-weight:700;min-height:18px}
+.sync-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#C2C8D0;margin-left:6px;vertical-align:middle}
+.sync-dot.ok{background:var(--ok)}.sync-dot.sync{background:var(--warn);animation:pulse 1s infinite}.sync-dot.err{background:var(--rise)}
+@keyframes pulse{50%{opacity:.3}}
+
+/* ---------- CRM 카드 / 입력폼 ---------- */
+.crmgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 18px}
+.crmrow{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;color:var(--sub3);padding:5px 0;border-bottom:1px solid var(--line2)}
+.crmrow b{color:var(--ink);font-weight:600;text-align:right;overflow-wrap:anywhere}
+.crmmemo{margin-top:10px;background:var(--inset);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--ink);white-space:pre-wrap;line-height:1.5}
+.card h3 .btn.sm{font-weight:700}
+.cf2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cf3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.modal-card select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;font-size:14px;background:#fff}
+.modal-card textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;font-size:14px;font-family:inherit;resize:vertical}
+.cfchk{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.cfchk label{display:flex!important;align-items:center;gap:5px;margin:0!important;padding:8px 12px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;color:var(--ink);font-weight:600;cursor:pointer}
+.cfchk input{width:auto!important;accent-color:var(--primary)}
+.cf-pen{display:flex!important;align-items:center;gap:7px;margin-top:12px!important;color:var(--ink)!important;font-weight:600!important;font-size:14px}
+.cf-pen input{width:auto!important;accent-color:var(--primary)}
+
+/* ---------- 운용상품 보유 칩 (실계좌 자동연결) ----------
+   색 채움=계좌+잔고 · 테두리만=계좌 있으나 0원 · 점선=CRM 수동체크 · 연회색=미보유 */
+.pstat{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
+.pchip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:5px 11px;border-radius:9px;
+  border:1.5px solid #E6EAF1;background:var(--inset);color:#C2C8D0;white-space:nowrap}
+.pchip small{font-weight:600;font-size:10.5px;opacity:.85;margin-left:1px}
+.pchip.fund{color:#fff;border-color:transparent;box-shadow:0 1px 4px rgba(20,30,60,.14)}
+.pchip.zero{background:#fff}
+.pchip.manual{background:var(--inset);color:var(--sub);border-style:dashed;border-color:#B9C2D0}
+.pstat-leg{font-size:11px;color:var(--sub);font-weight:500;margin-top:7px}
+.pstat-leg b{font-weight:700;color:var(--ink)}
+
+.rep-log{display:flex;flex-direction:column;gap:5px;max-height:50vh;overflow:auto;margin-top:6px}
+.rep-logline{font-size:13px;padding:7px 11px;border-radius:9px;background:var(--inset);color:var(--sub2);font-weight:600}
+.rep-logline.ok{background:#EAF6EF;color:#0F9D58}
+.rep-logline.err{background:#FDECEE;color:#E0344B}
+.rep-link{display:block;font-size:12.5px;color:var(--primary-d);background:var(--primary-l);border-radius:9px;padding:8px 11px;word-break:break-all;text-decoration:none;font-weight:600}
+.daynote-ins{background:var(--primary-l);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--primary-d);margin-bottom:14px;font-weight:500;line-height:1.5}
+.daynote-ins b{font-weight:800}
+/* ---------- 채널 필터 칩 (보험/한투) ---------- */
+.ch-fls{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+.ch-fl{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--sub2);
+  border-radius:20px;padding:7px 14px;font-size:13.5px;font-weight:700;transition:.12s}
+.ch-fl:hover{background:var(--inset)}
+.ch-fl.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.ch-fl .cfn{font-size:11.5px;font-weight:700;background:var(--line2);color:var(--sub3);border-radius:10px;padding:1px 7px}
+.ch-fl.on .cfn{background:rgba(255,255,255,.25);color:#fff}
+
+/* ---------- RESPONSIVE (JS 클래스 html.m 기반 — iOS 회전 안정) ---------- */
+html.m #sidebar{display:flex;width:200px;max-width:62vw;transform:translateX(-100%);transition:transform .24s cubic-bezier(.4,0,.2,1);box-shadow:0 0 50px rgba(15,20,35,.25);z-index:70}
+html.m #sidebar.open{transform:translateX(0)}
+html.m .nav{flex:0 1 auto}            /* 드로어에 메인 메뉴(홈·고객·자산·전략) 표시 */
+html.m #drawerBackdrop{display:block;position:fixed;inset:0;background:rgba(15,20,35,.45);z-index:65;opacity:0;visibility:hidden;transition:opacity .24s,visibility .24s}
+html.m #drawerBackdrop.open{opacity:1;visibility:visible}
+html.m .drawer-close{display:flex;align-items:center;justify-content:center;margin-left:auto;width:32px;height:32px;border:none;background:var(--bg);border-radius:9px;font-size:14px;color:var(--sub)}
+html.m .brand{padding:16px 16px 10px}
+html.m .brand b{font-size:14px}
+/* 드로어 맨 아래: 사용설명서·동기화·설정은 아이콘만 가로 배치 */
+html.m .side-foot{display:flex;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center;gap:14px;border-top:1px solid var(--line);margin-top:auto;padding:12px 10px}
+html.m .side-foot>.foot-help,html.m .side-foot>#btnSync,html.m .side-foot>#footToggle{width:42px;height:42px;padding:0;justify-content:center;color:var(--sub);border-radius:12px;position:relative}
+html.m .side-foot .ft,html.m .side-foot .caret{display:none}
+html.m .side-foot .foot-ic svg{width:21px;height:21px}
+html.m .side-foot #syncDot{position:absolute;top:4px;right:4px;margin:0}
+html.m .side-foot>.foot-help.active{background:var(--primary-l)}
+html.m #footGroup{flex-basis:100%;order:9;margin-top:6px}
+html.m input,html.m select,html.m textarea{font-size:16px!important}   /* iOS 포커스 자동확대 방지 */
+html.m #main{margin-left:0;padding-bottom:78px;min-width:0}   /* flex 아이템 min-width:auto가 콘텐츠폭만큼 늘어나 가로 넘침 → 0으로 고정 */
+html.m .topbar{display:flex;align-items:center;gap:10px;padding:11px 14px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:40}
+html.m .topbar .hamb{border:none;background:transparent;font-size:22px;line-height:1;color:var(--ink);padding:4px 8px;border-radius:9px}
+html.m .topbar .hamb:active{background:var(--bg)}
+html.m .topbar .mt{font-weight:800;font-size:16px;letter-spacing:-.3px}
+html.m .topbar .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(145deg,#3182F6,#1B64DA);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px}
+html.m .wrap{padding:16px 14px 26px}
+html.m .grid2{grid-template-columns:1fr}
+html.m .grid3{grid-template-columns:1fr 1fr 1fr;gap:9px}
+html.m .kpi{padding:12px}
+html.m .kpi .val{font-size:17px}
+html.m .kpi .val.sm{font-size:15px}
+html.m .page-title{font-size:19px}
+html.m .sim .two{grid-template-columns:1fr}
+html.m .cf2{grid-template-columns:1fr}
+html.m .crmgrid{grid-template-columns:1fr}
+html.m #bottomNav{display:flex;justify-content:center;gap:8px;position:fixed;left:0;right:0;bottom:0;min-height:74px;background:#fff;border-top:1px solid var(--line);z-index:55;padding-bottom:env(safe-area-inset-bottom);transition:transform .26s ease}
+html.m #bottomNav.hide{transform:translateY(110%)}
+html.m #bottomNav a{position:relative;flex:0 0 auto;width:62px;display:flex;align-items:center;justify-content:center;text-decoration:none;color:var(--sub);border-radius:14px;transition:.12s}
+html.m #bottomNav a svg{width:24px;height:24px}
+html.m #bottomNav a.active{color:var(--primary)}
+html.m #bottomNav a.active::after{content:"";position:absolute;bottom:9px;width:5px;height:5px;border-radius:50%;background:var(--primary)}
+html.m #bottomNav a:active{background:var(--bg)}
+html.m .seg{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;scrollbar-width:none}
+html.m .seg::-webkit-scrollbar{display:none}
+html.m .seg button{flex:0 0 auto;padding:10px 12px}
+@media(max-width:380px){html.m .grid3{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- ===== PIN GATE ===== -->
+<div id="gate">
+  <div class="gate-logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
+  <h1>Asset Board 잠금 해제</h1>
+  <p id="gateMsg">PIN 6자리를 입력하세요</p>
+  <div class="pin-box" id="pinBox"></div>
+  <div class="pin-pad" id="pinPad"></div>
+  <div id="gateErr"></div>
+  <button id="bioBtn" class="bio-btn hidden">🔓 지문 · Face ID · Windows Hello로 잠금해제</button>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app" class="hidden">
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="logo">A</div>
+      <div><b>통합 대시보드</b><small>한투 · 보험 · 고현승</small></div>
+      <button class="drawer-close" id="navClose" aria-label="메뉴 닫기">✕</button>
+    </div>
+    <nav class="nav" id="navPC">
+      <div class="nav-label">메뉴</div>
+      <a data-view="home" class="active"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7"/><path d="M5 9.5V20h14V9.5"/></svg></span> 홈</a>
+      <a data-view="clients"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3.2 2.8-5 5.5-5s5.1 1.8 5.5 5"/><path d="M16 6.6a3 3 0 0 1 0 5.5"/><path d="M17.6 19c-.2-2-1-3.5-2.2-4.4"/></svg></span> 고객</a>
+      <a data-view="assets"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg></span> 자산</a>
+      <a data-view="strategy"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg></span> 영업</a>
+      <a data-view="insurance"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10V5l7-2 7 2v6c0 5.5-7 10-7 10z"/><path d="M9 11l2 2 4-4"/></svg></span> 보험</a>
+      <a data-view="reports"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z" transform="translate(-1 0)"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></span> 리포트</a>
+    </nav>
+    <div class="side-foot">
+      <button id="btnSync" class="foot-ic" aria-label="새로고침">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+        <span class="ft">새로고침(동기화)</span><span class="sync-dot" id="syncDot"></span>
+      </button>
+      <button class="foot-toggle foot-ic" id="footToggle" aria-label="설정">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="ft">설정 · 백업</span><span class="caret">▾</span>
+      </button>
+      <a class="foot-help foot-ic" data-view="help" aria-label="사용법">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span class="ft">사용설명서</span>
+      </a>
+      <div class="foot-group hidden" id="footGroup">
+        <button id="btnSecurity">🔐 PIN · 생체인증 · 자동잠금</button>
+        <button id="btnCrmImport">📇 한투 CRM 엑셀 가져오기(최초 1회)</button>
+        <button id="btnInsImport">📥 보험 고객 가져오기(toss-reports)</button>
+        <button id="btnExport">⬇ 백업 내보내기</button>
+        <button id="btnImport">⬆ 백업 불러오기</button>
+        <button id="btnWipe">🗑 전체 데이터 삭제</button>
+      </div>
+    </div>
+  </aside>
+
+  <div id="drawerBackdrop"></div>
+
+  <div id="main">
+    <div class="topbar">
+      <button class="hamb" id="navToggle" aria-label="메뉴 열기">☰</button>
+      <div class="logo">A</div><div class="mt" id="mTitle">홈</div>
+    </div>
+    <div id="view"></div>
+  </div>
+
+  <nav id="bottomNav" aria-label="메인 메뉴">
+    <a data-view="home" class="active" aria-label="홈"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7"/><path d="M5 9.5V20h14V9.5"/></svg></a>
+    <a data-view="clients" aria-label="고객"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3.2 2.8-5 5.5-5s5.1 1.8 5.5 5"/><path d="M16 6.6a3 3 0 0 1 0 5.5"/><path d="M17.6 19c-.2-2-1-3.5-2.2-4.4"/></svg></a>
+    <a data-view="assets" aria-label="자산"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg></a>
+    <a data-view="strategy" aria-label="영업"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg></a>
+    <a data-view="insurance" aria-label="보험"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10V5l7-2 7 2v6c0 5.5-7 10-7 10z"/><path d="M9 11l2 2 4-4"/></svg></a>
+    <a data-view="reports" aria-label="리포트"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h6l5 5v13H7z"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></a>
+  </nav>
+</div>
+
+<input type="file" id="fileInput" multiple accept=".xls,.xlsx,.csv" class="hidden">
+<input type="file" id="importInput" accept=".json" class="hidden">
+<input type="file" id="crmFileInput" accept=".xls,.xlsx" class="hidden">
+<div class="toast" id="toast"></div>
+
+<div id="syncModal" class="modal hidden">
+  <div class="modal-card">
+    <button class="modal-x" id="syClose">✕</button>
+    <h3>🔄 기기간 동기화</h3>
+    <p class="msub">내 GitHub 비공개 repo에 <b>암호화(E2EE)</b>해서 저장합니다. PC·휴대폰에 같은 값을 넣으면 자동으로 일치합니다. 서버는 암호문만 보관 — 내용은 못 봅니다.</p>
+    <label>데이터 repo (owner/name)</label>
+    <input id="syRepo" placeholder="Hyunseoung-Ko/kis-dashboard-data" autocomplete="off">
+    <label>접근 토큰 (fine-grained PAT)</label>
+    <input id="syToken" type="password" placeholder="github_pat_..." autocomplete="off">
+    <label>동기화 암호 (PC·폰 동일하게 직접 정함)</label>
+    <input id="syPass" type="password" placeholder="이 암호로 데이터를 암호화" autocomplete="off">
+    <div id="syStatus" class="systat"></div>
+    <div class="modal-btns">
+      <button class="btn ghost sm" id="syTest">연결 테스트</button>
+      <button class="btn ghost sm" id="syOff">동기화 끄기</button>
+      <button class="btn primary sm" id="sySave">저장 &amp; 지금 동기화</button>
+    </div>
+  </div>
+</div>
+
+<div id="crmModal" class="modal hidden">
+  <div class="modal-card">
+    <button class="modal-x" id="cfClose">✕</button>
+    <h3 id="cfTitle">고객 정보</h3>
+    <p class="msub">영업·CRM 정보를 직접 입력합니다. 자산 엑셀과 별도로 이 기기에 저장되고, 동기화·백업에 함께 실립니다.</p>
+    <label>이름 *</label><input id="cf_name" autocomplete="off">
+    <label>채널 <span style="font-weight:500;color:var(--sub)">· 어느 쪽 고객인지 (양쪽 가능)</span></label>
+    <div class="cfchk">
+      <label><input type="checkbox" id="cf_ch_kis">한투</label>
+      <label><input type="checkbox" id="cf_ch_ins">보험</label>
+    </div>
+    <div class="cf2">
+      <div><label>생년월일</label><input id="cf_birth" type="date"></div>
+      <div><label>성별</label><select id="cf_gender"><option value="">-</option><option>남</option><option>여</option></select></div>
+    </div>
+    <label>휴대폰</label><input id="cf_phone" inputmode="tel" placeholder="010-0000-0000">
+    <label>회사명</label><input id="cf_company">
+    <div class="cf3">
+      <div><label>시/도</label><input id="cf_sido"></div>
+      <div><label>시군구</label><input id="cf_sigungu"></div>
+      <div><label>동/로</label><input id="cf_dong"></div>
+    </div>
+    <div class="cf2">
+      <div><label>투자성향 <span style="font-weight:500;color:var(--sub)">· 한투</span></label><select id="cf_risk"><option value="">-</option><option>안정형</option><option>안정추구형</option><option>위험중립형</option><option>적극투자형</option><option>공격투자형</option></select></div>
+      <div><label>보험 관리월 <span style="font-weight:500;color:var(--sub)">· 분기 연락</span></label><select id="cf_anchor"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select></div>
+    </div>
+    <label>최근접촉일 <span style="font-weight:500;color:var(--sub)">· 한투 분기 연락 기준</span></label><input id="cf_contact" type="date">
+    <label>운용상품 보유 <span style="font-weight:500;color:var(--sub)">· 자산자료 자동연결</span></label>
+    <div class="pstat" id="cf_prodStatus"></div>
+    <div class="pstat-leg">✓ 계좌 확인 · <b>색 채움</b>=잔고 있음 · <b>테두리만</b>=0원 계좌 · 색 없음=실계좌 없음</div>
+    <label class="cf-pen"><input type="checkbox" id="cf_pension">연금개시 대상</label>
+    <label>비고 / 관리메모</label><textarea id="cf_memo" rows="3"></textarea>
+    <div class="modal-btns">
+      <button class="btn ghost sm" id="cfDelete" style="margin-right:auto;color:var(--rise)">삭제</button>
+      <button class="btn ghost sm" id="cfCancel">취소</button>
+      <button class="btn primary sm" id="cfSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<div id="repModal" class="modal hidden"><div class="modal-card" id="repModalCard"></div></div>
+<input type="file" id="reportFileInput" accept=".html,.htm" multiple class="hidden">
+
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/chart.umd.min.js"></script>
+<script>
+/* =========================================================
+   자산관리 대시보드 — 기기내(IndexedDB) 저장 / 외부전송 없음
+   ========================================================= */
+const PIN_KEY='ab_pin', DEFAULT_PIN='000000', BIO_KEY='ab_bio_cred', PIN_LEN=6;
+/* 자산 분류는 동적 — 새 파일/새 제도구분이 들어와도 자동으로 카테고리 추가됨 */
+const CAT_ORDER=['DC','개인형IRP','연금저축','DB','주식','펀드','채권','ELS','ISA','신탁','현금성자산','기타자산','Other'];
+const CAT_COLOR={DC:'#3182F6','개인형IRP':'#E0344B','연금저축':'#F7B23B','DB':'#eab308','주식':'#15B370','펀드':'#8b5cf6','채권':'#0ea5e9','ELS':'#6366f1','ISA':'#ec4899','신탁':'#14b8a6','현금성자산':'#16B5D0','기타자산':'#9aa4b2','Other':'#9aa4b2'};
+const CAT_PALETTE=['#3182F6','#E0344B','#F7B23B','#15B370','#8b5cf6','#16b5d0','#e879a6','#0ea5e9','#84cc16','#f97316','#6366f1','#14b8a6','#9aa4b2'];
+function catColor(cat){if(CAT_COLOR[cat])return CAT_COLOR[cat];let h=0;for(const ch of String(cat))h=(h*31+ch.charCodeAt(0))>>>0;return CAT_PALETTE[h%CAT_PALETTE.length];}
+function catList(obj){return Object.keys(obj).filter(k=>obj[k]>0).sort((a,b)=>{let ia=CAT_ORDER.indexOf(a),ib=CAT_ORDER.indexOf(b);if(ia<0)ia=900;if(ib<0)ib=900;return ia-ib||a.localeCompare(b,'ko');});}
+
+/* ---------- utils ---------- */
+const $=s=>document.querySelector(s);
+const norm=s=>String(s==null?'':s).replace(/\s+/g,'');
+const num=v=>{if(typeof v==='number')return v;const n=parseFloat(String(v||'').replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;};
+const won=v=>Math.round(v).toLocaleString('ko-KR')+'원';
+const eok=v=>{const a=Math.abs(v);if(a>=1e8)return(v/1e8).toFixed(2)+'억';if(a>=1e4)return Math.round(v/1e4).toLocaleString()+'만';return Math.round(v).toLocaleString();};
+const pct=v=>(v>0?'+':'')+v.toFixed(1)+'%';
+const dnorm=s=>{s=String(s||'').trim();if(!s)return '';const m=s.replace(/[.]/g,'/').match(/(\d{4})\/?(\d{1,2})\/?(\d{1,2})?/);if(!m)return s;return m[1]+'-'+String(m[2]).padStart(2,'0')+(m[3]?'-'+String(m[3]).padStart(2,'0'):'');};
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2200);}
+
+/* ---------- IndexedDB ---------- */
+let db;
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open('assetBoard',3);
+  r.onupgradeneeded=e=>{const d=e.target.result;
+    if(!d.objectStoreNames.contains('snapshots'))d.createObjectStore('snapshots',{keyPath:'date'});
+    if(!d.objectStoreNames.contains('crm'))d.createObjectStore('crm',{keyPath:'name'});
+    if(!d.objectStoreNames.contains('meta'))d.createObjectStore('meta',{keyPath:'k'});};
+  r.onsuccess=e=>{db=e.target.result;res();};r.onerror=e=>rej(e);});}
+/* ---------- meta (삭제 기록 tombstone 등) ---------- */
+function metaGet(k){return new Promise(res=>{const t=db.transaction('meta').objectStore('meta').get(k);t.onsuccess=()=>res(t.result?t.result.v:null);t.onerror=()=>res(null);});}
+function metaPut(k,v){return new Promise(res=>{const t=db.transaction('meta','readwrite').objectStore('meta').put({k,v});t.onsuccess=()=>res();});}
+function metaClear(){return new Promise(res=>{const t=db.transaction('meta','readwrite').objectStore('meta').clear();t.onsuccess=()=>res();});}
+function idbAll(){return new Promise((res)=>{const t=db.transaction('snapshots').objectStore('snapshots').getAll();t.onsuccess=()=>res(t.result.sort((a,b)=>a.date<b.date?-1:1));});}
+function idbPut(o){return new Promise((res)=>{const t=db.transaction('snapshots','readwrite').objectStore('snapshots').put(o);t.onsuccess=()=>res();});}
+function idbDel(d){return new Promise((res)=>{const t=db.transaction('snapshots','readwrite').objectStore('snapshots').delete(d);t.onsuccess=()=>res();});}
+function idbClear(){return new Promise((res)=>{const t=db.transaction('snapshots','readwrite').objectStore('snapshots').clear();t.onsuccess=()=>res();});}
+/* ---------- CRM 저장소 (스냅샷과 분리·영구) — 직접 입력/수정/신규고객 ---------- */
+function crmAll(){return new Promise((res)=>{const t=db.transaction('crm').objectStore('crm').getAll();t.onsuccess=()=>res(t.result||[]);});}
+function crmPut(o){return new Promise((res)=>{const t=db.transaction('crm','readwrite').objectStore('crm').put(o);t.onsuccess=()=>res();});}
+function crmDel(n){return new Promise((res)=>{const t=db.transaction('crm','readwrite').objectStore('crm').delete(n);t.onsuccess=()=>res();});}
+
+/* ---------- file type detection ---------- */
+const EVAL_KEYS=['총평가금액','평가금액(b)','평가금액','잔고평가금액','평가액','잔고금액'];
+function detectType(headers){const H=headers.map(norm);const has=k=>H.includes(norm(k));const hasAny=ks=>ks.some(k=>has(k));
+  if(has('생년월')&&has('투자성향')&&!has('계좌번호'))return 'customer';
+  if(has('플랜명')&&has('상품코드')&&has('현재투자비중(%)'))return 'pensionProduct';
+  if(has('계약명')&&has('제도구분'))return 'pensionAccount';
+  if(has('상품유형')&&has('총평가금액'))return 'fund';
+  if(has('종목코드')&&has('시가평가액'))return 'bondels';
+  if(has('월회전율')||has('HTS가입여부'))return 'trust';
+  // 확장: 고객명 + 평가금액류 컬럼이 있으면 새 자산파일로 자동 수용
+  if(has('고객명')&&hasAny(EVAL_KEYS))return 'generic';
+  return null;}
+function rowGetter(headers){const idx={};headers.forEach((h,i)=>idx[norm(h)]=i);return(row,key)=>{const i=idx[norm(key)];return i==null?'':row[i];};}
+
+function fundCategory(name){const n=String(name||'');if(/CMA|예수금|RP\b|MMF|발행어음|MMW/.test(n))return '현금성자산';return '펀드';}
+
+/* ---------- 상품계좌 식별 (전달 이미지 기준) ----------
+   종합계좌번호(8자리) + 상품구분(2자리) → 상품계좌명.
+   종합계좌번호가 다르면 계좌가 다른 것이므로 key로 분리됨. */
+/* 상품계좌명: "계좌" 접미사 제외, 위탁→주식 · 금융상품→CMA 로 표기 */
+const ACCT_TYPE={'01':'주식','21':'CMA','22':'연금저축','29':'IRP','55':'DC','39':'비과세종합저축','03':'선물옵션','08':'해외선물'};
+const ACCT_COLOR={주식:'#15B370',CMA:'#16b5d0',연금저축:'#F7B23B',IRP:'#E0344B',DC:'#3182F6',비과세종합저축:'#8b5cf6',선물옵션:'#64748b',해외선물:'#64748b',기타:'#9aa4b2'};
+const acctColor=n=>ACCT_COLOR[n]||'#9aa4b2';
+/* 계좌번호 문자열 → {key:종합-코드, jong:8자리, code:2자리}
+   실제 엑셀 형식: 63453***-21-0001 (가운데 3자리 * 마스킹, 뒤 -0001은 상품일련번호 → 같은 계좌이므로 무시) */
+function parseAcct(raw){
+  const s=String(raw==null?'':raw).trim();
+  if(!s)return {key:'',jong:'',code:''};
+  // 하이픈형: 종합(8자, 마스킹 * 허용)-상품코드(2)-일련번호(무시)
+  let m=s.match(/^([0-9*]{8})\s*-\s*(\d{2})(?:\s*-\s*\d+)?$/);
+  if(m)return {key:m[1]+'-'+m[2],jong:m[1],code:m[2]};
+  // 연속형: 종합8 + 코드2 (+일련번호)
+  m=s.replace(/[\s\-]/g,'').match(/^([0-9*]{8})(\d{2})/);
+  if(m)return {key:m[1]+'-'+m[2],jong:m[1],code:m[2]};
+  // 종합만 있는 경우
+  m=s.replace(/[\s\-]/g,'').match(/^([0-9*]{8})$/);
+  if(m)return {key:m[1],jong:m[1],code:''};
+  const digits=s.replace(/\D/g,'');
+  return {key:digits||s,jong:digits.slice(0,8),code:''};
+}
+/* 카테고리/제도구분 → 상품계좌명 추론 (계좌번호 코드가 없을 때 폴백) */
+function acctNameFromCat(cat){
+  const c=String(cat||'');
+  if(c==='DC')return 'DC';
+  if(/개인형IRP|^IRP$/.test(c))return 'IRP';
+  if(c==='연금저축')return '연금저축';
+  if(c==='주식')return '주식';            // 위탁계좌 → 주식
+  if(/펀드|채권|ELS|DLS|신탁|현금성|CMA|RP|발행어음|어음/.test(c))return 'CMA';   // 금융상품계좌 → CMA
+  return '';
+}
+/* 상품계좌명 확정: 코드 우선, 없으면 카테고리 추론 */
+function acctName(code,sampleCat){
+  if(code&&ACCT_TYPE[code])return ACCT_TYPE[code];
+  return acctNameFromCat(sampleCat)||'기타';
+}
+
+/* ---------- 고객 원금 계산 ----------
+   퇴직연금(DC·IRP)은 상품별 매입원금 합이 매매·재투자로 부풀려지므로
+   계약별 파일의 납입원금(a)을 원금으로 사용. 그 외 상품은 상품별 원금 합. */
+function custPrincipal(o){
+  const contract={};
+  (o.accounts||[]).forEach(a=>{const k=parseAcct(a.account).key;if(!k)return;
+    const t=contract[k]=contract[k]||{pr:0,ev:0};t.pr+=a.principal;t.ev+=a.eval;});
+  let pr=0;const covered={};
+  (o.products||[]).forEach(p=>{const k=parseAcct(p.account).key;
+    if(k&&contract[k])covered[k]=1;else pr+=p.principal;});
+  Object.entries(contract).forEach(([k,t])=>{if(covered[k]||t.ev>0)pr+=t.pr;});
+  return pr;
+}
+/* 저장된 스냅샷에도 소급 적용 (로드·동기화 시 재계산 — 멱등) */
+function fixSnapPrincipals(s){
+  if(!s||!s.customers)return;
+  let tp=0;
+  Object.values(s.customers).forEach(o=>{
+    const pr=custPrincipal(o);
+    o.totalPrincipal=pr;o.totalProfit=(o.totalEval||0)-pr;o.rate=pr>0?(o.totalEval-pr)/pr*100:0;
+    tp+=pr;});
+  if(s.totals){s.totals.principal=tp;s.totals.profit=(s.totals.eval||0)-tp;}
+}
+
+/* ---------- build snapshot from parsed files ---------- */
+function buildSnapshot(date, files){
+  // files: {type:[{headers,rows}]}
+  const cust={}; // name -> obj
+  const ensure=n=>{n=String(n||'').trim();if(!n||/^(합계|소계|총계|총합계?|합\s*계|total)$/i.test(n))return null;if(!cust[n])cust[n]={name:n,acctPrefix:'',birth:'',gender:'',riskType:'',riskExpiry:'',lmsFund:'',lmsPension:'',regDate:'',branchCount:{},pbCount:{},products:[],accounts:[],acctMeta:{},cats:{}};return cust[n];};
+  const setPrefix=(o,acct)=>{const j=parseAcct(acct).jong;if(j&&!o.acctPrefix)o.acctPrefix=j;};
+  const minDate=(a,b)=>{b=dnorm(b);if(!b)return a;if(!a)return b;return b<a?b:a;};
+  const bump=(m,k)=>{k=String(k||'').trim();if(k)m[k]=(m[k]||0)+1;};
+  /* 계좌(상품계좌) 등록 — 0원이라도 계좌 존재 자체를 기록(해지 비교·0원 표시용) */
+  const regAcct=(o,rawAcct,cat,extra)=>{const raw=String(rawAcct==null?'':rawAcct).trim();if(!raw)return null;
+    const pa=parseAcct(raw);const k=pa.key;if(!k)return null;
+    let a=o.acctMeta[k];
+    if(!a)a=o.acctMeta[k]={key:k,jong:pa.jong,code:pa.code,raw,name:'',branch:'',pb:'',openDate:''};
+    if(!a.code&&pa.code)a.code=pa.code;
+    if(extra){if(extra.branch&&!a.branch)a.branch=String(extra.branch);if(extra.pb&&!a.pb)a.pb=String(extra.pb);if(extra.openDate&&!a.openDate)a.openDate=extra.openDate;}
+    if(!a.name)a.name=acctName(a.code,cat);
+    return a;};
+
+  // 고객 마스터
+  (files.customer||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
+    const o=ensure(g(r,'고객명'));if(!o)return;
+    o.birth=String(g(r,'생년월')||'');o.gender=String(g(r,'성별')||'');
+    o.riskType=String(g(r,'투자성향')||'');o.riskExpiry=dnorm(g(r,'투자성향만기일'));
+    o.lmsFund=String(g(r,'펀드매매권유LMS발송가능여부')||'');o.lmsPension=String(g(r,'퇴직연금권유LMS발송가능여부')||'');
+  });});
+  // 위탁계좌 (주식/현금성, 등록일)
+  (files.trust||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
+    const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    o.regDate=minDate(o.regDate,g(r,'유치등록일')||g(r,'신규일'));
+    bump(o.branchCount,g(r,'관리점'));
+    regAcct(o,g(r,'계좌번호'),'주식',{branch:g(r,'관리점'),openDate:dnorm(g(r,'신규일'))});
+    const stock=num(g(r,'증권자산')),cash=num(g(r,'예수금'));
+    if(stock>0)o.products.push({category:'주식',name:'증권 위탁자산',code:'',eval:stock,principal:stock,profit:0,rate:0,account:String(g(r,'계좌번호')||''),branch:String(g(r,'관리점')||''),pb:'',openDate:dnorm(g(r,'신규일')),maturity:'',deposit:stock});
+    if(cash>0)o.products.push({category:'현금성자산',name:'위탁 예수금',code:'',eval:cash,principal:cash,profit:0,rate:0,account:String(g(r,'계좌번호')||''),branch:String(g(r,'관리점')||''),pb:'',openDate:dnorm(g(r,'신규일')),maturity:'',deposit:cash});
+  });});
+  const isSummary=c=>!c||/합계|소계|총계|total/i.test(c);
+  // 퇴직연금 계약별 (계좌 단위)
+  (files.pensionAccount||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
+    const cat=String(g(r,'제도구분')||'').trim();if(isSummary(cat))return;
+    const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    o.regDate=minDate(o.regDate,g(r,'계좌개설일'));
+    bump(o.branchCount,g(r,'계좌관리점명'));bump(o.pbCount,g(r,'계좌관리자명'));
+    if(!o.riskType)o.riskType=String(g(r,'투자성향')||'');
+    regAcct(o,g(r,'계좌번호'),cat,{branch:g(r,'계좌관리점명'),pb:g(r,'계좌관리자명'),openDate:dnorm(g(r,'계좌개설일'))});
+    const principal=num(g(r,'납입원금(a)')),ev=num(g(r,'평가금액(b)'));
+    o.accounts.push({category:cat,account:String(g(r,'계좌번호')||'').trim(),contractName:String(g(r,'계약명')||''),
+      principal,eval:ev,profit:num(g(r,'수익금(c=b-a)'))||(ev-principal),rate:num(g(r,'단순수익률(c/a)%')),
+      riskType:String(g(r,'투자성향')||''),openDate:dnorm(g(r,'계좌개설일')),branch:String(g(r,'계좌관리점명')||''),pb:String(g(r,'계좌관리자명')||'')});
+  });});
+  // 퇴직연금 상품별 (상품/비중)
+  (files.pensionProduct||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
+    const cat=String(g(r,'제도구분')||'').trim();if(isSummary(cat))return;
+    const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    bump(o.branchCount,g(r,'계좌관리점명'));bump(o.pbCount,g(r,'계좌관리자명'));
+    regAcct(o,g(r,'계좌번호'),cat,{branch:g(r,'계좌관리점명'),pb:g(r,'계좌관리자명')});
+    const principal=num(g(r,'매입원금(a)')),ev=num(g(r,'평가금액(b)'));
+    if(ev===0&&principal===0)return;
+    o.products.push({category:cat,name:String(g(r,'상품명')||'').trim(),code:String(g(r,'상품코드')||''),
+      eval:ev,principal,profit:num(g(r,'수익금(c=b-a)'))||(ev-principal),rate:num(g(r,'단순수익률(c/a)%')),
+      ratio:num(g(r,'현재투자비중(%)')),account:String(g(r,'계좌번호')||'').trim(),
+      branch:String(g(r,'계좌관리점명')||''),pb:String(g(r,'계좌관리자명')||''),openDate:'',maturity:'',deposit:0});
+  });});
+  // 펀드/CMA/신탁
+  (files.fund||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
+    const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    o.regDate=minDate(o.regDate,g(r,'계좌개설일'));
+    bump(o.branchCount,g(r,'계좌관리점'));bump(o.pbCount,g(r,'계좌관리자'));
+    regAcct(o,g(r,'계좌번호'),fundCategory(g(r,'상품명')),{branch:g(r,'계좌관리점'),pb:g(r,'계좌관리자'),openDate:dnorm(g(r,'계좌개설일'))});
+    const ev=num(g(r,'총평가금액')),principal=num(g(r,'매입금액'));
+    if(ev===0&&principal===0&&num(g(r,'입금누계액'))===0)return;
+    o.products.push({category:fundCategory(g(r,'상품명')),name:String(g(r,'상품명')||'').trim(),code:String(g(r,'상품코드')||''),
+      eval:ev,principal:principal||num(g(r,'입금-출금누계액')),profit:num(g(r,'수익금')),rate:num(g(r,'수익률(%)')),
+      account:String(g(r,'계좌번호')||'').trim(),branch:String(g(r,'계좌관리점')||''),pb:String(g(r,'계좌관리자')||''),
+      openDate:dnorm(g(r,'계좌개설일')),maturity:dnorm(g(r,'만기일')),deposit:num(g(r,'입금누계액'))});
+  });});
+  // 채권/ELS (FC유치 계좌리스트 - 채권_ELS)
+  (files.bondels||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
+    const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    bump(o.branchCount,g(r,'계좌관리점'));bump(o.pbCount,g(r,'계좌관리자'));
+    let cat=String(g(r,'상품유형')||'').trim();if(isSummary(cat))return;if(!cat)cat='채권';
+    regAcct(o,g(r,'계좌번호'),cat,{branch:g(r,'계좌관리점'),pb:g(r,'계좌관리자'),openDate:dnorm(g(r,'매수일자'))});
+    const ev=num(g(r,'시가평가액')),principal=num(g(r,'매수금액'));
+    if(ev===0&&principal===0)return;
+    o.regDate=minDate(o.regDate,g(r,'매수일자'));
+    o.products.push({category:cat,name:String(g(r,'종목명')||'').trim()||cat,code:String(g(r,'종목코드')||''),
+      eval:ev,principal:principal||ev,profit:ev-(principal||ev),rate:principal>0?(ev-principal)/principal*100:0,
+      account:String(g(r,'계좌번호')||'').trim(),branch:String(g(r,'계좌관리점')||''),pb:String(g(r,'계좌관리자')||''),
+      openDate:dnorm(g(r,'매수일자')),maturity:dnorm(g(r,'만기일')),deposit:0});
+  });});
+  // 확장 자동수용: 알 수 없는 새 자산파일도 고객명+평가금액 기준으로 흡수
+  (files.generic||[]).forEach(f=>{const g=rowGetter(f.headers);const H=f.headers.map(norm);const pick=ks=>ks.find(k=>H.includes(norm(k)));
+    const evK=pick(EVAL_KEYS),prK=pick(['매입금액','납입원금(a)','매입원금(a)','매입원금','원금','입금누계액','입금-출금누계액']),
+      rtK=pick(['수익률(%)','단순수익률(c/a)%','수익률']),nmK=pick(['상품명','계약명','종목명','상품유형']),
+      ctK=pick(['제도구분','상품유형','자산구분','구분']),brK=pick(['계좌관리점명','계좌관리점','관리점']),pbK=pick(['계좌관리자명','계좌관리자','담당자']),
+      opK=pick(['계좌개설일','개설일','신규일']),mtK=pick(['만기일']);
+    f.rows.forEach(r=>{const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+      let cat=ctK?String(g(r,ctK)||'').trim():'';if(isSummary(cat))return;if(!cat)cat='기타자산';
+      regAcct(o,g(r,'계좌번호'),cat,{branch:brK?g(r,brK):'',pb:pbK?g(r,pbK):'',openDate:opK?dnorm(g(r,opK)):''});
+      const ev=evK?num(g(r,evK)):0,pr=prK?num(g(r,prK)):0;if(ev===0&&pr===0)return;
+      o.regDate=minDate(o.regDate,opK?g(r,opK):'');
+      if(brK)bump(o.branchCount,g(r,brK));if(pbK)bump(o.pbCount,g(r,pbK));
+      o.products.push({category:cat,name:nmK?String(g(r,nmK)||'').trim():cat,code:'',eval:ev,principal:pr||ev,
+        profit:ev-(pr||ev),rate:rtK?num(g(r,rtK)):0,account:String(g(r,'계좌번호')||'').trim(),
+        branch:brK?String(g(r,brK)||''):'',pb:pbK?String(g(r,pbK)||''):'',
+        openDate:opK?dnorm(g(r,opK)):'',maturity:mtK?dnorm(g(r,mtK)):'',deposit:0});
+    });});
+
+  // aggregate per customer
+  const totals={eval:0,principal:0,profit:0,cats:{},branches:{},pbs:{},count:0};
+  Object.values(cust).forEach(o=>{
+    o.cats={};
+    let ev=0;
+    o.products.forEach(p=>{const c=p.category||'기타자산';o.cats[c]=(o.cats[c]||0)+p.eval;ev+=p.eval;});
+    const pr=custPrincipal(o);   // 퇴직연금은 계약별 납입원금(a) 기준
+    o.totalEval=ev;o.totalPrincipal=pr;o.totalProfit=ev-pr;o.rate=pr>0?(ev-pr)/pr*100:0;
+    o.branch=Object.entries(o.branchCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+    o.pb=Object.entries(o.pbCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
+    delete o.branchCount;delete o.pbCount;
+    totals.eval+=ev;totals.principal+=pr;
+    Object.keys(o.cats).forEach(c=>totals.cats[c]=(totals.cats[c]||0)+o.cats[c]);
+    if(o.branch)totals.branches[o.branch]=(totals.branches[o.branch]||0)+ev;
+    if(o.pb)totals.pbs[o.pb]=(totals.pbs[o.pb]||0)+ev;
+    if(ev>0||o.products.length)totals.count++;
+  });
+  totals.profit=totals.eval-totals.principal;
+  return {date,uploadedAt:new Date().toISOString(),customers:cust,totals};
+}
+
+/* ---------- parse uploaded File objects ---------- */
+async function parseFiles(fileList){
+  const buckets={};
+  for(const file of fileList){
+    let wb;
+    try{
+      if(/\.csv$/i.test(file.name)){wb=XLSX.read(await file.text(),{type:'string'});}
+      else{wb=XLSX.read(await file.arrayBuffer());}
+    }catch(e){continue;}
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+    if(!rows.length)continue;
+    const headers=rows[0].map(x=>String(x));
+    const type=detectType(headers);
+    if(!type){buckets._unknown=(buckets._unknown||0)+1;continue;}
+    (buckets[type]=buckets[type]||[]).push({headers,rows:rows.slice(1).filter(r=>r.some(c=>c!==''))});
+  }
+  return buckets;
+}
+
+/* =========================================================
+   STATE & RENDER
+   ========================================================= */
+let SNAPS=[];           // all snapshots sorted by date
+let CRM={};             // name -> CRM record (직접입력·영구)
+let DELDATES=[];        // 삭제된 스냅샷 날짜(tombstone) — 동기화 후 부활 방지
+let pendingFiles=[];    // selected for upload
+let curView='home';
+let inDetail=false;
+let currentClientName=null;
+let charts={};
+function killCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};}
+const latest=()=>SNAPS[SNAPS.length-1]||null;
+
+async function reload(){DELDATES=(await metaGet('deletedDates'))||[];
+  // tombstone 날짜가 로컬에 남아있으면(동기화/백업 복원으로 부활) 제거 후 목록에서 제외
+  for(const d of DELDATES){await idbDel(d);}
+  SNAPS=(await idbAll()).filter(s=>!DELDATES.includes(s.date));
+  SNAPS.forEach(fixSnapPrincipals);const cl=await crmAll();CRM={};cl.forEach(c=>CRM[c.name]=c);render();}
+
+/* ---------- 자산(스냅샷) + CRM(직접입력) 통합 고객 맵 ---------- */
+function blankCust(name){return {name,acctPrefix:'',birth:'',gender:'',riskType:'',regDate:'',products:[],accounts:[],acctMeta:{},cats:{},totalEval:0,totalPrincipal:0,totalProfit:0,rate:0,branch:'',pb:'',crm:null};}
+function curCustomers(){
+  const snap=latest();const base={};
+  if(snap)Object.values(snap.customers).forEach(c=>{c.crm=null;base[c.name]=c;});
+  Object.values(CRM).forEach(cr=>{
+    let c=base[cr.name];if(!c)c=base[cr.name]=blankCust(cr.name);
+    c.crm=cr;
+    if(!c.birth&&cr.birth)c.birth=cr.birth;
+    if(!c.gender&&cr.gender)c.gender=cr.gender;
+    if(!c.riskType&&cr.riskType)c.riskType=cr.riskType;
+  });
+  return base;
+}
+/* ---------- 채널(보험/한투) 통합 식별 ---------- */
+/* 한투 = 자산자료(스냅샷) 보유 또는 crm.channels에 '한투' · 보험 = crm.channels '보험' 또는 보험관리정보(anchorMonth/history) 보유 */
+function custChannels(c){
+  const set=new Set((c&&c.crm&&Array.isArray(c.crm.channels))?c.crm.channels:[]);
+  if(c&&((c.totalEval>0)||(c.products&&c.products.length)||(c.accounts&&c.accounts.length)))set.add('한투');
+  if(c&&c.crm&&(c.crm.anchorMonth||(c.crm.history&&c.crm.history.length)))set.add('보험');
+  return [...set];
+}
+function hasChannel(c,ch){return custChannels(c).includes(ch);}
+const CH_STYLE={'한투':['#1B64DA','#EBF2FE'],'보험':['#0F9D58','#E5F8EE']};
+function chBadges(c){return custChannels(c).map(ch=>{const s=CH_STYLE[ch]||['#4E5968','#EDEFF2'];return `<span class="tag" style="color:${s[0]};background:${s[1]};font-weight:700">${ch}</span>`;}).join('');}
+
+function setView(v){curView=v;document.querySelectorAll('[data-view]').forEach(a=>a.classList.toggle('active',a.dataset.view===v));
+  $('#mTitle').textContent={home:'홈',clients:'고객',assets:'자산',strategy:'영업',insurance:'보험',reports:'리포트',help:'사용설명서'}[v];inDetail=false;currentClientName=null;render();window.scrollTo(0,0);toggleDrawer(false);}
+function rerenderCurrent(){if(inDetail&&currentClientName&&curCustomers()[currentClientName])openClient(currentClientName);else render();}
+function toggleDrawer(open){const sb=$('#sidebar'),bd=$('#drawerBackdrop');if(!sb)return;const willOpen=open===undefined?!sb.classList.contains('open'):open;sb.classList.toggle('open',willOpen);if(bd)bd.classList.toggle('open',willOpen);}
+function bindCollapsers(scope){(scope||document).querySelectorAll('.collapser').forEach(h=>{h.onclick=()=>{const t=document.getElementById(h.dataset.target);if(!t)return;const c=t.classList.toggle('collapsed');const meta=h.querySelector('.meta');if(meta)meta.textContent=c?'▾ 펼치기':'▴ 접기';};});}
+
+function render(){killCharts();
+  if(curView==='home')renderHome();
+  else if(curView==='clients')renderClients();
+  else if(curView==='assets')renderAssets();
+  else if(curView==='strategy')renderStrategy();
+  else if(curView==='insurance')renderInsurance();
+  else if(curView==='reports')renderReports();
+  else if(curView==='help')renderHelp();
+}
+
+/* ----- HOME ----- */
+/* 보험 분기 연락 요약 카드 (홈) — 보험 고객 있을 때만 */
+function homeInsCard(){
+  const list=insList();if(!list.length)return '';
+  const due=insDueThisMonth(list);
+  const over=due.filter(c=>c._st==='overdue').length,tod=due.filter(c=>c._st==='today').length;
+  let bSoon=0;list.forEach(c=>{const b=insBday(c);if(b&&b.days<=7)bSoon++;});
+  return `<div class="card" id="homeIns" style="cursor:pointer">
+    <h3>🛡️ 보험 분기 연락<span class="meta">보험 고객 ${list.length}명 · 클릭 시 보험</span></h3>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;padding:4px 2px">
+      <div><span style="font-size:26px;font-weight:800;color:#E0344B">${over}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
+      <div><span style="font-size:26px;font-weight:800;color:var(--primary)">${tod}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
+      <div><span style="font-size:26px;font-weight:800;color:#C98A0B">${bSoon}</span><span style="color:var(--sub);margin-left:5px">명 생일임박</span></div>
+    </div></div>`;
+}
+function renderHome(){
+  const snap=latest();
+  const v=$('#view');
+  const prev=SNAPS.length>1?SNAPS[SNAPS.length-2]:null;
+  let html=`<div class="wrap"><h1 class="page-title">홈</h1><p class="page-sub">엑셀 6종을 올리면 자동으로 누적·분석됩니다 · 데이터는 이 기기에만 저장됩니다</p>`;
+  // upload card (접기/펼침 — 데이터 있으면 기본 접힘)
+  const upCol=!!snap;
+  html+=`<div class="card"><h3 class="collapser" data-target="upBody">📤 엑셀 업로드<span class="meta">${upCol?'▾ 펼치기':'▴ 접기'}</span></h3>
+    <div id="upBody" class="collapse-body${upCol?' collapsed':''}">
+    <div id="drop"><b>이곳으로 6개 엑셀 파일을 드래그하세요</b>고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS (.xls)</div>
+    <div class="filechips" id="fileChips"></div>
+    <div class="up-row">
+      <label style="font-size:13px;color:var(--sub);font-weight:600">기준일</label>
+      <input type="date" id="snapDate" value="${todayStr()}">
+      <button class="btn primary" id="btnUpload">업로드</button>
+      <button class="btn ghost" id="btnReset">리셋</button>
+      <button class="btn ghost" id="btnPick">파일 선택</button>
+    </div></div></div>`;
+
+  if(!snap){html+=`<div class="card empty"><div class="big">📥</div><b>아직 데이터가 없습니다</b>
+    <p style="margin:10px 0 16px;color:var(--sub);font-size:13.5px;line-height:1.6">위에서 엑셀을 올리거나, PC에서 쓰던 데이터는<br><b style="color:var(--ink)">백업 파일(JSON)</b>을 불러오세요.<br><span style="font-size:12.5px">※ 데이터는 기기마다 따로 저장됩니다 (PC ↔ 휴대폰 별도)</span></p>
+    <button class="btn primary" id="emptyImport">⬆ 백업 불러오기</button></div>`;
+    html+=homeInsCard()+`</div>`;
+    v.innerHTML=html;bindUpload();bindCollapsers(v);
+    const ei=$('#emptyImport');if(ei)ei.onclick=()=>$('#importInput').click();
+    const hi=$('#homeIns');if(hi)hi.onclick=()=>setView('insurance');
+    return;}
+
+  const t=snap.totals;
+  const dEval=prev?t.eval-prev.totals.eval:0;
+  // KPIs
+  html+=`<div class="grid3" style="margin-bottom:18px">
+    <div class="kpi"><div class="lab">총 평가자산</div><div class="val">${eok(t.eval)}</div>
+      ${prev?`<div class="delta ${dEval>=0?'up':'down'}">${dEval>=0?'▲':'▼'} ${eok(Math.abs(dEval))} (전주대비)</div>`:`<div class="delta flat">${won(t.eval)}</div>`}</div>
+    <div class="kpi"><div class="lab">투입 원금</div><div class="val sm">${eok(t.principal)}</div><div class="delta flat">${won(t.principal)}</div></div>
+    <div class="kpi"><div class="lab">평가 손익</div><div class="val sm ${t.profit>=0?'up':'down'}">${t.profit>=0?'+':''}${eok(t.profit)}</div>
+      <div class="delta ${t.profit>=0?'up':'down'}">수익률 ${(t.principal>0?t.profit/t.principal*100:0).toFixed(1)}%${(()=>{const a=annualize(t.principal>0?t.profit/t.principal*100:0,snapYears(snap));return a!=null?` · 연환산 ${(a>=0?'+':'')+a.toFixed(1)}%`:'';})()}</div></div>
+  </div>`;
+
+  // 오늘 연락할 고객 요약 (CRM 보유 고객 · 90일 주기)
+  const cs=contactStats();
+  if(cs.total>0){
+    html+=`<div class="card" id="homeContact" style="cursor:pointer">
+      <h3>📞 오늘 연락할 고객<span class="meta">${CONTACT_START} 시작 · ${CONTACT_CYCLE_DAYS}일 분산 · 클릭 시 영업</span></h3>
+      <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;padding:4px 2px">
+        <div><span style="font-size:26px;font-weight:800;color:#E0344B">${cs.due}</span><span style="color:var(--sub);margin-left:5px">명 기간 지남</span></div>
+        <div><span style="font-size:26px;font-weight:800;color:#C98A0B">${cs.today}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
+        <div><span style="font-size:26px;font-weight:800;color:var(--sub2)">${cs.upcoming}</span><span style="color:var(--sub);margin-left:5px">명 예정</span></div>
+      </div></div>`;
+  }
+  html+=homeInsCard();
+
+  // pie + trend
+  html+=`<div class="grid2">
+    <div class="card"><h3>자산 구분<span class="meta">${snap.date} 기준 · 고객 ${t.count}명</span></h3>
+      <div class="chartbox" style="height:230px"><canvas id="cPie"></canvas></div><div class="legend" id="pieLeg"></div></div>
+    <div class="card"><h3>전체 자산 추이<span class="meta">원금 · 손익 · 총액</span></h3>
+      <div class="chartbox" style="height:230px"><canvas id="cTrend"></canvas></div></div>
+  </div>`;
+
+  // branch / pb
+  html+=`<div class="grid2">
+    <div class="card"><h3>영업점별 자산</h3><div class="chartbox" style="height:200px"><canvas id="cBranch"></canvas></div></div>
+    <div class="card"><h3>담당 PB별 자산</h3><div class="chartbox" style="height:200px"><canvas id="cPB"></canvas></div></div>
+  </div>`;
+
+  // top clients
+  const top=Object.values(snap.customers).filter(c=>c.totalEval>0).sort((a,b)=>b.totalEval-a.totalEval).slice(0,8);
+  html+=`<div class="card"><h3>관리고객 자산순<span class="meta">상위 8명</span></h3><div class="list">`+
+    top.map(c=>clientRow(c)).join('')+`</div></div>`;
+  html+=`</div>`;
+  v.innerHTML=html;
+  bindUpload();bindCollapsers(v);
+  // charts
+  drawPie('cPie',t.cats,'pieLeg');
+  drawTrend('cTrend');
+  drawBar('cBranch',t.branches,'#3182F6');
+  drawBar('cPB',t.pbs,'#16b5d0');
+  v.querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
+  const hc=$('#homeContact');if(hc)hc.onclick=()=>{stratTab='contact';setView('strategy');};
+  const hi=$('#homeIns');if(hi)hi.onclick=()=>setView('insurance');
+}
+
+/* 투자성향 색상 코딩 (토스 디자인 위험도 순) */
+const RISK_COLOR={'안정형':['#0F9D58','#EAF6EF'],'안정추구형':['#0E9384','#E6F6F4'],'위험중립형':['#C98A0B','#FCF3E0'],'적극투자형':['#E0640F','#FDEEE2'],'공격투자형':['#E0344B','#FDECEE']};
+function riskTag(r){if(!r)return '';const c=RISK_COLOR[r];return c?`<span class="tag" style="color:${c[0]};background:${c[1]}">${esc(r)}</span>`:`<span class="tag">${esc(r)}</span>`;}
+function clientRow(c){
+  const co=c.crm&&c.crm.company;
+  const ann=annualize(c.rate||0,yearsBetween(c.regDate,latest()&&latest().date));
+  const insOnly=c.totalEval<=0&&hasChannel(c,'보험');
+  const right=c.totalEval>0
+    ?`<span class="amt">${won(c.totalEval)}</span><span class="rate ${c.rate>=0?'up':'down'}">${pct(c.rate)}${ann!=null?`<small class="ann">연 ${(ann>=0?'+':'')+ann.toFixed(1)}%</small>`:''}</span>`
+    :insOnly
+    ?`<span class="amt" style="color:var(--ok-d);font-weight:600">보험 고객</span>${c.crm&&c.crm.anchorMonth?`<span class="rate flat"><small class="ann">관리 ${c.crm.anchorMonth}월</small></span>`:''}`
+    :`<span class="amt" style="color:var(--sub);font-weight:600">자산 미연결</span>`;
+  return `<div class="row" data-name="${esc(c.name)}">
+    <div><div class="nm">${esc(c.name)} <small>${c.acctPrefix||''}</small></div>
+      <div class="tags">${chBadges(c)}${co?`<span class="tag b">${esc(co)}</span>`:c.branch?`<span class="tag b">${esc(c.branch)}</span>`:''}${c.pb?`<span class="tag">${esc(c.pb)} PB</span>`:''}${riskTag(c.riskType)}</div></div>
+    <div class="right">${right}</div>
+    <span class="chev">›</span></div>`;
+}
+
+/* ----- CLIENTS ----- */
+let clientSort='asset',clientQuery='',clientChannel='';
+function renderClients(){
+  const v=$('#view');const custs=curCustomers();const all=Object.values(custs);
+  const sorters={name:(a,b)=>a.name.localeCompare(b.name,'ko'),asset:(a,b)=>b.totalEval-a.totalEval,
+    rate:(a,b)=>b.rate-a.rate,reg:(a,b)=>(a.regDate||'9')<(b.regDate||'9')?-1:1};
+  const matchCh=c=>{if(!clientChannel)return true;if(clientChannel==='둘다')return hasChannel(c,'한투')&&hasChannel(c,'보험');return hasChannel(c,clientChannel);};
+  const apply=q=>all.filter(c=>matchCh(c)&&(!q||c.name.includes(q))).sort(sorters[clientSort]);
+  let list=apply(clientQuery);
+  const nKis=all.filter(c=>hasChannel(c,'한투')).length,nIns=all.filter(c=>hasChannel(c,'보험')).length,nBoth=all.filter(c=>hasChannel(c,'한투')&&hasChannel(c,'보험')).length;
+  const chBtn=(val,lab,cnt)=>`<button class="ch-fl${clientChannel===val?' on':''}" data-ch="${val}">${lab}<span class="cfn">${cnt}</span></button>`;
+  v.innerHTML=`<div class="wrap"><h1 class="page-title">고객</h1><p class="page-sub">전체 ${all.length}명 · 한투 ${nKis} · 보험 ${nIns} · 양쪽 ${nBoth} · 클릭 시 상세</p>
+    <div class="ch-fls">${chBtn('','전체',all.length)}${chBtn('한투','한투',nKis)}${chBtn('보험','보험',nIns)}${chBtn('둘다','양쪽',nBoth)}</div>
+    <div class="toolbar">
+      <div class="seg">
+        <button data-s="name" class="${clientSort==='name'?'on':''}">이름</button>
+        <button data-s="reg" class="${clientSort==='reg'?'on':''}">등록일</button>
+        <button data-s="asset" class="${clientSort==='asset'?'on':''}">자산</button>
+        <button data-s="rate" class="${clientSort==='rate'?'on':''}">수익률</button>
+      </div>
+      <button class="btn primary sm" id="btnNewClient">+ 신규 고객</button>
+    </div>
+    <div class="search"><span>🔍</span><input id="cSearch" placeholder="고객 이름 검색" value="${esc(clientQuery)}"></div>
+    <div class="card" style="padding:8px 14px"><div class="list">${list.map(c=>clientRow(c)).join('')||'<div class="empty">검색 결과 없음</div>'}</div></div>
+  </div>`;
+  v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{clientChannel=b.dataset.ch;renderClients();});
+  v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{clientSort=b.dataset.s;renderClients();});
+  $('#btnNewClient').onclick=()=>openCrmForm(null);
+  const bindRows=()=>$('#view').querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
+  const s=$('#cSearch');s.oninput=()=>{clientQuery=s.value.trim();
+    $('#view .list').innerHTML=apply(clientQuery).map(c=>clientRow(c)).join('')||'<div class="empty">검색 결과 없음</div>';bindRows();};
+  bindRows();
+}
+
+/* ----- 보유상품을 상품계좌(종합+상품구분)별로 묶기 (0원 계좌도 포함) ----- */
+function buildAccounts(c){
+  const accts={};
+  // acctMeta는 저장 당시 key가 아닌 raw 기준으로 재파싱 (구버전 잘못된 key 정정·병합)
+  Object.values(c.acctMeta||{}).forEach(a=>{
+    const pa=parseAcct(a.raw||a.key);
+    const k=pa.key||a.key;if(!k)return;
+    let x=accts[k];
+    if(!x)x=accts[k]={key:k,jong:pa.jong||a.jong,code:pa.code||a.code,raw:String(a.raw||'').trim(),
+      branch:a.branch||'',pb:a.pb||'',openDate:a.openDate||'',products:[],eval:0,principal:0,cash:0};
+    else{if(!x.branch&&a.branch)x.branch=a.branch;if(!x.pb&&a.pb)x.pb=a.pb;if(!x.openDate&&a.openDate)x.openDate=a.openDate;}
+  });
+  (c.products||[]).forEach(p=>{
+    const pa=parseAcct(p.account);
+    const k=pa.key||('_'+(p.category||'기타'));
+    let a=accts[k];
+    if(!a)a=accts[k]={key:k,jong:pa.jong,code:pa.code,raw:String(p.account||'').trim(),
+      branch:p.branch||'',pb:p.pb||'',openDate:p.openDate||'',products:[],eval:0,principal:0,cash:0};
+    if(!a.code&&pa.code)a.code=pa.code;
+    if(!a.raw)a.raw=String(p.account||'').trim();
+    // 계좌 시작일(유치등록일·계좌개설일·매수일자) — 비어있으면 채우고, 더 이른 날짜면 갱신
+    if(p.openDate&&(!a.openDate||p.openDate<a.openDate))a.openDate=p.openDate;
+    a.products.push(p);a.eval+=p.eval;a.principal+=p.principal;
+    if(p.category==='현금성자산')a.cash+=p.eval;
+  });
+  const arr=Object.values(accts);
+  // 상품계좌명 확정 — 코드 우선, 없으면 대표(최대) 상품의 카테고리로 추론
+  arr.forEach(a=>{
+    const top=a.products.slice().sort((x,y)=>y.eval-x.eval)[0];
+    a.name=acctName(a.code,top?top.category:'');
+  });
+  // 같은 상품계좌명이 둘 이상(=종합계좌번호가 다른 별도 계좌)이면 대표 상품명을 덧붙여 구분
+  const cnt={};arr.forEach(a=>{cnt[a.name]=(cnt[a.name]||0)+1;});
+  arr.forEach(a=>{
+    if(cnt[a.name]>1){
+      const top=a.products.slice().sort((x,y)=>y.eval-x.eval)[0];
+      a.label=(top&&top.name)?top.name:(a.jong||a.key);
+    }
+  });
+  // 상품명이 같아 여전히 구분이 안 되면 종합계좌번호로 구분
+  const lc={};arr.forEach(a=>{if(a.label){const k=a.name+'|'+a.label;lc[k]=(lc[k]||0)+1;}});
+  arr.forEach(a=>{if(a.label&&lc[a.name+'|'+a.label]>1)a.label=a.jong||a.key;});
+  return arr.sort((x,y)=>y.eval-x.eval||String(x.name).localeCompare(String(y.name),'ko'));
+}
+/* 스냅샷 고객 → {계좌key: {name,eval}} (해지 비교용) */
+function acctMapOf(o){const m={};buildAccounts(o).forEach(a=>{m[a.key]={name:a.name,eval:a.eval};});return m;}
+/* 계좌 1개 = 접기/펼침 블록. 계좌이름 옆 총액·계좌별 현금성 표시. 디폴트 접힘. */
+function acctBlock(a,idx,sdate){
+  const bodyId='acc_'+idx;
+  const amt=a.eval>0?`<span class="aamt">${won(a.eval)}</span>`:`<span class="azero">0원 계좌</span>`;
+  const acctNo=a.jong?(a.jong+(a.code?'-'+a.code:'')):String(a.raw||'').trim();
+  const sub=[acctNo,a.label||'',a.openDate?'개설 '+a.openDate:''].filter(Boolean).join(' · ');
+  // 계좌별 수익률(누적) + 연환산(개설일~기준일). 잔고·원금 있을 때만.
+  let rateHtml='';
+  if(a.eval>0&&a.principal>0){
+    const rate=(a.eval-a.principal)/a.principal*100;
+    const ann=annualize(rate,yearsBetween(a.openDate,sdate));
+    rateHtml=`<span class="arate ${rate>=0?'up':'down'}">${pct(rate)}${ann!=null?`<small>연환산 ${(ann>=0?'+':'')+ann.toFixed(1)}%</small>`:''}</span>`;
+  }
+  const prods=a.products.length
+    ? a.products.slice().sort((x,y)=>y.eval-x.eval).map(p=>prodCard(p)).join('')
+    : '<div class="acct-empty">보유 잔고 0원 · 계좌 유지 중</div>';
+  return `<div class="acct" style="border-left:3px solid ${acctColor(a.name)}">
+    <div class="acct-head" data-target="${bodyId}">
+      <span class="aname">${esc(a.name)}${sub?`<small>${esc(sub)}</small>`:''}</span>
+      <span class="aright">${amt}${rateHtml}<span class="acaret">▾</span></span>
+    </div>
+    <div id="${bodyId}" class="acct-body collapsed">${prods}</div>
+  </div>`;
+}
+
+/* ----- CLIENT DETAIL ----- */
+function openClient(name){killCharts();currentClientName=name;
+  const series=SNAPS.map(s=>({date:s.date,c:s.customers[name]})).filter(x=>x.c);
+  const snap=latest();const c=curCustomers()[name];if(!c){toast('데이터 없음');return;}
+  const sdate=snap?snap.date:'-';
+  const v=$('#view');
+  // 보유상품을 상품계좌별로 묶음 (0원 계좌 포함, 디폴트 접힘)
+  const accounts=buildAccounts(c);
+  const acctHtml=accounts.map((a,i)=>acctBlock(a,i,sdate)).join('');
+
+  const crmCard=`<div class="card"><h3>영업 · CRM 정보<button class="btn ghost sm" id="btnEditCrm">${c.crm?'✏️ 편집':'+ 입력'}</button></h3>${crmBody(c)}</div>`;
+
+  v.innerHTML=`<div class="wrap">
+    <button class="back" onclick="setView('clients')">‹ 고객 목록</button>
+    <h1 class="page-title">${esc(c.name)} <span style="font-size:14px;color:var(--sub);font-weight:600">${c.acctPrefix||''}</span></h1>
+    <p class="page-sub">${[c.branch,c.pb?c.pb+' PB':'',c.riskType,c.gender,c.birth].filter(Boolean).join(' · ')||'-'}</p>
+
+    <div class="grid3" style="margin-bottom:18px">
+      <div class="kpi"><div class="lab">총 평가자산</div><div class="val sm">${won(c.totalEval)}</div></div>
+      <div class="kpi"><div class="lab">투입 원금</div><div class="val sm">${won(c.totalPrincipal)}</div></div>
+      <div class="kpi"><div class="lab">손익 / 수익률</div><div class="val sm ${c.totalProfit>=0?'up':'down'}">${c.totalProfit>=0?'+':''}${eok(c.totalProfit)}</div>
+        <div class="delta ${c.rate>=0?'up':'down'}">${pct(c.rate)}${(()=>{const a=annualize(c.rate||0,yearsBetween(c.regDate,sdate));return a!=null?` · 연환산 ${(a>=0?'+':'')+a.toFixed(1)}%`:'';})()}</div></div>
+    </div>
+
+    ${crmCard}
+
+    <div class="card"><h3>자산 변화 추이<span class="meta">원금 · 손익 · 총액 (스냅샷 ${series.length}개)</span></h3>
+      <div class="chartbox" style="height:240px"><canvas id="cCli"></canvas></div>
+      ${series.length<2?'<p class="page-sub" style="text-align:center;margin-top:10px">스냅샷이 2개 이상 쌓이면 변화선이 그려집니다</p>':''}
+    </div>
+
+    <div class="grid2">
+      <div class="card"><h3>현재 자산 구성<span class="meta">${sdate}</span></h3>
+        <div class="chartbox" style="height:210px"><canvas id="cCliPie"></canvas></div><div class="legend" id="cliLeg"></div></div>
+      <div class="card"><h3>이전 현황<span class="meta">날짜별</span></h3>
+        <div class="list">${series.slice().reverse().slice(0,8).map(x=>`<div class="row" style="cursor:default">
+          <div class="nm" style="font-size:13.5px">${x.date}</div>
+          <div class="right"><span class="amt">${won(x.c.totalEval)}</span><span class="rate ${x.c.rate>=0?'up':'down'}">${pct(x.c.rate)}</span></div></div>`).join('')||'<div class="empty">-</div>'}</div></div>
+    </div>
+
+    <div class="card"><h3 class="collapser" data-target="simBody">은퇴 시뮬레이션<span class="meta">▾ 펼치기</span></h3><div id="simBody" class="collapse-body collapsed"><div id="sim" class="sim"></div></div></div>
+
+    <div class="card"><h3>보유 상품 (계좌별)<span class="meta">계좌 ${accounts.length}개 · 상품 ${c.products.length}건</span></h3>${acctHtml||'<div class="empty">보유 계좌 없음</div>'}</div>
+  </div>`;
+
+  drawClientTrend('cCli',series);
+  drawPie('cCliPie',c.cats,'cliLeg');
+  renderSim(c.totalEval,c.birth);
+  bindCollapsers(v);
+  inDetail=true;
+  $('#btnEditCrm').onclick=()=>openCrmForm(name);
+  v.querySelectorAll('.acct-head').forEach(h=>h.onclick=()=>{const b=document.getElementById(h.dataset.target);if(!b)return;const col=b.classList.toggle('collapsed');h.classList.toggle('open',!col);});
+  v.querySelectorAll('.prod .pmain').forEach(m=>m.onclick=e=>{e.stopPropagation();const d=m.parentElement.querySelector('.pdetail');d.classList.toggle('hidden');});
+}
+/* CRM 카드 본문 + 운용상품 칩 */
+const PRODKEYS=['DC','IRP','연금','CMA','주식','기타'];
+/* 상품계좌명 → 운용상품 키 (자산자료 자동연결 매핑) */
+const ACCT_PRODKEY={DC:'DC',IRP:'IRP',연금저축:'연금',CMA:'CMA',주식:'주식'};
+const PROD_COLOR={DC:'#3182F6',IRP:'#E0344B',연금:'#F7B23B',CMA:'#16b5d0',주식:'#15B370',기타:'#64748b'};
+/* 운용상품 보유 상태: 실계좌(최신 스냅샷) 자동연결 + CRM 수동체크 병합
+   has=계좌 확인됨(0원 포함) · funded=잔고 있음 · manual=CRM 체크만 */
+function prodStatus(c){
+  const st={};PRODKEYS.forEach(k=>st[k]={has:false,funded:false,manual:!!(c.crm&&c.crm.prod&&c.crm.prod[k])});
+  buildAccounts(c).forEach(a=>{const k=ACCT_PRODKEY[a.name]||'기타';st[k].has=true;if(a.eval>0)st[k].funded=true;});
+  return st;
+}
+function prodChips(c){
+  const st=prodStatus(c);
+  return PRODKEYS.map(k=>{
+    const s=st[k],col=PROD_COLOR[k];
+    if(s.funded)return `<span class="pchip fund" style="background:${col}" title="${k} 계좌 보유 · 잔고 있음">✓ ${k}</span>`;
+    if(s.has)return `<span class="pchip zero" style="border-color:${col};color:${col}" title="${k} 계좌 보유 · 잔고 0원">✓ ${k}<small>0원</small></span>`;
+    if(s.manual)return `<span class="pchip manual" title="CRM 수동체크 · 실계좌 미확인">${k}</span>`;
+    return `<span class="pchip" title="${k} 미보유">${k}</span>`;
+  }).join('');
+}
+function crmBody(c){
+  const cr=c.crm;
+  const prodSec=`<div style="margin-top:12px"><span style="font-size:12px;color:var(--sub);font-weight:600">운용상품 보유 <span style="font-weight:500">· 자산자료 자동연결</span></span>
+    <div class="pstat">${prodChips(c)}</div>
+    <div class="pstat-leg">✓ 계좌 확인 · <b>색 채움</b>=잔고 있음 · <b>테두리만</b>=0원 계좌 · <b>점선</b>=수동체크(실계좌 미확인)</div></div>`;
+  const chSec=`<div style="margin-bottom:10px">${chBadges(c)||'<span class="tag">채널 미지정</span>'}</div>`;
+  if(!cr)return chSec+'<div class="empty" style="padding:14px 10px 4px">아직 입력된 영업정보가 없습니다 · <b>+ 입력</b>으로 추가하세요</div>'+prodSec;
+  const region=[cr.sido,cr.sigungu,cr.dong].filter(Boolean).join(' ');
+  const row=(l,val)=>val?`<div class="crmrow"><span>${l}</span><b>${esc(val)}</b></div>`:'';
+  const ins=hasChannel(c,'보험');
+  const hist=(cr.history||[]).slice().sort();
+  const lastHist=hist.length?hist[hist.length-1]:'';
+  return chSec+`<div class="crmgrid">
+    ${row('회사',cr.company)}
+    ${row('지역',region)}
+    ${row('휴대폰',cr.phone)}
+    ${row('투자성향',cr.riskType)}
+    ${cr.pension?`<div class="crmrow"><span>연금개시</span><b>O</b></div>`:''}
+    ${ins&&cr.anchorMonth?row('보험 관리월',cr.anchorMonth+'월 (분기)'):''}
+    ${row('최근접촉',cr.lastContact)}
+    ${ins&&lastHist?row('보험 최근연락',lastHist):''}
+    ${ins&&hist.length?row('보험 연락횟수',hist.length+'회'):''}
+  </div>
+  ${prodSec}
+  ${(cr.linkIds&&cr.linkIds.length)?`<div style="margin-top:12px"><span style="font-size:12px;color:var(--sub);font-weight:600">연결된 보험 리포트 ${cr.linkIds.length}건</span>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${cr.linkIds.map(f=>`<a href="${escapeAttr(TOSS_BASE+encodeURIComponent(f))}" target="_blank" rel="noopener" class="rep-link">📄 ${esc(repName(f))}</a>`).join('')}</div></div>`:''}
+  ${cr.memo?`<div class="crmmemo">${esc(cr.memo)}</div>`:''}`;
+}
+
+/* ----- CRM 입력 폼 (직접 입력/수정/신규) ----- */
+let crmEditName=null;
+function openCrmForm(name){
+  crmEditName=name||null;const cr=name?CRM[name]:null;const c=name?curCustomers()[name]:null;
+  $('#cfTitle').textContent=name?name+' · 정보 편집':'신규 고객 추가';
+  const nf=$('#cf_name');nf.value=name||'';nf.readOnly=!!name;nf.style.background=name?'#F8F9FA':'';
+  const bd=(cr&&cr.birth)||(c&&/^\d{4}-\d{2}-\d{2}/.test(c.birth||'')?(c.birth||'').slice(0,10):'')||'';
+  $('#cf_birth').value=/^\d{4}-\d{2}-\d{2}$/.test(bd)?bd:'';
+  $('#cf_gender').value=(cr&&cr.gender)||(c&&c.gender)||'';
+  $('#cf_phone').value=cr?cr.phone||'':'';
+  $('#cf_company').value=cr?cr.company||'':'';
+  $('#cf_sido').value=cr?cr.sido||'':'';
+  $('#cf_sigungu').value=cr?cr.sigungu||'':'';
+  $('#cf_dong').value=cr?cr.dong||'':'';
+  $('#cf_risk').value=(cr&&cr.riskType)||(c&&c.riskType)||'';
+  $('#cf_contact').value=cr?cr.lastContact||'':'';
+  $('#cf_pension').checked=!!(cr&&cr.pension);
+  $('#cf_anchor').value=(cr&&cr.anchorMonth)?String(cr.anchorMonth):'';
+  // 채널: 기존 crm.channels 우선, 없으면 현재 자산/보험정보로 자동 추정 체크
+  const chs=c?custChannels(c):((cr&&cr.channels)||[]);
+  $('#cf_ch_kis').checked=chs.includes('한투');
+  $('#cf_ch_ins').checked=chs.includes('보험');
+  $('#cf_memo').value=cr?cr.memo||'':'';
+  refreshFormProdChips();
+  $('#cfDelete').style.display=(name&&cr)?'':'none';
+  $('#crmModal').classList.remove('hidden');toggleDrawer(false);
+  if(!name)setTimeout(()=>$('#cf_name').focus(),60);
+}
+/* 편집 모달 운용상품 칩 — 실계좌(자산자료) 자동연결 (수동체크 없음) */
+function refreshFormProdChips(){
+  const ps=$('#cf_prodStatus');if(!ps)return;
+  const c=crmEditName?curCustomers()[crmEditName]:null;
+  ps.innerHTML=prodChips(c||{name:crmEditName||'',products:[],acctMeta:{},crm:null});
+}
+function bindCrmForm(){
+  const close=()=>$('#crmModal').classList.add('hidden');
+  $('#cfClose').onclick=close;$('#cfCancel').onclick=close;
+  $('#cfSave').onclick=async()=>{
+    const nm=crmEditName||$('#cf_name').value.trim();
+    if(!nm){toast('이름을 입력하세요');return;}
+    const ex=CRM[nm]||{};
+    const prod=ex.prod||{};   // 운용상품은 실계좌 자동연결 — 기존 값 유지(수동체크 폐지)
+    const channels=[];if($('#cf_ch_kis').checked)channels.push('한투');if($('#cf_ch_ins').checked)channels.push('보험');
+    const am=parseInt($('#cf_anchor').value,10);
+    const rec={name:nm,birth:dnorm($('#cf_birth').value),gender:$('#cf_gender').value,phone:$('#cf_phone').value.trim(),
+      company:$('#cf_company').value.trim(),sido:$('#cf_sido').value.trim(),sigungu:$('#cf_sigungu').value.trim(),dong:$('#cf_dong').value.trim(),
+      riskType:$('#cf_risk').value,pension:$('#cf_pension').checked,prod,memo:$('#cf_memo').value.trim(),
+      lastContact:$('#cf_contact').value,
+      channels,anchorMonth:am>=1&&am<=12?am:null,
+      history:ex.history||[],linkIds:ex.linkIds||[],
+      updatedAt:new Date().toISOString()};
+    await crmPut(rec);CRM[nm]=rec;close();toast('저장됨');
+    if(syncOn())syncNow(true);
+    if(inDetail)openClient(nm);else if(curView==='clients')renderClients();else render();
+  };
+  $('#cfDelete').onclick=async()=>{
+    if(!crmEditName)return;
+    if(!confirm(crmEditName+' 영업정보를 삭제할까요? (자산 데이터는 유지됩니다)'))return;
+    const nm=crmEditName;await crmDel(nm);delete CRM[nm];$('#crmModal').classList.add('hidden');toast('삭제됨');
+    if(syncOn())syncNow(true);
+    if(latest()&&latest().customers[nm])openClient(nm);else setView('clients');
+  };
+}
+function fmtDate(v){if(v instanceof Date&&!isNaN(v))return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');return dnorm(v);}
+/* 한국투자고객 엑셀(2줄 헤더) → CRM 시드. 보험고객 시트는 제외. 최초 1회용 */
+async function importCrmExcel(file){
+  let wb;try{wb=XLSX.read(await file.arrayBuffer(),{cellDates:true});}catch(e){toast('파일을 읽을 수 없습니다');return;}
+  let sname=wb.SheetNames.find(n=>/투자/.test(n))||wb.SheetNames.find(n=>!/보험/.test(n))||wb.SheetNames[0];
+  const ws=wb.Sheets[sname];const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+  if(rows.length<3){toast('데이터가 없습니다');return;}
+  const h0=(rows[0]||[]).map(norm),h1=(rows[1]||[]).map(norm);
+  const W=Math.max(h0.length,h1.length);const H=[];for(let i=0;i<W;i++)H[i]=h1[i]||h0[i]||'';
+  const ix=k=>H.indexOf(norm(k));
+  const I={name:ix('이름'),birth:ix('생년월일'),gender:ix('성별'),phone:ix('휴대폰'),company:ix('회사명'),
+    sido:ix('대'),sigungu:ix('중'),dong:ix('소'),risk:ix('투자성향'),pension:ix('연금개시'),
+    DC:ix('DC'),IRP:ix('IRP'),연금:ix('연금'),CMA:ix('CMA'),주식:ix('주식'),기타:ix('기타'),memo:ix('비고')};
+  if(I.name<0){toast('이름 컬럼을 찾지 못했습니다 — 한투 고객리스트 엑셀인지 확인');return;}
+  const cell=(r,i)=>i>=0?r[i]:'';const truthy=v=>String(v==null?'':v).trim()!=='';
+  let n=0;
+  for(const r of rows.slice(2)){
+    const nm=String(cell(r,I.name)||'').trim();if(!nm)continue;
+    const ex=CRM[nm]||{};const pe=ex.prod||{};
+    const flag=k=>I[k]>=0?truthy(cell(r,I[k])):!!pe[k];
+    const sv=(i,fb)=>{const x=String(cell(r,i)||'').trim();return x||fb||'';};
+    const rec={name:nm,birth:I.birth>=0?fmtDate(cell(r,I.birth)):(ex.birth||''),
+      gender:sv(I.gender,ex.gender),phone:sv(I.phone,ex.phone),company:sv(I.company,ex.company),
+      sido:sv(I.sido,ex.sido),sigungu:sv(I.sigungu,ex.sigungu),dong:sv(I.dong,ex.dong),
+      riskType:sv(I.risk,ex.riskType),pension:flag('pension'),
+      prod:{DC:flag('DC'),IRP:flag('IRP'),연금:flag('연금'),CMA:flag('CMA'),주식:flag('주식'),기타:flag('기타')},
+      memo:sv(I.memo,ex.memo),lastContact:ex.lastContact||'',
+      channels:[...new Set([...(ex.channels||[]),'한투'])],anchorMonth:ex.anchorMonth||null,history:ex.history||[],linkIds:ex.linkIds||[],
+      updatedAt:new Date().toISOString()};
+    await crmPut(rec);CRM[nm]=rec;n++;
+  }
+  toast('CRM '+n+'명 가져옴 · 보험고객 시트 제외');render();if(syncOn())syncNow(true);
+}
+function mergeCrm(a,b){const m={};[...(a||[]),...(b||[])].forEach(c=>{if(!c||!c.name)return;const ex=m[c.name];if(!ex||(c.updatedAt||'')>=(ex.updatedAt||''))m[c.name]=c;});return Object.values(m);}
+function prodCard(p){
+  const cat=p.category||'기타자산';
+  return `<div class="prod"><div class="pmain">
+    <div class="pname"><span class="pdot" style="background:${catColor(cat)}"></span>${esc(p.name||'-')}<span class="pcat">${esc(cat)}</span></div>
+    <div class="pamt">${won(p.eval)}</div>
+    <div class="prate ${p.rate>=0?'up':'down'}">${p.rate?pct(p.rate):'-'}</div></div>
+    <div class="pdetail hidden">
+      <div>평가금액 <b>${won(p.eval)}</b></div>
+      <div>투입원금 <b>${won(p.principal)}</b></div>
+      <div>손익 <b class="${p.profit>=0?'up':'down'}">${p.profit>=0?'+':''}${won(p.profit)}</b></div>
+      <div>수익률 <b>${p.rate?pct(p.rate):'-'}</b></div>
+      ${p.ratio?`<div>계좌내 비중 <b>${p.ratio.toFixed(1)}%</b></div>`:''}
+      ${p.account?`<div>계좌 <b>${esc(p.account)}</b></div>`:''}
+      ${p.openDate?`<div>개설일 <b>${p.openDate}</b></div>`:''}
+      ${p.maturity&&p.maturity.indexOf('9999')<0?`<div>만기일 <b>${p.maturity}</b></div>`:''}
+    </div></div>`;
+}
+
+/* ----- retirement sim ----- */
+function ageFromBirth(birth){const m=String(birth||'').match(/(\d{4})[\/.\-]?(\d{1,2})?/);if(!m)return null;
+  const by=+m[1],bm=+(m[2]||1);if(by<1900||by>2100)return null;const now=new Date();let a=now.getFullYear()-by;if((now.getMonth()+1)<bm)a--;return a;}
+function renderSim(curAsset,birth){
+  const el=$('#sim');
+  const age=ageFromBirth(birth);
+  const curAge=age!=null?age:50;
+  const retAge=Math.max(curAge+1,age!=null&&age>=58?curAge+3:60);
+  el.innerHTML=`<div class="two">
+    <div><label>현재 나이${age!=null?' (생년월 자동)':''}</label><input type="number" id="sAge" value="${curAge}"></div>
+    <div><label>은퇴(개시) 나이</label><input type="number" id="sRet" value="${retAge}"></div>
+    <div><label>연금 수령기간 (년)</label><input type="number" id="sYears" value="25"></div>
+    <div><label>월 추가적립액 (만원)</label><input type="number" id="sMonthly" value="0"></div>
+    <div><label>은퇴 전 수익률 (%)</label><input type="number" id="sR1" value="5" step="0.1"></div>
+    <div><label>은퇴 후 수익률 (%)</label><input type="number" id="sR2" value="4" step="0.1"></div>
+    <div><label>물가상승률 (%)</label><input type="number" id="sInf" value="2.5" step="0.1"></div>
+    <div><label>목표 월 연금액 (만원·현재가치)</label><input type="number" id="sGoal" value="300"></div>
+  </div>
+  <div class="res">
+    <div class="simrow"><span>은퇴시점 예상자산</span><b id="rAsset" class="big"></b></div>
+    <div class="simrow"><span>예상 월 연금액 (은퇴시점)</span><b id="rMonthly"></b></div>
+    <div class="simrow"><span>월 연금액 현재가치 환산</span><b id="rMonthlyPV"></b></div>
+    <div class="simrow" style="border:none"><span>연 수령액</span><b id="rYearly"></b></div>
+  </div>
+  <div class="res" id="goalBox" style="margin-top:10px">
+    <div class="simrow"><span>목표 월 연금 달성률</span><b id="rGoalPct"></b></div>
+    <div class="simrow" style="border:none"><span id="rGapLab">목표까지 필요 월 추가적립</span><b id="rGap"></b></div>
+  </div>
+  <div class="res" id="taxBox" style="margin-top:10px;background:#EAF6EF">
+    <div class="simrow" style="border:none"><span>연금계좌 납입 시 연 세액공제 예상<br><span style="font-size:11.5px;color:var(--sub)">연금저축+IRP 한도 900만 · 13.2~16.5%</span></span><b id="rTax" class="up"></b></div>
+  </div>
+  <div class="chartbox" style="height:190px;margin-top:14px"><canvas id="cSim"></canvas></div>
+  <p class="page-sub" style="margin-top:8px">* 단순 가정 계산(월 복리·세전·수수료 미반영). 실제 연금액은 상품·세제·물가에 따라 달라집니다.</p>`;
+  const calc=()=>{
+    const age=+$('#sAge').value,ret=+$('#sRet').value,yrs=Math.max(1,+$('#sYears').value),mon=Math.max(0,+$('#sMonthly').value)*1e4;
+    const r1=(+$('#sR1').value)/100,r2=(+$('#sR2').value)/100,inf=(+$('#sInf').value)/100,goal=Math.max(0,+$('#sGoal').value)*1e4;
+    const n=Math.max(0,ret-age),months=n*12,m1=r1/12,m2=r2/12,M=yrs*12;
+    // 적립기: 월 복리 일관 적용 (수익률 0%도 정상 계산)
+    const grow=m1>0?Math.pow(1+m1,months):1;
+    let fv=curAsset*grow+(months>0?(m1>0?mon*((grow-1)/m1):mon*months):0);
+    const pay=m2>0?fv*m2/(1-Math.pow(1+m2,-M)):fv/M;
+    const infN=Math.pow(1+Math.max(0,inf),n);
+    $('#rAsset').textContent=won(fv);
+    $('#rMonthly').textContent=won(pay);
+    $('#rMonthlyPV').textContent=won(pay/infN)+(n>0?` (물가 ${(inf*100).toFixed(1)}% · ${n}년)`:'');
+    $('#rYearly').textContent=won(pay*12);
+    // 목표 진단: 목표(현재가치)를 은퇴시점가로 환산해 비교, 부족 시 필요 월 추가적립 역산
+    if(goal>0){
+      $('#goalBox').style.display='';
+      const goalRet=goal*infN;
+      const ach=goalRet>0?pay/goalRet*100:0;
+      const gp=$('#rGoalPct');gp.textContent=ach.toFixed(0)+'%'+(ach>=100?' 달성':' 부족');gp.className=ach>=100?'up':'down';
+      const gap=$('#rGap'),gl=$('#rGapLab');
+      if(ach>=100){gl.textContent='목표 초과 여유 월 연금 (은퇴시점)';gap.textContent='+'+won(pay-goalRet);gap.className='up';}
+      else{
+        const fvNeed=m2>0?goalRet*(1-Math.pow(1+m2,-M))/m2:goalRet*M;
+        const short=fvNeed-fv;
+        if(months>0){const add=m1>0?short*m1/(grow-1):short/months;
+          gl.textContent='목표까지 필요 월 추가적립';gap.textContent=won(add)+' /월';}
+        else{gl.textContent='적립기간 없음 — 필요 자산 부족분';gap.textContent=won(short);}
+        gap.className='down';
+      }
+    }else $('#goalBox').style.display='none';
+    // 세액공제 (월 적립액 → 연 납입, 한도 900만)
+    if(mon>0){
+      $('#taxBox').style.display='';
+      const annual=Math.min(mon*12,9e6);
+      $('#rTax').textContent=Math.round(annual*0.132/1e4).toLocaleString()+'~'+Math.round(annual*0.165/1e4).toLocaleString()+'만원/년';
+    }else $('#taxBox').style.display='none';
+    // 자산 경로 차트: 적립기(파랑) → 수령기(주황), 연 단위 샘플
+    const labels=[],accu=[],draw=[];
+    let a=curAsset;labels.push(age+'세');accu.push(Math.round(a));draw.push(null);
+    for(let mm2=1;mm2<=months;mm2++){a=a*(1+m1)+mon;
+      if(mm2%12===0){labels.push((age+mm2/12)+'세');accu.push(Math.round(a));draw.push(null);}}
+    draw[draw.length-1]=accu[accu.length-1];   // 수령기 시작점 연결
+    let b=fv;
+    for(let mm2=1;mm2<=M;mm2++){b=b*(1+m2)-pay;
+      if(mm2%12===0){labels.push((ret+mm2/12)+'세');accu.push(null);draw.push(Math.max(0,Math.round(b)));}}
+    if(charts.cSim){try{charts.cSim.destroy();}catch(e){}delete charts.cSim;}
+    const ctx=$('#cSim');
+    if(ctx)charts.cSim=new Chart(ctx,{type:'line',data:{labels,datasets:[
+      {label:'적립기',data:accu,borderColor:'#2f7fed',backgroundColor:'rgba(47,127,237,.08)',fill:true,tension:.3,borderWidth:2,pointRadius:0},
+      {label:'수령기',data:draw,borderColor:'#F7B23B',backgroundColor:'rgba(243,162,59,.08)',fill:true,tension:.3,borderWidth:2,pointRadius:0}
+    ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:true,labels:{boxWidth:12,font:{size:11}}},
+        tooltip:{callbacks:{label:c=>c.raw==null?undefined:` ${c.dataset.label}: ${won(c.raw)}`}}},
+      scales:{y:{ticks:{callback:v=>eok(v),font:{size:10}},grid:{color:'#eef1f6'}},
+        x:{grid:{display:false},ticks:{font:{size:10},maxTicksLimit:12}}}}});
+  };
+  el.querySelectorAll('input').forEach(i=>i.oninput=calc);calc();
+}
+
+/* ----- ASSETS ----- */
+let acctViewTab='';
+let assetTab='acct';      // 좌우 탭: acct=계좌별 고객 · snap=날짜별 스냅샷 (스크롤 압박 방지)
+let acctCustQuery='';     // 계좌별 고객 — 상품 탭별 고객 검색어
+const ACCT_VIEW_ORDER=['주식','CMA','연금저축','IRP','DC','비과세종합저축','선물옵션','해외선물','기타'];
+function renderAssets(){
+  const v=$('#view');
+  if(!SNAPS.length){v.innerHTML=emptyView();return;}
+  // 계좌별 고객: 최신 스냅샷의 고객 계좌를 상품계좌 유형별로 묶음 (0원 계좌 포함)
+  const snap=latest();
+  const byType={};
+  Object.values(snap.customers).forEach(c=>{buildAccounts(c).forEach(a=>{
+    (byType[a.name]=byType[a.name]||[]).push({cname:c.name,eval:a.eval,acct:a.jong?(a.jong+(a.code?'-'+a.code:'')):String(a.raw||'').trim()});});});
+  const types=Object.keys(byType).sort((x,y)=>{let ix=ACCT_VIEW_ORDER.indexOf(x),iy=ACCT_VIEW_ORDER.indexOf(y);if(ix<0)ix=99;if(iy<0)iy=99;return ix-iy||x.localeCompare(y,'ko');});
+  if(!acctViewTab||!byType[acctViewTab])acctViewTab=types[0]||'';
+  const alist=(byType[acctViewTab]||[]).slice().sort((a,b)=>b.eval-a.eval);
+  const asum=alist.reduce((s,x)=>s+x.eval,0);
+  const acctRowsOf=q=>{
+    const rows=alist.filter(x=>!q||x.cname.includes(q)).map(x=>`<div class="row" data-name="${esc(x.cname)}">
+      <div><div class="nm">${esc(x.cname)} <small>${esc(x.acct)}</small></div></div>
+      <div class="right">${x.eval>0?`<span class="amt">${won(x.eval)}</span>`:'<span class="tag">0원 계좌</span>'}</div>
+      <span class="chev">›</span></div>`).join('');
+    return rows||(alist.length?'<div class="empty">검색 결과 없음</div>':'<div class="empty">해당 계좌 보유 고객 없음</div>');
+  };
+  // 좌우 탭 본문
+  let tabBody='';
+  if(assetTab==='acct'){
+    tabBody=`<div class="card"><h3>계좌별 고객<span class="meta">${esc(acctViewTab)} ${alist.length}좌 · ${eok(asum)}</span></h3>
+      <div class="toolbar"><div class="seg" id="acctSeg">
+        ${types.map(t=>`<button data-a="${esc(t)}" class="${t===acctViewTab?'on':''}"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${acctColor(t)};margin-right:5px"></span>${esc(t)}<span style="font-weight:500;font-size:11px;margin-left:4px;color:var(--sub)">${byType[t].length}</span></button>`).join('')}
+      </div></div>
+      <div class="search" style="margin-bottom:10px"><span>🔍</span><input id="acctSearch" placeholder="${esc(acctViewTab)} 보유 고객 검색" value="${esc(acctCustQuery)}"></div>
+      <div class="list" id="acctCustList">${acctRowsOf(acctCustQuery)}</div></div>`;
+  }else{
+    tabBody=`<div class="card"><h3>날짜별 스냅샷<span class="meta">클릭 시 삭제</span></h3><div class="list" id="snapList">
+    ${SNAPS.slice().reverse().map(s=>{const i=SNAPS.indexOf(s);const prev=SNAPS[i-1];const d=prev?s.totals.eval-prev.totals.eval:0;
+      return `<div class="row" data-date="${s.date}"><div class="nm" style="font-size:14px">${s.date}</div>
+        <div class="right"><span class="amt">${won(s.totals.eval)}</span>${prev?`<span class="rate ${d>=0?'up':'down'}">${d>=0?'▲':'▼'}${eok(Math.abs(d))}</span>`:''}</div>
+        <span class="chev">🗑</span></div>`;}).join('')}
+    </div></div>`;
+  }
+  v.innerHTML=`<div class="wrap"><h1 class="page-title">자산</h1><p class="page-sub">전체 자산 누적 추이 · 계좌별 고객 · 날짜별 스냅샷</p>
+    <div class="card"><h3>전체 평가자산 추이<span class="meta">스냅샷 ${SNAPS.length}개</span></h3>
+      <div class="chartbox" style="height:260px"><canvas id="cAll"></canvas></div></div>
+    <div class="toolbar"><div class="seg" id="assetSeg">
+      <button data-t="acct" class="${assetTab==='acct'?'on':''}">계좌별 고객</button>
+      <button data-t="snap" class="${assetTab==='snap'?'on':''}">날짜별 스냅샷<span style="font-weight:500;font-size:11px;margin-left:4px;color:var(--sub)">${SNAPS.length}</span></button>
+    </div></div>
+    ${tabBody}
+  </div>`;
+  drawAllTrend('cAll');
+  v.querySelectorAll('#assetSeg button').forEach(b=>b.onclick=()=>{assetTab=b.dataset.t;killCharts();renderAssets();});
+  if(assetTab==='acct'){
+    v.querySelectorAll('#acctSeg button').forEach(b=>b.onclick=()=>{acctViewTab=b.dataset.a;killCharts();renderAssets();});
+    const bindRows=()=>v.querySelectorAll('#acctCustList .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
+    const s=$('#acctSearch');
+    s.oninput=()=>{acctCustQuery=s.value.trim();$('#acctCustList').innerHTML=acctRowsOf(acctCustQuery);bindRows();};
+    bindRows();
+  }else{
+    v.querySelectorAll('#snapList .row').forEach(r=>r.onclick=async()=>{
+      const d=r.dataset.date;
+      if(confirm(d+' 스냅샷을 완전히 삭제할까요?\n(동기화·다른 기기에서도 삭제됩니다)')){
+        await idbDel(d);
+        DELDATES=Array.from(new Set([...DELDATES,d]));
+        await metaPut('deletedDates',DELDATES);
+        toast('삭제됨');
+        if(syncOn())await syncNow(true);
+        await reload();
+      }});
+  }
+}
+
+/* ----- 영업 (CRM × 자산 도출) ----- */
+let stratTab='contact';
+/* 연락 주기: 퇴직연금 자산관리는 분기(약 3개월) 1회 접촉 권장 */
+const CONTACT_CYCLE_DAYS=90;
+/* 최초 연락 일정 시작일 — 미접촉 고객을 이 날짜부터 주기 내 고르게 분산 배정 */
+const CONTACT_START='2026-07-01';
+function daysSince(dateStr){const d=parseYMD(dateStr);if(!d)return null;const t=new Date();const today=new Date(t.getFullYear(),t.getMonth(),t.getDate());return Math.floor((today-d)/864e5);}
+function addDays(dateStr,n){const d=parseYMD(dateStr);if(!d)return dateStr;d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+/* 퇴직연금(DC·IRP·연금) 관리 대상 여부 — CRM 운용상품 체크 또는 실제 보유자산 기준 */
+function pensionTarget(c){const p=(c.crm&&c.crm.prod)||{};if(p.DC||p.IRP||p.연금)return true;const k=c.cats||{};return ((k['DC']||0)+(k['개인형IRP']||0)+(k['연금저축']||0)+(k['DB']||0))>0;}
+/* 연락 큐 — 최초 연락 고객은 7/1부터 주기 내 균등 분산, 접촉기록 있는 고객은 +90일 주기.
+   반환: due(연락 도래·경과, over내림차순) / upcoming(예정, 도래임박순). item={c,over,isNew,date} */
+function contactQueue(){
+  /* 한투 자산영업 큐 — 보험 전용 고객은 제외(보험 뷰에서 분기 관리). 한투·양쪽·미지정은 포함 */
+  const all=Object.values(curCustomers()).filter(c=>c.crm&&!(hasChannel(c,'보험')&&!hasChannel(c,'한투')));
+  const fresh=all.filter(c=>!c.crm.lastContact).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const N=fresh.length,idx={};fresh.forEach((c,i)=>idx[c.name]=i);
+  const schedOf=c=>addDays(CONTACT_START,N?Math.floor((idx[c.name]||0)*CONTACT_CYCLE_DAYS/N):0);
+  const due=[],upcoming=[];
+  all.forEach(c=>{
+    const lc=c.crm.lastContact;let over,date,isNew=false;
+    if(lc){date=addDays(lc,CONTACT_CYCLE_DAYS);over=(daysSince(lc)||0)-CONTACT_CYCLE_DAYS;}
+    else{isNew=true;date=schedOf(c);over=daysSince(date);}
+    (over>=0?due:upcoming).push({c,over,isNew,date});
+  });
+  due.sort((a,b)=>b.over-a.over||b.c.totalEval-a.c.totalEval);
+  upcoming.sort((a,b)=>b.over-a.over);
+  return {due,upcoming};
+}
+/* 홈 요약 집계 */
+function contactStats(){
+  const q=contactQueue();let over=0,today=0;
+  q.due.forEach(x=>x.over>0?over++:today++);
+  return {due:over,today,upcoming:q.upcoming.length,total:q.due.length+q.upcoming.length};
+}
+/* 연락 추천 사유 — 고객 자산·상태에서 통화 명분 도출 (우선순위 순) */
+function contactReasons(c){
+  const r=[],cats=c.cats||{},total=c.totalEval||0,cash=cats['현금성자산']||0,age=ageFromBirth(c.birth),t=todayStr(),mo=+t.slice(5,7);
+  if(c.rate<0)r.push('📉 평가손실('+pct(c.rate)+') — 보유상품 점검·리밸런싱');
+  if(total>0&&cash/total>=0.3)r.push('💰 예수금 비중 '+(cash/total*100).toFixed(0)+'% — 연금·펀드 운용 제안');
+  else if(cash>=1e7)r.push('💰 예수금 '+eok(cash)+' — 추가 운용 제안');
+  if(age!=null&&age>=54&&age<=56&&((cats['개인형IRP']||0)>0||(cats['연금저축']||0)>0))r.push('🎂 만 '+age+'세 — 연금개시 설계 안내');
+  (c.products||[]).forEach(p=>{const m=p.maturity;if(m&&/^\d{4}-\d{2}/.test(m)&&m.indexOf('9999')<0&&m>=t&&m<=addMonths(t,2))r.push('⏰ '+(p.name||'상품')+' 만기('+m+') — 재투자 상담');});
+  if(c.riskExpiry&&/^\d{4}-\d{2}/.test(c.riskExpiry)&&c.riskExpiry<=addMonths(t,2))r.push('📋 투자성향 만기 임박 — 평가 갱신');
+  if((mo===11||mo===12)&&pensionTarget(c))r.push('🧾 연말정산 — 연금 세액공제 한도(900만) 점검');
+  if(pensionTarget(c))r.push('🏦 퇴직연금 운용현황·디폴트옵션 점검');
+  if(!r.length)r.push('👋 안부 인사 — 자산 현황·시장 동향 공유');
+  return r;
+}
+/* 연락완료 — 최근접촉일을 오늘로 갱신하고 큐에서 제외(다음 주기에 재등장) */
+async function markContacted(name){
+  const cr=CRM[name];if(!cr)return;
+  cr.lastContact=todayStr();cr.updatedAt=new Date().toISOString();
+  await crmPut(cr);CRM[name]=cr;
+  toast(name+' · 연락완료 '+todayStr());
+  if(syncOn())syncNow(true);
+  renderStrategy();
+}
+/* 연락 큐 한 줄 (사유 안내 + 전화/연락완료 버튼) */
+function contactRow(c,statusTag){
+  const ph=(c.crm&&c.crm.phone)||'';
+  const lc=c.crm&&c.crm.lastContact;
+  const pt=pensionTarget(c)?'<span class="tag" style="background:#EAF1FE;color:#3182F6">퇴직연금</span>':'';
+  const reason=contactReasons(c)[0];
+  return `<div class="row" data-name="${esc(c.name)}"><div style="min-width:0"><div class="nm">${esc(c.name)} <small>${c.acctPrefix||''}</small></div>
+    <div class="tags">${statusTag}${pt}${riskTag(c.riskType)}<span class="tag">${lc?'최근접촉 '+lc:'접촉기록 없음'}</span></div>
+    <div style="font-size:12px;color:var(--sub2);margin-top:4px;line-height:1.35">${reason}</div></div>
+    <div class="right" style="display:flex;gap:6px;align-items:center">
+      ${ph?`<a class="btn ghost sm" href="tel:${esc(ph)}" onclick="event.stopPropagation()">📞</a>`:''}
+      <button class="btn primary sm btn-contacted" data-name="${esc(c.name)}">✓ 연락완료</button>
+    </div><span class="chev">›</span></div>`;
+}
+function srow(c,extra,tags){
+  return `<div class="row" data-name="${esc(c.name)}"><div><div class="nm">${esc(c.name)} <small>${c.acctPrefix||''}</small></div>
+    <div class="tags">${tags||''}</div></div><div class="right">${extra||''}</div><span class="chev">›</span></div>`;
+}
+function renderStrategy(){
+  const v=$('#view');const custs=curCustomers();const all=Object.values(custs);
+  if(!all.length){v.innerHTML=emptyView();return;}
+  const today=todayStr();
+  let rows='',desc='',lead='';
+
+  if(stratTab==='contact'){
+    const q=contactQueue(),due=q.due,upcoming=q.upcoming;
+    const freshTotal=due.filter(x=>x.isNew).length+upcoming.filter(x=>x.isNew).length;
+    const perDay=Math.max(1,Math.round(freshTotal/CONTACT_CYCLE_DAYS));
+    const overN=due.filter(x=>x.over>0).length, todayN=due.filter(x=>x.over===0).length;
+    desc=`최초 연락은 ${CONTACT_START}부터 ${CONTACT_CYCLE_DAYS}일 기간에 고르게 분산(하루 약 ${perDay}명) · 이후 접촉할 때마다 ${CONTACT_CYCLE_DAYS}일 주기로 재등장 · 위에서부터 한 명씩, 통화 후 [✓연락완료]`;
+    const newTag='<span class="tag" style="background:#EEF1F4;color:var(--sub2)">최초 연락</span>';
+    const statusTag=it=>it.over>0
+      ? `<span class="tag" style="background:#FDECEE;color:#E0344B">${it.over}일 지남</span>`
+      : it.over===0 ? `<span class="tag" style="background:#FCF3E0;color:#C98A0B">오늘 연락</span>`
+      : `<span class="tag" style="background:#EEF3FF;color:#3182F6">예정 ${it.date}·D-${-it.over}</span>`;
+    const st=it=>statusTag(it)+(it.isNew?newTag:'');
+    // 다음 한 명 강조 카드 (도래 고객 우선, 없으면 가장 가까운 예정)
+    const next=due[0]||upcoming[0]||null;
+    const nextName=next?next.c.name:null;
+    if(next){
+      const c=next.c,ph=(c.crm&&c.crm.phone)||'';
+      const reasons=contactReasons(c).slice(0,2).map(r=>`<div style="font-size:13px;color:var(--ink);margin-top:4px">${r}</div>`).join('');
+      lead=`<div class="card" style="border:1.5px solid var(--primary);background:#F5F9FF">
+        <div style="font-size:12px;color:var(--primary);font-weight:700;margin-bottom:6px">${next.over>=0?'▶ 지금 연락할 고객':'▶ 다음 예정 고객'}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:19px;font-weight:800">${esc(c.name)}</span>${st(next)}
+          ${pensionTarget(c)?'<span class="tag" style="background:#EAF1FE;color:#3182F6">퇴직연금</span>':''}${riskTag(c.riskType)}</div>
+        <div style="color:var(--sub);font-size:13px;margin:6px 0 2px">${c.crm.lastContact?'최근접촉 '+c.crm.lastContact:'접촉기록 없음'}${ph?' · '+esc(ph):''}</div>
+        <div style="margin:8px 0 12px;padding:8px 11px;background:#fff;border-radius:10px;border:1px solid #E5EDFB">
+          <div style="font-size:11px;color:var(--primary);font-weight:700;margin-bottom:2px">💬 이렇게 연락해 보세요</div>${reasons}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${ph?`<a class="btn ghost" href="tel:${esc(ph)}">📞 전화</a>`:''}
+          <button class="btn primary btn-contacted" data-name="${esc(c.name)}">✓ 연락완료</button>
+          <button class="btn ghost btn-openclient" data-name="${esc(c.name)}">고객 상세 ›</button>
+        </div></div>
+        <p class="page-sub">${CONTACT_START} 시작 · 오늘 도래 <b>${overN+todayN}명</b>(지남 ${overN}·오늘 ${todayN}) · 예정 ${upcoming.length}명 · 하루 약 ${perDay}명</p>`;
+    }
+    const hdr=t=>`<div style="font-size:12px;font-weight:700;color:var(--sub);padding:12px 8px 6px">${t}</div>`;
+    const dueRows=due.filter(x=>x.c.name!==nextName).map(it=>contactRow(it.c,st(it))).join('');
+    const upPrev=upcoming.filter(x=>x.c.name!==nextName).slice(0,7);
+    const upRows=upPrev.map(it=>contactRow(it.c,st(it))).join('');
+    const upMore=upcoming.length-(next&&next.over<0?1:0)-upPrev.length;
+    rows=(due.length?hdr(`🔴 오늘 연락 (지남 ${overN} · 오늘 ${todayN})`)+(dueRows||'<div class="empty" style="padding:10px">위 고객만 남음</div>'):'')
+        +(upcoming.length?hdr(`🗓 다가오는 예정 (가까운 순 · 총 ${upcoming.length}명)`)+upRows+(upMore>0?`<div style="padding:10px 8px;color:var(--sub);font-size:12.5px">… 외 ${upMore}명, 이후 날짜로 고르게 분산 배정</div>`:''):'');
+    if(!due.length&&!upcoming.length)rows='<div class="empty">연락 대상 고객이 없습니다 · CRM 고객을 추가하거나 최근접촉일을 입력하세요</div>';
+  }
+  else if(stratTab==='gap'){
+    desc='현금성 자산 보유 고객(현금 많은 순) = 투자 권유 기회 · LMS = 권유문자 발송가능';
+    const cand=all.map(c=>({c,cash:c.cats['현금성자산']||0}))
+      .filter(x=>x.cash>0)
+      .sort((a,b)=>b.cash-a.cash);
+    rows=cand.map(({c,cash})=>{
+      const lms=[];if(c.lmsFund==='가능')lms.push('펀드LMS');if(c.lmsPension==='가능')lms.push('연금LMS');
+      const ratio=c.totalEval>0?cash/c.totalEval*100:0;
+      const tags=`<span class="tag b">현금비중 ${ratio.toFixed(0)}%</span>`
+        +lms.map(t=>`<span class="tag" style="background:#EAF6EF;color:#0F9D58">${t}</span>`).join('');
+      return srow(c,`<span class="amt">현금 ${eok(cash)}</span>`,tags);
+    }).join('');
+  }
+  else if(stratTab==='nocrm'){
+    desc='자산은 있으나 영업·CRM 정보 미입력 — 클릭해 정보 보강(✏️편집)';
+    const cand=all.filter(c=>c.totalEval>0&&!c.crm).sort((a,b)=>b.totalEval-a.totalEval);
+    rows=cand.map(c=>srow(c,`<span class="amt">${won(c.totalEval)}</span>`,
+      `<span class="tag b">CRM 미입력</span>${c.branch?`<span class="tag">${esc(c.branch)}</span>`:''}${c.pb?`<span class="tag">${esc(c.pb)} PB</span>`:''}${riskTag(c.riskType)}`)).join('');
+  }
+  else if(stratTab==='calendar'){
+    desc='상품 만기 · 투자성향 만기 · 연금개시 도래 = 재투자/설계/갱신 타이밍';
+    const ev=[];
+    all.forEach(c=>{
+      (c.products||[]).forEach(p=>{const m=p.maturity;if(m&&/^\d{4}-\d{2}/.test(m)&&m.indexOf('9999')<0)ev.push({date:m,c,name:p.name,eval:p.eval,kind:'만기'});});
+      if(c.crm&&c.crm.pension)ev.push({date:'',c,name:'연금개시 대상',eval:c.totalEval,kind:'연금'});
+      // 투자성향 만기 → 갱신 상담 명분 (경과분 포함)
+      if(c.riskExpiry&&/^\d{4}-\d{2}/.test(c.riskExpiry))ev.push({date:c.riskExpiry,c,name:'투자성향 만기'+(c.riskType?' ('+c.riskType+')':''),eval:c.totalEval,kind:'성향만기'});
+      // 만 55세 전후(54~56) + IRP/연금저축 보유 → 연금개시 설계 적기
+      const age=ageFromBirth(c.birth);
+      if(age!=null&&age>=54&&age<=56&&((c.cats['개인형IRP']||0)>0||(c.cats['연금저축']||0)>0))
+        ev.push({date:'',c,name:'만 '+age+'세 · 연금개시 가능연령',eval:(c.cats['개인형IRP']||0)+(c.cats['연금저축']||0),kind:'연금연령'});
+    });
+    ev.sort((a,b)=>(a.date||'9999')<(b.date||'9999')?-1:1);
+    rows=ev.map(e=>{const past=e.date&&e.date<today.slice(0,e.date.length);const soon=!past&&e.date&&e.date<=addMonths(today,6);
+      return `<div class="row" data-name="${esc(e.c.name)}"><div><div class="nm">${esc(e.c.name)} <small>${esc(e.name)}</small></div>
+        <div class="tags"><span class="tag ${soon||past?'b':''}">${e.kind}${e.date?' '+e.date:''}</span>${past?'<span class="tag" style="background:#FDECEE;color:#E0344B">경과</span>':soon?'<span class="tag b">임박</span>':''}</div></div>
+        <div class="right"><span class="amt">${eok(e.eval)}</span></div><span class="chev">›</span></div>`;}).join('');
+  }
+  else if(stratTab==='care'){
+    desc='손실(-) · 전 스냅샷 대비 20%↓ 급감 · 전 데이터 대비 현금성 자산 증대 = 케어·재투자 기회';
+    const prevSnap=SNAPS.length>1?SNAPS[SNAPS.length-2]:null;
+    const cand=[];
+    all.forEach(c=>{
+      if(!(c.totalEval>0))return;
+      const tags=[];let cashUp=0;
+      if(c.rate<0)tags.push(`<span class="tag b">손실 ${pct(c.rate)}</span>`);
+      if(prevSnap){const p=prevSnap.customers[c.name];
+        if(p&&p.totalEval>0){const d=(c.totalEval-p.totalEval)/p.totalEval;
+          if(d<=-0.2)tags.push(`<span class="tag" style="background:#FDECEE;color:#E0344B">급감 ${(d*100).toFixed(0)}%</span>`);}
+        if(p){const pc=(p.cats&&p.cats['현금성자산'])||0,cc=c.cats['현금성자산']||0;
+          if(cc-pc>=1e6){cashUp=cc-pc;tags.push(`<span class="tag" style="background:#FCF3E0;color:#C98A0B">현금↑ +${eok(cashUp)}</span>`);}}}
+      if(tags.length)cand.push({c,tags,cashUp});
+    });
+    cand.sort((a,b)=>(b.cashUp-a.cashUp)||(a.c.rate-b.c.rate));
+    rows=cand.map(({c,tags})=>srow(c,`<span class="amt">${won(c.totalEval)}</span><span class="rate ${c.rate<0?'down':'flat'}">${pct(c.rate)}</span>`,
+      tags.join('')+(c.pb?`<span class="tag">${esc(c.pb)} PB</span>`:''))).join('');
+  }
+  else if(stratTab==='zero'){
+    desc='계좌는 있으나 전체 자산이 0원인 고객 = 입금 유도·활성화 (해지 전 단계)';
+    const cand=[];
+    all.forEach(c=>{
+      const accts=buildAccounts(c);
+      if(accts.length&&c.totalEval<=0)cand.push({c,accts});
+    });
+    cand.sort((a,b)=>b.accts.length-a.accts.length||a.c.name.localeCompare(b.c.name,'ko'));
+    rows=cand.map(({c,accts})=>srow(c,
+      `<span class="amt" style="color:var(--sub)">전체 0원 · ${accts.length}좌</span>`,
+      `<span class="tag b">전체자산 0원</span>`+accts.slice(0,4).map(a=>`<span class="tag">${esc(a.name)}</span>`).join(''))).join('');
+  }
+  else if(stratTab==='closed'){
+    desc='이전 자료엔 있었으나(0원 포함) 최신 자료에서 사라진 계좌 = 해지 추정';
+    const lastDate=latest()?latest().date:null;
+    const rec={}; // name -> {hist:{key->{name,date,eval}}, latest:Set|null}
+    SNAPS.forEach(s=>{Object.values(s.customers).forEach(o=>{
+      const am=acctMapOf(o);
+      const r=rec[o.name]||(rec[o.name]={hist:{},latest:null});
+      Object.entries(am).forEach(([k,a])=>{r.hist[k]={name:a.name,date:s.date,eval:a.eval};});
+      if(s.date===lastDate)r.latest=new Set(Object.keys(am));
+    });});
+    const closed=[];
+    Object.entries(rec).forEach(([nm,r])=>{
+      if(!r.latest)return; // 최신 스냅샷에 고객이 없으면 계좌단위 해지 판단 보류
+      Object.entries(r.hist).forEach(([k,h])=>{if(!r.latest.has(k))closed.push({name:nm,acctName:h.name,date:h.date});});
+    });
+    closed.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+    rows=closed.map(e=>`<div class="row" data-name="${esc(e.name)}"><div><div class="nm">${esc(e.name)} <small>${esc(e.acctName)}</small></div>
+      <div class="tags"><span class="tag b">해지 추정</span><span class="tag">최종확인 ${e.date}</span></div></div>
+      <div class="right"><span class="amt" style="color:var(--sub)">계좌 종료</span></div><span class="chev">›</span></div>`).join('');
+  }
+
+  v.innerHTML=`<div class="wrap"><h1 class="page-title">영업</h1><p class="page-sub">CRM × 자산 도출 액션 리스트</p>
+    <div class="toolbar"><div class="seg">
+      <button data-t="contact" class="${stratTab==='contact'?'on':''}">오늘연락</button>
+      <button data-t="gap" class="${stratTab==='gap'?'on':''}">현금자산</button>
+      <button data-t="care" class="${stratTab==='care'?'on':''}">관리</button>
+      <button data-t="calendar" class="${stratTab==='calendar'?'on':''}">캘린더</button>
+      <button data-t="nocrm" class="${stratTab==='nocrm'?'on':''}">정보없음</button>
+      <button data-t="zero" class="${stratTab==='zero'?'on':''}">0원계좌</button>
+      <button data-t="closed" class="${stratTab==='closed'?'on':''}">해지</button>
+    </div></div>
+    <p class="page-sub">${desc}</p>
+    ${lead||''}
+    <div class="card" style="padding:8px 14px"><div class="list">${rows||'<div class="empty">해당 고객 없음</div>'}</div></div>
+  </div>`;
+  v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{stratTab=b.dataset.t;renderStrategy();});
+  v.querySelectorAll('.btn-contacted').forEach(b=>b.onclick=e=>{e.stopPropagation();markContacted(b.dataset.name);});
+  v.querySelectorAll('.btn-openclient').forEach(b=>b.onclick=e=>{e.stopPropagation();openClient(b.dataset.name);});
+  v.querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
+}
+function addMonths(d,n){const p=d.split('-');const dt=new Date(+p[0],+p[1]-1+n,+p[2]||1);return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');}
+
+/* =========================================================
+   ----- 보험 (분기 연락 스케줄 · 생일 · 연락이력) -----
+   토스 customers.html 로직 포팅 → 통합 CRM(channels '보험') 기반
+   완료 여부는 crm.history(연락일 배열)로 판정, 동기화에 함께 실림
+   ========================================================= */
+let insTab='today';
+const INS_HOLIDAYS=new Set(['2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-02','2026-05-05','2026-05-25','2026-06-06','2026-08-15','2026-08-17','2026-09-24','2026-09-25','2026-09-28','2026-10-05','2026-10-09','2026-12-25']);
+const insPad=n=>String(n).padStart(2,'0');
+const insIso=d=>`${d.getFullYear()}-${insPad(d.getMonth()+1)}-${insPad(d.getDate())}`;
+function insBizDay(d){const w=d.getDay();return w!==0&&w!==6&&!INS_HOLIDAYS.has(insIso(d));}
+function insBizDaysOfMonth(y,m){const out=[],last=new Date(y,m,0).getDate();for(let day=1;day<=last;day++){const d=new Date(y,m-1,day);if(insBizDay(d))out.push(day);}return out;}
+function insList(){return Object.values(curCustomers()).filter(c=>hasChannel(c,'보험'));}
+function insHistory(c){return((c.crm&&c.crm.history)||[]).slice().sort();}
+function insLastContact(c){const h=insHistory(c);return h.length?h[h.length-1]:null;}
+/* 이번 달 연락 도래 고객(관리월 분기) — 영업일 분산 배정 + 상태 */
+function insDueThisMonth(list){
+  const NOW=new Date();NOW.setHours(0,0,0,0);
+  const TY=NOW.getFullYear(),TM=NOW.getMonth()+1,TODAY=insIso(NOW),monthFirst=`${TY}-${insPad(TM)}-01`;
+  const due=list.filter(c=>c.crm&&c.crm.anchorMonth&&(c.crm.anchorMonth%3)===(TM%3));
+  due.sort((a,b)=>a.crm.anchorMonth-b.crm.anchorMonth||a.name.localeCompare(b.name,'ko'));
+  const bd=insBizDaysOfMonth(TY,TM),N=due.length;
+  due.forEach((c,i)=>{
+    const di=N<=1?0:Math.min(bd.length-1,Math.floor(i*bd.length/N));
+    c._day=bd[di];c._dateIso=insIso(new Date(TY,TM-1,c._day));
+    const lc=insLastContact(c);c._doneCycle=lc&&lc>=monthFirst;
+    c._st=c._doneCycle?'done':c._dateIso<TODAY?'overdue':c._dateIso===TODAY?'today':'upcoming';
+  });
+  return due;
+}
+/* 다음 연락 예정 월(분기) */
+function insNextDueMonth(c){
+  const NOW=new Date();const TM=NOW.getMonth()+1,monthFirst=`${NOW.getFullYear()}-${insPad(TM)}-01`;
+  const a=c.crm.anchorMonth;const months=[...new Set([a,((a+3-1)%12)+1,((a+6-1)%12)+1,((a+9-1)%12)+1])].sort((x,y)=>x-y);
+  const lc=insLastContact(c);
+  let cand=months.find(m=>m>=TM&&!(m===TM&&lc&&lc>=monthFirst));
+  if(!cand)cand=months.find(m=>m>TM)||months[0];
+  return cand;
+}
+/* 생일 정보 */
+function insBday(c){
+  if(!c.birth||!/^\d{4}-\d{1,2}-\d{1,2}/.test(c.birth))return null;
+  const NOW=new Date();NOW.setHours(0,0,0,0);const TY=NOW.getFullYear(),TM=NOW.getMonth()+1;
+  const[by,bm,bd]=c.birth.split('-').map(Number);
+  let next=new Date(TY,bm-1,bd);next.setHours(0,0,0,0);if(next<NOW)next=new Date(TY+1,bm-1,bd);
+  const days=Math.round((next-NOW)/86400000);
+  return{bm,bd,days,turning:next.getFullYear()-by,isToday:days===0,thisMonth:bm===TM};
+}
+/* 연락완료/취소 — crm.history 갱신 + 동기화 */
+async function insMarkDone(name){
+  const cr=CRM[name];if(!cr)return;const t=todayStr();
+  cr.history=(cr.history||[]);if(!cr.history.includes(t))cr.history.push(t);
+  cr.lastContact=t;cr.updatedAt=new Date().toISOString();
+  await crmPut(cr);CRM[name]=cr;toast(name+' · 연락완료 '+t);
+  if(syncOn())syncNow(true);renderInsurance();
+}
+async function insUndo(name){
+  const cr=CRM[name];if(!cr||!cr.history)return;const t=todayStr();
+  const i=cr.history.lastIndexOf(t);if(i>-1)cr.history.splice(i,1);
+  cr.lastContact=insLastContact({crm:cr})||'';cr.updatedAt=new Date().toISOString();
+  await crmPut(cr);CRM[name]=cr;toast(name+' · 연락 취소');
+  if(syncOn())syncNow(true);renderInsurance();
+}
+window.insMarkDone=insMarkDone;window.insUndo=insUndo;
+const telA=p=>'tel:'+String(p||'').replace(/[^0-9]/g,'');
+const smsA=p=>'sms:'+String(p||'').replace(/[^0-9]/g,'');
+function insContactRow(c){
+  const tagmap={overdue:['#E0344B','#FDECEE','밀림'],today:['#1B64DA','#EBF2FE','오늘'],upcoming:['#4E5968','#EDEFF2',c._day+'일 예정'],done:['#0F9D58','#E5F8EE','완료']};
+  const[tc,tb,tt]=tagmap[c._st];const ph=(c.crm&&c.crm.phone)||'';
+  const act=c._st==='done'
+    ?`<button class="btn ghost sm" onclick="event.stopPropagation();insUndo('${esc(c.name)}')">되돌리기</button>`
+    :`${ph?`<a class="btn ghost sm" href="${telA(ph)}" onclick="event.stopPropagation()">📞</a>`:''}<button class="btn primary sm" onclick="event.stopPropagation();insMarkDone('${esc(c.name)}')">✓ 완료</button>`;
+  return `<div class="row" data-name="${esc(c.name)}"><div style="min-width:0">
+    <div class="nm">${esc(c.name)} <span class="tag" style="color:${tc};background:${tb};font-weight:700">${tt}</span></div>
+    <div class="tags"><span class="tag">${c.crm&&c.crm.anchorMonth?'관리 '+c.crm.anchorMonth+'월':''}</span><span class="tag">${ageFromBirth(c.birth)??'-'}세 · ${c.gender||'-'}</span>${ph?`<span class="tag">${esc(ph)}</span>`:''}</div></div>
+    <div class="right" style="display:flex;gap:6px;align-items:center">${act}</div><span class="chev">›</span></div>`;
+}
+function insBdayRow(c){
+  const b=c._bd;const ph=(c.crm&&c.crm.phone)||'';
+  const when=b.isToday?`<span class="tag" style="color:#C98A0B;background:#FCF3E0;font-weight:700">오늘 🎂</span>`:`<span class="tag">D-${b.days}</span>`;
+  return `<div class="row" data-name="${esc(c.name)}"><div style="min-width:0">
+    <div class="nm">${esc(c.name)} ${when} <span class="tag" style="color:#C98A0B;background:#FCF3E0">만 ${b.turning}세</span></div>
+    <div class="tags"><span class="tag">${b.bm}월 ${b.bd}일</span><span class="tag">${c.gender||'-'}</span>${ph?`<span class="tag">${esc(ph)}</span>`:''}</div></div>
+    <div class="right" style="display:flex;gap:6px;align-items:center">${ph?`<a class="btn ghost sm" href="${smsA(ph)}" onclick="event.stopPropagation()">🎁 축하</a>`:''}</div><span class="chev">›</span></div>`;
+}
+function renderInsurance(){
+  const v=$('#view');const list=insList();
+  if(!list.length){
+    v.innerHTML=`<div class="wrap"><h1 class="page-title">보험</h1><p class="page-sub">분기 연락 스케줄 · 생일 관리 · 연락 이력</p>
+      <div class="card empty"><div class="big">🛡️</div><b>보험 채널 고객이 없습니다</b>
+      <p style="margin:10px 0 16px;color:var(--sub);font-size:13.5px;line-height:1.6">고객 상세에서 <b>채널 '보험'</b>을 체크하거나,<br>설정 · 백업의 <b>보험 고객 가져오기</b>로 기존 데이터를 불러오세요.</p></div></div>`;
+    return;
+  }
+  const due=insDueThisMonth(list);
+  const over=due.filter(c=>c._st==='overdue'),tod=due.filter(c=>c._st==='today'),up=due.filter(c=>c._st==='upcoming'),done=due.filter(c=>c._st==='done');
+  const withAnchor=list.filter(c=>c.crm&&c.crm.anchorMonth).length;
+  const bAll=list.map(c=>{const b=insBday(c);if(b)c._bd=b;return{c,b};}).filter(x=>x.b);
+  const bToday=bAll.filter(x=>x.b.isToday).map(x=>x.c);
+  const bSoon=bAll.filter(x=>x.b.days>0&&x.b.days<=7).sort((a,b)=>a._bd.days-b._bd.days).map(x=>x.c);
+  const bMonth=bAll.filter(x=>x.b.thisMonth).sort((a,b)=>a._bd.bd-b._bd.bd).map(x=>x.c);
+  const NOW=new Date();const wd=['일','월','화','수','목','금','토'][NOW.getDay()];
+  let body='';
+  if(insTab==='today'){
+    const sec=(t,badge,rows,empty)=>`<div class="card"><h3>${t}<span class="meta">${badge}</span></h3><div class="list">${rows||('<div class="empty" style="padding:24px">'+empty+'</div>')}</div></div>`;
+    body=`<div class="grid3" style="margin-bottom:14px">
+        <div class="kpi"><div class="lab">밀린 고객</div><div class="val sm" style="color:var(--rise)">${over.length}<span style="font-size:13px">명</span></div></div>
+        <div class="kpi"><div class="lab">오늘 연락</div><div class="val sm" style="color:var(--primary)">${tod.length}<span style="font-size:13px">명</span></div></div>
+        <div class="kpi"><div class="lab">이번 달 완료</div><div class="val sm" style="color:var(--ok-d)">${done.length}<span style="font-size:13px">명</span></div></div>
+      </div>
+      <div class="daynote-ins">💡 <b>${NOW.getFullYear()}년 ${NOW.getMonth()+1}월 ${NOW.getDate()}일(${wd})</b> · 분기(3개월) 주기 · 영업일 분산 · 밀린 고객·생일자부터 챙기세요</div>
+      ${over.length?sec('🔴 밀린 고객','연락 예정일이 지남',over.sort((a,b)=>a._dateIso.localeCompare(b._dateIso)).map(insContactRow).join('')):''}
+      ${sec('오늘 연락','오늘 배정',tod.map(insContactRow).join(''),'오늘 연락할 고객이 없어요')}
+      ${up.length?sec('이번 달 다가오는 연락','예정',up.sort((a,b)=>a._day-b._day).map(insContactRow).join('')):''}`;
+  } else {
+    const sec=(t,badge,rows,empty)=>`<div class="card"><h3>${t}<span class="meta">${badge}</span></h3><div class="list">${rows||('<div class="empty" style="padding:24px">'+empty+'</div>')}</div></div>`;
+    body=`<div class="daynote-ins" style="background:#FCF3E0;color:#A06800">🎂 생일 당일~7일 이내 고객입니다 · 축하 메시지는 자연스러운 안부·보장 점검 계기가 됩니다</div>
+      ${sec('오늘 생일','당일',bToday.map(insBdayRow).join(''),'오늘 생일인 고객이 없어요')}
+      ${sec('다가오는 생일','7일 이내',bSoon.map(insBdayRow).join(''),'7일 이내 생일이 없어요')}
+      ${sec('이번 달 생일 전체','이번 달',bMonth.map(insBdayRow).join(''),'이번 달 생일이 없어요')}`;
+  }
+  v.innerHTML=`<div class="wrap"><h1 class="page-title">보험</h1>
+    <p class="page-sub">보험 고객 ${list.length}명 · 관리월 지정 ${withAnchor}명 · 분기(3개월) 주기 · 영업일 분산</p>
+    <div class="toolbar"><div class="seg">
+      <button data-t="today" class="${insTab==='today'?'on':''}">오늘 연락 ${over.length+tod.length?'· '+(over.length+tod.length):''}</button>
+      <button data-t="bday" class="${insTab==='bday'?'on':''}">생일 ${bToday.length+bSoon.length?'· '+(bToday.length+bSoon.length):''}</button>
+    </div></div>
+    ${body}</div>`;
+  v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{insTab=b.dataset.t;renderInsurance();});
+  v.querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
+}
+
+/* =========================================================
+   ----- 리포트 (보험 리포트 배포·관리) -----
+   원천: toss-reports/reports.json (읽기·쓰기) · HTML 파일은 repo 루트에 배포
+   기존 toss dashboard.html의 내장 REPORTS도 best-effort 동기화 → 기존 대시보드 유지
+   고객 연결: crm.linkIds 에 파일명 저장 → 고객 상세에 연결 리포트 표시
+   ========================================================= */
+const TOSS_BASE='https://hyunseoung-ko.github.io/toss-reports/';
+const TOSS_HOST='hyunseoung-ko.github.io/toss-reports';
+const OG_VER='2026062403';
+const REP_LABEL={analysis:'보장분석',proposal:'보장제안',guide:'가이드'};
+const REP_CATS=['analysis','proposal','guide'];
+const OG_DESC_BY_TYPE={analysis:'토스인슈어런스 보장분석 리포트',proposal:'토스인슈어런스 보장제안 리포트',guide:'토스인슈어런스 보험 가이드'};
+const OG_IMAGE_BY_TYPE={analysis:'og-analysis.png',proposal:'og-proposal.png',guide:'og-guidebook.png'};
+const REP_BADGE_STYLE={analysis:['#1B64DA','#EBF2FE'],proposal:['#0F9D58','#E5F8EE'],guide:['#C98A0B','#FCF3E0']};
+let REPORTS={analysis:[],proposal:[],guide:[]};
+let reportsLoaded=false,reportsErr='',reportCat='all',reportSort='latest',reportSearch='',REP_PENDING=[];
+
+function utf8ToB64(str){const b=new TextEncoder().encode(str);let s='';for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
+async function tossApi(path,opts={}){
+  const qi=path.indexOf('?');const p=qi<0?path:path.slice(0,qi);const q=qi<0?'':path.slice(qi);
+  const url=`${GH_API}/repos/${TOSS_OWNER}/${TOSS_REPO}/contents/${encodeURIComponent(p)}${q}`;
+  const res=await fetch(url,{...opts,headers:{Authorization:'Bearer '+tossPAT(),Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28',...(opts.headers||{})}});
+  if(!res.ok){const eb=await res.json().catch(()=>({}));const e=new Error(eb.message||res.statusText);e.status=res.status;throw e;}
+  return res.json();
+}
+function tossGet(path){return tossApi(`${path}?ref=${TOSS_BRANCH}&t=`+Date.now());}
+function tossPut(path,b64,msg,sha){const body={message:msg,content:b64,branch:TOSS_BRANCH};if(sha)body.sha=sha;return tossApi(path,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
+async function tossPutRetry(path,b64,msg,sha){try{return await tossPut(path,b64,msg,sha);}catch(e){if(e.status===409||e.status===422){const cur=await tossGet(path).catch(()=>null);return await tossPut(path,b64,msg,cur&&cur.sha);}throw e;}}
+function tossDelete(path,sha,msg){return tossApi(path,{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg,sha,branch:TOSS_BRANCH})});}
+
+function escapeAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function escapeRegex(s){return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+function injectOgTags(html,type,filename){
+  const url=TOSS_BASE+filename;const titleBase=filename.replace(/\.html?$/i,'').replace(/[_-]/g,' ');
+  const desc=OG_DESC_BY_TYPE[type]||'토스인슈어런스 리포트';const img=TOSS_BASE+(OG_IMAGE_BY_TYPE[type]||'og-analysis.png')+'?v='+OG_VER;
+  const wanted=[['og:type','website'],['og:title',titleBase],['og:description',desc],['og:url',url],['og:image',img],['og:image:width','1200'],['og:image:height','630']];
+  let out=html;const ins=[];
+  for(const[prop,content]of wanted){const re=new RegExp(`<meta\\s+property=["']${prop}["'][^>]*>`,'i');
+    if(re.test(out))out=out.replace(re,`<meta property="${prop}" content="${escapeAttr(content)}">`);else ins.push(`<meta property="${prop}" content="${escapeAttr(content)}">`);}
+  if(ins.length){const block='\n  '+ins.join('\n  ')+'\n';if(/<\/head>/i.test(out))out=out.replace(/<\/head>/i,block+'</head>');else out=block+out;}
+  return out;
+}
+function updateReportsArrayInDash(dashHtml,type,filename){
+  const re=new RegExp(`(\\b${type}:\\s*\\[)([\\s\\S]*?)(\\s*\\])`);const m=dashHtml.match(re);
+  if(!m)return{html:dashHtml,skipped:true};const inner=m[2];
+  if(new RegExp(`["']${escapeRegex(filename)}["']`).test(inner))return{html:dashHtml,skipped:true};
+  const items=[...inner.matchAll(/["']([^"']+\.html?)["']/g)];let newInner;
+  if(!items.length)newInner=`\n    "${filename}"\n  `;
+  else{const last=items[items.length-1];const e=last.index+last[0].length;newInner=inner.slice(0,e)+`,\n    "${filename}"`+inner.slice(e);}
+  return{html:dashHtml.replace(re,m[1]+newInner+m[3]),skipped:false};
+}
+function detectRepCat(name){if(/가이드|가이드북|guide/i.test(name))return 'guide';if(/제안|요약|플랜|설계|proposal/i.test(name))return 'proposal';if(/분석|진단|analysis/i.test(name))return 'analysis';return 'analysis';}
+function repExtractDate(f){const m=f.match(/(\d{8})/);if(m)return m[1];const m2=f.match(/(\d{6})(?!\d)/);if(m2)return '20'+m2[1];return '';}
+function repFmtDate(s){return(s&&s.length===8)?s.slice(0,4)+'.'+s.slice(4,6)+'.'+s.slice(6,8):'—';}
+function repName(f){return f.replace(/\.html?$/i,'').replace(/_/g,' ');}
+function repStatus(file,type){if(type==='guide')return['var(--ok)','게시중'];const d=repExtractDate(file);if(!d)return['var(--ok)','게시중'];
+  const dt=new Date(+d.slice(0,4),+d.slice(4,6)-1,+d.slice(6,8));const cut=new Date();cut.setHours(0,0,0,0);cut.setMonth(cut.getMonth()-6);
+  return dt<cut?['var(--warn)','정리 권장']:['var(--ok)','게시중'];}
+/* 파일명 → 연결된 고객명 목록 (crm.linkIds 스캔) */
+function linkedCustomersFor(file){return Object.values(CRM).filter(cr=>(cr.linkIds||[]).includes(file)).map(cr=>cr.name);}
+function reportsForCustomer(name){const cr=CRM[name];return cr&&cr.linkIds?cr.linkIds.slice():[];}
+
+async function loadReports(){
+  reportsErr='';
+  try{const j=await tossGet('reports.json');const d=JSON.parse(b64ToUtf8(j.content));
+    REPORTS={analysis:d.analysis||[],proposal:d.proposal||[],guide:d.guide||[]};reportsLoaded=true;}
+  catch(e){reportsErr=(e.status===401||e.status===403)?'토큰 권한이 없습니다 — 다시 연결하세요':(e.message||'불러오기 실패');reportsLoaded=false;}
+}
+function repTokenCard(extra){
+  return `<div class="wrap"><h1 class="page-title">리포트</h1><p class="page-sub">보험 리포트 배포·공유 링크 관리 · 저장 위치: toss-reports</p>
+    <div class="card"><h3>🔑 toss-reports 연결</h3>
+      <p class="page-sub" style="margin:0 0 12px">리포트 배포·조회에 toss-reports 비공개 저장소 토큰(github_pat_...)이 필요합니다. 보험 고객 가져오기와 동일한 토큰입니다. 브라우저에만 저장됩니다.</p>
+      ${extra?`<p style="color:var(--rise);font-size:13px;font-weight:600;margin-bottom:10px">${esc(extra)}</p>`:''}
+      <button class="btn primary" id="repConnect">토큰 연결하기</button></div></div>`;
+}
+async function renderReports(){
+  const v=$('#view');
+  if(!tossPAT()){v.innerHTML=repTokenCard('');$('#repConnect').onclick=repConnect;return;}
+  if(!reportsLoaded&&!reportsErr){v.innerHTML=`<div class="wrap"><h1 class="page-title">리포트</h1><p class="page-sub">불러오는 중…</p></div>`;await loadReports();return renderReports();}
+  if(reportsErr){v.innerHTML=repTokenCard(reportsErr);$('#repConnect').onclick=repConnect;return;}
+  const counts={analysis:REPORTS.analysis.length,proposal:REPORTS.proposal.length,guide:REPORTS.guide.length};counts.all=counts.analysis+counts.proposal+counts.guide;
+  const ym=(()=>{const d=new Date();return ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0');})();
+  let monthCount=0;REP_CATS.forEach(t=>REPORTS[t].forEach(f=>{const d=repExtractDate(f);if(d&&d.slice(0,6)===ym)monthCount++;}));
+  const types=reportCat==='all'?REP_CATS:[reportCat];
+  let rows=[];types.forEach(t=>REPORTS[t].forEach(f=>rows.push({file:f,type:t})));
+  const q=reportSearch.replace(/_/g,' ').toLowerCase();
+  if(q)rows=rows.filter(r=>repName(r.file).toLowerCase().includes(q));
+  rows.sort((a,b)=>{if(reportSort==='name')return repName(a.file).localeCompare(repName(b.file),'ko');
+    const da=repExtractDate(a.file),db=repExtractDate(b.file);return reportSort==='latest'?db.localeCompare(da):da.localeCompare(db);});
+  const chBtn=(val,lab,cnt)=>`<button class="ch-fl${reportCat===val?' on':''}" data-rc="${val}">${lab}<span class="cfn">${cnt}</span></button>`;
+  const rowHtml=rows.map(({file,type})=>{
+    const[dot,stt]=repStatus(file,type);const linked=linkedCustomersFor(file);const href=TOSS_BASE+encodeURIComponent(file)+'?v='+OG_VER;const bs=REP_BADGE_STYLE[type];
+    return `<div class="row">
+      <div style="min-width:0">
+        <div class="nm">${esc(repName(file))}</div>
+        <div class="tags"><span class="tag" style="color:${bs[0]};background:${bs[1]};font-weight:700">${REP_LABEL[type]}</span>
+          <span class="tag">${repFmtDate(repExtractDate(file))}</span>
+          <span class="tag"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dot};margin-right:4px;vertical-align:middle"></span>${stt}</span>
+          ${linked.length?`<span class="tag b">👤 ${esc(linked.join(', '))}</span>`:''}</div></div>
+      <div class="right" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn ghost sm" onclick="repCopy('${escapeAttr(href)}')">링크복사</button>
+        <button class="btn ghost sm" onclick="window.open('${escapeAttr(href)}','_blank','noopener')">열기</button>
+        <button class="btn ghost sm" onclick="openLinkReport('${escapeAttr(file)}')">👤 연결</button>
+        <button class="btn ghost sm" style="color:var(--rise)" onclick="repDelete('${escapeAttr(file)}','${type}')">삭제</button>
+      </div></div>`;
+  }).join('');
+  v.innerHTML=`<div class="wrap"><h1 class="page-title">리포트</h1>
+    <p class="page-sub">전체 ${counts.all}건 · 이번 달 ${monthCount}건 · 보장분석 ${counts.analysis} · 보장제안 ${counts.proposal} · 가이드 ${counts.guide} · ${TOSS_HOST}</p>
+    <div class="ch-fls">${chBtn('all','전체',counts.all)}${chBtn('analysis','보장분석',counts.analysis)}${chBtn('proposal','보장제안',counts.proposal)}${chBtn('guide','가이드',counts.guide)}</div>
+    <div class="toolbar">
+      <div class="seg">
+        <button data-rs="latest" class="${reportSort==='latest'?'on':''}">최신순</button>
+        <button data-rs="oldest" class="${reportSort==='oldest'?'on':''}">오래된순</button>
+        <button data-rs="name" class="${reportSort==='name'?'on':''}">이름순</button>
+      </div>
+      <button class="btn primary sm" id="repDeployBtn">＋ 리포트 배포</button>
+    </div>
+    <div class="search"><span>🔍</span><input id="repSearch" placeholder="리포트 이름 검색" value="${esc(reportSearch)}"></div>
+    <div class="card" style="padding:8px 14px"><div class="list">${rowHtml||'<div class="empty">'+(counts.all?'검색 결과 없음':'아직 배포된 리포트가 없습니다')+'</div>'}</div></div>
+  </div>`;
+  v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{reportCat=b.dataset.rc;renderReports();});
+  v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{reportSort=b.dataset.rs;renderReports();});
+  $('#repDeployBtn').onclick=()=>$('#reportFileInput').click();
+  const s=$('#repSearch');s.oninput=()=>{reportSearch=s.value.trim();const cur=s.selectionStart;renderReports();const ns=$('#repSearch');if(ns){ns.focus();ns.setSelectionRange(cur,cur);}};
+}
+function repConnect(){const t=prompt('toss-reports 접근 토큰(github_pat_...) 붙여넣기\n· 보험 고객 가져오기·리포트 배포에 쓰는 동일 토큰');if(!t)return;localStorage.setItem(TOSS_PAT_KEY,t.trim());reportsLoaded=false;reportsErr='';renderReports();}
+function repCopy(url){navigator.clipboard.writeText(url).then(()=>toast('링크 복사됨'),()=>toast('복사 실패'));}
+function closeRepModal(){$('#repModal').classList.add('hidden');}
+window.repCopy=repCopy;window.closeRepModal=closeRepModal;
+
+/* 배포 모달 — 파일별 카테고리 확인 후 일괄 업로드 */
+async function openReportDeploy(fileList){
+  const files=[...fileList].filter(f=>/\.html?$/i.test(f.name));if(!files.length){toast('HTML 파일을 선택하세요');return;}
+  REP_PENDING=[];
+  for(const f of files){let text='';try{text=await f.text();}catch(e){}REP_PENDING.push({file:f,text,cat:detectRepCat(f.name)});}
+  const card=$('#repModalCard');
+  const opt=(c,sel)=>`<option value="${c}"${sel===c?' selected':''}>${REP_LABEL[c]}</option>`;
+  card.innerHTML=`<button class="modal-x" onclick="closeRepModal()">✕</button>
+    <h3>리포트 배포 (${REP_PENDING.length}건)</h3>
+    <p class="msub">toss-reports에 업로드되고 공유 링크가 생성됩니다. 카테고리를 확인하세요. (OG 미리보기 태그 자동 삽입)</p>
+    <div style="display:flex;flex-direction:column;gap:8px;max-height:46vh;overflow:auto">
+    ${REP_PENDING.map((p,i)=>`<div style="display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px 12px">
+      <div style="flex:1;min-width:0;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.file.name)}</div>
+      <select class="cat-sel" data-i="${i}" style="padding:8px 10px;border:1px solid var(--line);border-radius:10px;font-size:13px">${opt('analysis',p.cat)}${opt('proposal',p.cat)}${opt('guide',p.cat)}</select>
+    </div>`).join('')}
+    </div>
+    <div class="modal-btns"><button class="btn ghost sm" onclick="closeRepModal()">취소</button><button class="btn primary sm" id="repDoDeploy">배포</button></div>`;
+  card.querySelectorAll('.cat-sel').forEach(s=>s.onchange=()=>{REP_PENDING[+s.dataset.i].cat=s.value;});
+  $('#repDoDeploy').onclick=()=>deployReports();
+  $('#repModal').classList.remove('hidden');
+}
+async function deployReports(){
+  const card=$('#repModalCard');const items=REP_PENDING;if(!items.length)return;
+  const lines=[];const ok=[];
+  const paint=()=>{card.innerHTML=`<h3>배포 중…</h3><div class="rep-log">${lines.map(l=>`<div class="rep-logline ${l[1]}">${esc(l[0])}</div>`).join('')}</div>`;};
+  const log=(m,cls)=>{lines.push([m,cls||'']);paint();};
+  paint();
+  for(const it of items){
+    const fn=it.file.name;
+    try{
+      const html=injectOgTags(it.text,it.cat,fn);
+      let sha=null;try{const cur=await tossGet(fn);sha=cur&&cur.sha;}catch(e){if(e.status!==404)throw e;}
+      await tossPutRetry(fn,utf8ToB64(html),(sha?'report: update ':'report: ')+fn,sha);
+      ok.push({fn,cat:it.cat});log('✓ '+fn+' 업로드','ok');
+    }catch(e){log('✗ '+fn+' — '+(e.message||e),'err');if(e.status===401){localStorage.removeItem(TOSS_PAT_KEY);}}
+  }
+  if(ok.length){
+    try{const j=await tossGet('reports.json');const d=JSON.parse(b64ToUtf8(j.content));
+      d.analysis=d.analysis||[];d.proposal=d.proposal||[];d.guide=d.guide||[];
+      ok.forEach(({fn,cat})=>{if(!d[cat].includes(fn))d[cat].push(fn);});
+      await tossPutRetry('reports.json',utf8ToB64(JSON.stringify(d,null,2)),'reports.json: +'+ok.length,j.sha);
+      log('✓ reports.json 갱신','ok');
+    }catch(e){log('✗ reports.json — '+(e.message||e),'err');}
+    try{const dj=await tossGet('dashboard.html');let dh=b64ToUtf8(dj.content);let ch=0;
+      ok.forEach(({fn,cat})=>{const r=updateReportsArrayInDash(dh,cat,fn);if(!r.skipped){dh=r.html;ch++;}});
+      if(ch)await tossPutRetry('dashboard.html',utf8ToB64(dh),'dashboard: +'+ch,dj.sha);}catch(e){}
+  }
+  const linksHtml=ok.map(({fn})=>`<a class="rep-link" href="${escapeAttr(TOSS_BASE+encodeURIComponent(fn))}" target="_blank" rel="noopener">🔗 ${esc(TOSS_BASE+fn)}</a>`).join('');
+  card.innerHTML=`<h3>${ok.length?'배포 완료':'배포 실패'} · ${ok.length}/${items.length}건</h3>
+    <div class="rep-log">${lines.map(l=>`<div class="rep-logline ${l[1]}">${esc(l[0])}</div>`).join('')}</div>
+    ${linksHtml?`<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">${linksHtml}</div>`:''}
+    <p class="msub" style="margin-top:10px">공유 링크는 1분 내 반영됩니다.</p>
+    <div class="modal-btns"><button class="btn primary sm" onclick="closeRepModal();reportsLoaded=false;renderReports()">완료</button></div>`;
+  REP_PENDING=[];
+}
+window.openReportDeploy=openReportDeploy;
+
+/* 리포트 ↔ 고객 연결 모달 */
+let linkReportFile=null,linkReportQuery='';
+function openLinkReport(file){linkReportFile=file;linkReportQuery='';drawLinkReport();$('#repModal').classList.remove('hidden');}
+function drawLinkReport(){
+  const card=$('#repModalCard');const file=linkReportFile;
+  const all=Object.values(curCustomers()).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const q=linkReportQuery.toLowerCase();const list=all.filter(c=>!q||c.name.toLowerCase().includes(q)).slice(0,60);
+  const linkedNow=linkedCustomersFor(file);
+  card.innerHTML=`<button class="modal-x" onclick="closeRepModal()">✕</button>
+    <h3>고객 연결</h3><p class="msub">${esc(repName(file))}<br>이 리포트를 받은 고객을 연결하면 고객 상세에 표시됩니다.</p>
+    ${linkedNow.length?`<div style="margin-bottom:10px">${linkedNow.map(n=>`<span class="tag b" style="margin:0 4px 4px 0;display:inline-block">👤 ${esc(n)} ✕</span>`).join('')}</div>`:''}
+    <input id="linkQ" placeholder="고객 이름 검색" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;font-size:14px" value="${esc(linkReportQuery)}">
+    <div class="list" style="max-height:42vh;overflow:auto;margin-top:8px">
+    ${list.map(c=>{const on=(CRM[c.name]&&(CRM[c.name].linkIds||[]).includes(file));
+      return `<div class="row" style="cursor:pointer" onclick="toggleReportLink('${escapeAttr(c.name)}')"><div><div class="nm">${esc(c.name)}</div><div class="tags">${chBadges(c)}</div></div>
+        <div class="right"><span class="tag ${on?'b':''}">${on?'✓ 연결됨':'연결'}</span></div></div>`;}).join('')||'<div class="empty">고객 없음</div>'}
+    </div>
+    <div class="modal-btns"><button class="btn primary sm" onclick="closeRepModal();if(curView==='reports')renderReports()">닫기</button></div>`;
+  const lq=$('#linkQ');lq.oninput=()=>{linkReportQuery=lq.value.trim();const cur=lq.selectionStart;drawLinkReport();const n=$('#linkQ');if(n){n.focus();n.setSelectionRange(cur,cur);}};
+}
+async function toggleReportLink(name){
+  const file=linkReportFile;let cr=CRM[name];
+  if(!cr){cr={name,channels:['보험'],history:[],linkIds:[],updatedAt:new Date().toISOString()};}
+  cr.linkIds=cr.linkIds||[];const i=cr.linkIds.indexOf(file);
+  if(i>-1)cr.linkIds.splice(i,1);else cr.linkIds.push(file);
+  cr.updatedAt=new Date().toISOString();await crmPut(cr);CRM[name]=cr;
+  if(syncOn())syncNow(true);drawLinkReport();
+}
+window.openLinkReport=openLinkReport;window.toggleReportLink=toggleReportLink;
+
+async function repDelete(file,type){
+  if(!confirm('이 리포트를 삭제할까요?\n· '+repName(file)+'\n파일·공유링크가 제거됩니다(고객 연결도 해제).'))return;
+  try{
+    let sha=null;try{const cur=await tossGet(file);sha=cur&&cur.sha;}catch(e){if(e.status!==404)throw e;}
+    if(sha)await tossDelete(file,sha,'report: delete '+file);
+    const j=await tossGet('reports.json');const d=JSON.parse(b64ToUtf8(j.content));
+    REP_CATS.forEach(c=>{if(Array.isArray(d[c]))d[c]=d[c].filter(x=>x!==file);});
+    await tossPutRetry('reports.json',utf8ToB64(JSON.stringify(d,null,2)),'reports.json: -'+file,j.sha);
+    // 고객 연결 해제
+    let changed=false;Object.values(CRM).forEach(cr=>{if(cr.linkIds&&cr.linkIds.includes(file)){cr.linkIds=cr.linkIds.filter(x=>x!==file);cr.updatedAt=new Date().toISOString();crmPut(cr);changed=true;}});
+    if(changed&&syncOn())syncNow(true);
+    toast('삭제됨');reportsLoaded=false;renderReports();
+  }catch(e){toast('삭제 실패: '+(e.message||e));}
+}
+window.repDelete=repDelete;
+
+/* ----- HELP / 사용설명서 (나만 보는 용도) ----- */
+function renderHelp(){
+  $('#view').innerHTML=`<div class="wrap help">
+    <h1 class="page-title">사용설명서</h1><p class="page-sub">나만 보는 운영 매뉴얼 · 데이터는 이 기기에만 저장됩니다</p>
+
+    <div class="card tip"><h3>🔗 통합 대시보드 (한투 + 보험)</h3>
+      <ul>
+        <li><b>고객</b> — 한투·보험 고객을 한 화면에서. 채널 칩(전체/한투/보험/양쪽)으로 필터. 양쪽 고객은 배지 2개.</li>
+        <li><b>보험</b> — 분기(3개월) 연락 스케줄·생일·연락이력. 고객 상세에서 채널 '보험' + 관리월 지정 시 자동 배정.</li>
+        <li><b>리포트</b> — 보장분석/제안/가이드 HTML을 toss-reports에 배포·공유링크 생성. 리포트를 고객에 <b>연결</b>하면 고객 상세에 표시.</li>
+        <li><b>최초 1회</b> — 설정·백업의 <b>📥 보험 고객 가져오기</b>로 기존 보험 고객을 통합 CRM으로 이전(이름 기준 한투와 병합).</li>
+        <li><b>저장·동기화</b> — 모든 고객정보는 E2EE 암호화로 데이터 repo에 동기화(보험 포함). 리포트/보험가져오기는 toss-reports 토큰 사용.</li>
+      </ul></div>
+
+    <div class="card"><h3>📌 한 줄 요약</h3>
+      <p style="margin:0;color:var(--sub)">매주 한투 HTS/MTS에서 엑셀을 내려받아 <b style="color:var(--ink)">홈 화면에 드래그 → 업로드</b>하면 끝. 스냅샷이 쌓일수록 변화 추이가 정확해집니다.</p></div>
+
+    <div class="card"><h3>🗓️ 주간 업데이트 (매주 반복)</h3>
+      <div class="step"><div class="num">1</div><div><b>엑셀 내려받기</b><p>한투에서 고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS 등 엑셀(.xls) 다운로드</p></div></div>
+      <div class="step"><div class="num">2</div><div><b>홈에 드래그</b><p><code>홈</code> 화면 점선 박스에 파일을 모두 끌어다 놓기 (또는 <code>파일 선택</code>)</p></div></div>
+      <div class="step"><div class="num">3</div><div><b>기준일 확인</b><p><code>기준일</code>을 데이터 기준일로 맞추기 (기본값=오늘). 같은 날짜로 다시 올리면 덮어쓰기됩니다</p></div></div>
+      <div class="step"><div class="num">4</div><div><b>업로드</b><p><code>업로드</code> 클릭 → 자동 분석·누적. 하단에 인식된 파일 종류가 표시됩니다</p></div></div>
+    </div>
+
+    <div class="card tip"><h3>📇 고객 영업정보(CRM)는 직접 입력</h3>
+      <p style="margin:0;color:var(--sub)">회사·지역·투자성향·운용상품·메모 등 영업정보는 <b style="color:var(--ink)">고객상세 ✏️편집</b>에서 직접 입력합니다. 자산 엑셀과 <b style="color:var(--ink)">별도로 저장</b>되어 매주 자산을 다시 올려도 지워지지 않고, 동기화·백업에 함께 실립니다. 자산이 없는 잠재고객은 고객 탭 <code>+ 신규 고객</code>으로 추가하세요. <br>처음 한 번은 <code>설정 → 📇 CRM 엑셀 가져오기</code>로 한투 고객리스트(한국투자고객 시트)를 일괄 시드할 수 있습니다 <b style="color:var(--ink)">(보험고객 시트는 가져오지 않음)</b>.</p></div>
+
+    <div class="card tip"><h3>➕ 파일이 늘어나도 괜찮습니다</h3>
+      <p style="margin:0;color:var(--sub)">고객 자산이 새 종류(예: 연금저축·채권·ISA·신탁 등)로 생겨 엑셀이 5개보다 많아져도, <b style="color:var(--ink)">고객명과 평가금액 컬럼만 있으면 자동 인식·집계</b>됩니다. 새 자산 종류는 차트에 새 색상으로 자동 추가됩니다. 파일명을 바꿔도 컬럼으로 판별하니 그대로 올리면 됩니다.</p></div>
+
+    <div class="card"><h3>🧭 화면별 기능</h3>
+      <ul>
+        <li><b style="color:var(--ink)">홈</b> — 총자산·원금·손익 요약, 자산구분 도넛, 전체 추이, 영업점·PB별 분포, 자산순 고객</li>
+        <li><b style="color:var(--ink)">고객</b> — 이름·등록일·자산·수익률 정렬 + 검색. <code>+ 신규 고객</code>으로 자산 없는 잠재고객도 직접 추가</li>
+        <li><b style="color:var(--ink)">고객상세</b> — <b style="color:var(--ink)">영업·CRM 정보</b> <code>✏️편집</code>, <b style="color:var(--ink)">운용상품 보유(실계좌 자동연결: ✓계좌 확인 · 색채움=잔고 · 테두리만=0원)</b>, 원금·총액·수익률 추이, 자산구성, 은퇴 시뮬레이션, 보유상품(계좌별 접기/펼침, 0원 계좌 포함)</li>
+        <li><b style="color:var(--ink)">자산</b> — 전체 자산 추이 + <b style="color:var(--ink)">계좌별 고객 / 날짜별 스냅샷 좌우 탭</b>. 계좌별 고객은 유형(주식·CMA·연금저축·IRP·DC) 탭 + <b style="color:var(--ink)">고객 검색</b>, 스냅샷은 클릭 시 삭제</li>
+        <li><b style="color:var(--ink)">영업</b> — 현금자산(현금성 보유 많은 순·LMS가능)·관리(손실·급감·<b style="color:var(--ink)">현금성 증대</b>)·캘린더(상품만기·성향만기·연금개시연령)·정보없음(자산 있으나 CRM 미입력)·0원계좌(<b style="color:var(--ink)">전체자산 0원</b>)·해지(사라진 계좌)</li>
+      </ul></div>
+
+    <div class="card"><h3>💾 백업 & 기기 이동</h3>
+      <ul>
+        <li><b style="color:var(--ink)">주기적 백업</b> — 사이드바(또는 모바일 상단 <code>백업/관리</code>) → <code>데이터 백업</code>으로 JSON 저장. 브라우저 캐시를 지우면 데이터가 사라지므로 매주 1회 권장</li>
+        <li><b style="color:var(--ink)">PC↔폰 이동</b> — 한쪽에서 <code>내보내기</code> → 다른 기기에서 <code>백업 불러오기</code></li>
+        <li><b style="color:var(--ink)">고객 전달</b> — 고객상세/시점 화면 캡처해 카톡·문자로 이미지 전송 (그 고객 정보만 노출)</li>
+      </ul></div>
+
+    <div class="card"><h3>🔐 보안 설정</h3>
+      <ul>
+        <li><b style="color:var(--ink)">PIN 6자리</b> + <b style="color:var(--ink)">생체인증</b>(지문·Face ID·Windows Hello) — <code>🔐 PIN·생체인증 설정</code>에서 변경/등록</li>
+        <li>생체인증은 <b style="color:var(--ink)">HTTPS(웹주소) 또는 localhost</b>에서만 작동. 노트북·폰 각각 따로 1회 등록 필요</li>
+      </ul></div>
+
+    <div class="card warn-card"><h3>⚠️ 개인정보 5수칙 (꼭)</h3>
+      <ul>
+        <li>① 기기 자체 잠금(로그인 비번·생체) 항상 켜두기</li>
+        <li>② 백업 JSON은 <b style="color:var(--ink)">로컬/USB에만</b> — 카톡·구글드라이브 등으로 전송 금지</li>
+        <li>③ 고객 전달 이미지는 <b style="color:var(--ink)">해당 고객 화면만</b> — 홈/고객목록(전체 노출) 캡처 금지</li>
+        <li>④ 본인 기기에서만 사용 (공용·공유 PC 금지)</li>
+        <li>⑤ 데이터를 외부 서버에 올리지 않기 (이 앱은 외부 전송이 전혀 없습니다)</li>
+      </ul></div>
+
+    <div class="card"><h3>🛠️ 문제 해결</h3>
+      <ul>
+        <li><b style="color:var(--ink)">데이터가 사라졌어요</b> → 브라우저 캐시 삭제·시크릿모드 탓. 백업 JSON으로 <code>불러오기</code></li>
+        <li><b style="color:var(--ink)">생체인증 버튼이 없어요</b> → <code>file://</code>로 연 경우. 웹주소(HTTPS)로 접속 + 보안설정에서 등록</li>
+        <li><b style="color:var(--ink)">새 파일이 인식 안 돼요</b> → 첫 행에 <code>고객명</code>과 평가금액류 컬럼이 있는지 확인</li>
+      </ul></div>
+  </div>`;
+}
+
+/* =========================================================
+   CHARTS
+   ========================================================= */
+function drawPie(id,cats,legId){const ctx=$('#'+id);if(!ctx)return;
+  const labels=catList(cats);const data=labels.map(c=>cats[c]);
+  if(!data.length){ctx.parentElement.innerHTML='<div class="empty" style="padding:30px">자산 없음</div>';return;}
+  charts[id]=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:labels.map(c=>catColor(c)),borderWidth:2,borderColor:'#fff'}]},
+    options:{cutout:'62%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.label}: ${won(c.raw)} (${(c.raw/data.reduce((a,b)=>a+b)*100).toFixed(1)}%)`}}},responsive:true,maintainAspectRatio:false}});
+  if(legId){const tot=data.reduce((a,b)=>a+b);$('#'+legId).innerHTML=labels.map((c,i)=>`<span><i style="background:${catColor(c)}"></i>${c} ${(data[i]/tot*100).toFixed(0)}%</span>`).join('');}
+}
+function trendData(){return SNAPS.map(s=>({x:s.date,principal:s.totals.principal,profit:s.totals.profit,eval:s.totals.eval}));}
+/* ---- 연환산 수익률(CAGR) ---- 누적수익률을 보유연수로 연단위 환산 */
+function parseYMD(s){const m=String(s||'').match(/(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/);if(!m)return null;return new Date(+m[1],+m[2]-1,+(m[3]||1));}
+function yearsBetween(start,end){const s=parseYMD(start),e=parseYMD(end);if(!s||!e)return null;const y=(e-s)/(365.25*864e5);return y>0.08?y:null;}
+function annualize(cumPct,years){if(years==null||years<=0)return null;return (Math.pow(1+cumPct/100,1/years)-1)*100;}
+/* 스냅샷 집계 보유연수 = 고객 원금가중 평균(등록일→기준일) */
+function snapYears(s){let w=0,p=0;Object.values(s.customers||{}).forEach(o=>{const y=yearsBetween(o.regDate,s.date);if(y!=null&&o.totalPrincipal>0){w+=o.totalPrincipal*y;p+=o.totalPrincipal;}});return p>0?w/p:null;}
+/* 추이 공통: 원금(파랑) · 총액=원금+손익(빨강)
+   누적 수익률(보라 점선, 오른쪽 % 축) · 손익은 툴팁에 표시 (연환산 수익률은 KPI 숫자로 별도 표기) */
+function trendCfg(labels,principal,total,rate){
+  const few=labels.length<2;
+  return {type:'line',data:{labels,datasets:[
+    {label:'원금',data:principal,borderColor:'#2f7fed',backgroundColor:'rgba(47,127,237,.07)',fill:true,tension:.3,borderWidth:2,pointRadius:few?4:2,yAxisID:'y'},
+    {label:'총액(원금+손익)',data:total,borderColor:'#f23645',tension:.3,borderWidth:2.5,pointRadius:few?4:2,yAxisID:'y'},
+    {label:'누적 수익률',data:rate,borderColor:'#8b5cf6',borderDash:[6,4],borderWidth:1.7,pointRadius:0,tension:.3,yAxisID:'y1'}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{display:true,labels:{boxWidth:12,font:{size:11}}},
+      tooltip:{callbacks:{
+        label:c=>c.raw==null?undefined:(c.dataset.yAxisID==='y1'?` ${c.dataset.label}: ${(+c.raw>=0?'+':'')}${(+c.raw).toFixed(1)}%`:` ${c.dataset.label}: ${won(c.raw)}`),
+        afterBody:items=>{const i=items[0].dataIndex;const pf=(total[i]||0)-(principal[i]||0);return '손익: '+(pf>=0?'+':'')+won(pf);}}}},
+    scales:{y:{ticks:{callback:v=>eok(v),font:{size:11}},grid:{color:'#eef1f6'}},
+      y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>(+v).toFixed(0)+'%',font:{size:10},color:'#9aa4b2'}},
+      x:{grid:{display:false},ticks:{font:{size:11}}}}}};
+}
+function drawTrend(id){const ctx=$('#'+id);if(!ctx)return;const d=trendData();
+  charts[id]=new Chart(ctx,trendCfg(d.map(x=>x.x),d.map(x=>x.principal),d.map(x=>x.eval),
+    d.map(x=>x.principal>0?x.profit/x.principal*100:0)));}
+function drawAllTrend(id){drawTrend(id);}
+function drawClientTrend(id,series){const ctx=$('#'+id);if(!ctx)return;
+  charts[id]=new Chart(ctx,trendCfg(series.map(x=>x.date),
+    series.map(x=>x.c.totalPrincipal),series.map(x=>x.c.totalEval),series.map(x=>x.c.rate||0)));}
+function drawBar(id,obj,color){const ctx=$('#'+id);if(!ctx)return;
+  const ent=Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  if(!ent.length){ctx.parentElement.innerHTML='<div class="empty" style="padding:24px">데이터 없음</div>';return;}
+  charts[id]=new Chart(ctx,{type:'bar',data:{labels:ent.map(e=>e[0]),datasets:[{data:ent.map(e=>e[1]),backgroundColor:color,borderRadius:6,maxBarThickness:30}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+won(c.raw)}}},
+      scales:{x:{ticks:{callback:v=>eok(v),font:{size:10}},grid:{color:'#eef1f6'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}});
+}
+
+/* =========================================================
+   UPLOAD binding
+   ========================================================= */
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function bindUpload(){
+  const drop=$('#drop');if(!drop)return;
+  drop.onclick=()=>$('#fileInput').click();
+  $('#btnPick').onclick=()=>$('#fileInput').click();
+  drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag');};
+  drop.ondragleave=()=>drop.classList.remove('drag');
+  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');addFiles(e.dataTransfer.files);};
+  $('#fileInput').onchange=e=>addFiles(e.target.files);
+  $('#btnReset').onclick=()=>{pendingFiles=[];showChips();};
+  $('#btnUpload').onclick=doUpload;
+  showChips();
+}
+function addFiles(fl){for(const f of fl)pendingFiles.push(f);showChips();}
+const TYPE_LABEL={customer:'고객리스트',trust:'위탁계좌',pensionAccount:'퇴직연금(계약)',pensionProduct:'퇴직연금(상품)',fund:'펀드CMA신탁',bondels:'채권·ELS',generic:'추가 자산파일'};
+async function showChips(){const box=$('#fileChips');if(!box)return;
+  if(!pendingFiles.length){box.innerHTML='<span style="color:var(--sub);font-size:12px">선택된 파일 없음</span>';return;}
+  box.innerHTML=pendingFiles.map((f,i)=>`<span class="chip">${esc(f.name)} ✕</span>`).join('');
+  box.querySelectorAll('.chip').forEach((c,i)=>c.onclick=()=>{pendingFiles.splice(i,1);showChips();});
+}
+async function doUpload(){
+  if(!pendingFiles.length){toast('파일을 먼저 선택하세요');return;}
+  const date=$('#snapDate').value||todayStr();
+  toast('분석 중...');
+  const buckets=await parseFiles(pendingFiles);
+  const found=Object.keys(buckets).filter(k=>k!=='_unknown');
+  if(!found.length){toast('인식 가능한 파일이 없습니다');return;}
+  const snap=buildSnapshot(date,buckets);
+  await idbPut(snap);
+  // 삭제했던 날짜를 다시 올리면 tombstone 해제(부활 허용)
+  if(DELDATES.includes(date)){DELDATES=DELDATES.filter(d=>d!==date);await metaPut('deletedDates',DELDATES);}
+  pendingFiles=[];
+  const types=found.map(t=>TYPE_LABEL[t]||t).join('·');
+  toast(`${date} 저장 완료 · 고객 ${snap.totals.count}명 · 인식: ${types}`);
+  await reload();
+  if(syncOn())syncNow(true);
+}
+
+/* =========================================================
+   기기간 동기화 (E2EE · GitHub 비공개 repo)
+   ========================================================= */
+const SYNC_KEY='ab_sync', SPASS_KEY='ab_sync_pass', SYNC_PATH='store.enc';
+function syncCfg(){try{return JSON.parse(localStorage.getItem(SYNC_KEY)||'null');}catch(e){return null;}}
+function syncPass(){return localStorage.getItem(SPASS_KEY)||'';}
+function syncOn(){const c=syncCfg();return !!(c&&c.enabled&&c.repo&&c.token&&syncPass());}
+function b64eBuf(buf){const b=new Uint8Array(buf);let s='';for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
+function b64dBuf(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0));}
+async function deriveKey(pass,salt){const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:200000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
+async function encJSON(obj,pass){const salt=crypto.getRandomValues(new Uint8Array(16)),iv=crypto.getRandomValues(new Uint8Array(12));
+  const key=await deriveKey(pass,salt);const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,new TextEncoder().encode(JSON.stringify(obj)));
+  return JSON.stringify({v:1,salt:b64eBuf(salt),iv:b64eBuf(iv),ct:b64eBuf(ct)});}
+async function decJSON(str,pass){const o=JSON.parse(str);const key=await deriveKey(pass,b64dBuf(o.salt));
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64dBuf(o.iv)},key,b64dBuf(o.ct));return JSON.parse(new TextDecoder().decode(pt));}
+
+const GH_API='https://api.github.com';
+async function ghGet(repo,path,token){const r=await fetch(`${GH_API}/repos/${repo}/contents/${encodeURIComponent(path)}`,{headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'}});
+  if(r.status===404)return null;if(!r.ok)throw new Error('GitHub 읽기 실패('+r.status+')');const d=await r.json();
+  return {content:atob((d.content||'').replace(/\s/g,'')),sha:d.sha};}
+async function ghPut(repo,path,token,contentStr,sha,msg){const body={message:msg,content:btoa(contentStr)};if(sha)body.sha=sha;
+  const r=await fetch(`${GH_API}/repos/${repo}/contents/${encodeURIComponent(path)}`,{method:'PUT',headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){const e=await r.json().catch(()=>({}));const er=new Error('GitHub 저장 실패('+r.status+') '+(e.message||''));er.status=r.status;throw er;}
+  return (await r.json()).content.sha;}
+
+function mergeSnaps(a,b){const m={};[...(a||[]),...(b||[])].forEach(s=>{const ex=m[s.date];if(!ex||(s.uploadedAt||'')>=(ex.uploadedAt||''))m[s.date]=s;});return Object.values(m).sort((x,y)=>x.date<y.date?-1:1);}
+function setSyncDot(state){const d=$('#syncDot');if(d)d.className='sync-dot '+(state||'');}
+
+const mergeDel=(a,b)=>Array.from(new Set([...(a||[]),...(b||[])]));
+let syncing=false;
+async function syncNow(silent){
+  if(!syncOn()){if(!silent)toast('동기화 설정이 필요합니다');return false;}
+  if(syncing)return false;syncing=true;setSyncDot('sync');
+  const cfg=syncCfg(),pass=syncPass();
+  const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[],deleted:[]}:{snaps:dec.snapshots||[],crm:dec.crm||[],deleted:dec.deleted||[]};
+  // 삭제 tombstone 적용: 삭제목록 날짜는 스냅샷에서 제거하고 로컬 DB에서도 삭제
+  const applyDel=async(snaps,del)=>{const set=new Set(del);for(const d of del)await idbDel(d);return snaps.filter(s=>!set.has(s.date));};
+  try{
+    let remoteFile=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
+    let remote=[],remoteCrm=[],remoteDel=[],sha=remoteFile?remoteFile.sha:null;
+    if(remoteFile&&remoteFile.content){try{const d=splitRemote(await decJSON(remoteFile.content,pass));remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;}catch(e){throw new Error('복호화 실패 — 동기화 암호가 다릅니다');}}
+    const local=await idbAll(),localCrm=await crmAll();
+    let mergedDel=mergeDel(DELDATES,remoteDel);
+    let merged=await applyDel(mergeSnaps(local,remote),mergedDel),mergedCrm=mergeCrm(localCrm,remoteCrm);
+    for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
+    const payload={snapshots:merged,crm:mergedCrm,deleted:mergedDel};
+    if(JSON.stringify(payload)!==JSON.stringify({snapshots:remote,crm:remoteCrm,deleted:remoteDel})){
+      try{await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON(payload,pass),sha,'sync '+new Date().toISOString());}
+      catch(e){ if(e.status===409||/sha|409/.test(e.message)){ // 충돌 → 재병합 1회
+        const rf=await ghGet(cfg.repo,SYNC_PATH,cfg.token);const rd=rf&&rf.content?splitRemote(await decJSON(rf.content,pass)):{snaps:[],crm:[],deleted:[]};
+        mergedDel=mergeDel(mergedDel,rd.deleted);
+        merged=await applyDel(mergeSnaps(merged,rd.snaps),mergedDel);mergedCrm=mergeCrm(mergedCrm,rd.crm);
+        for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
+        await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:merged,crm:mergedCrm,deleted:mergedDel},pass),rf?rf.sha:null,'sync(merge) '+new Date().toISOString());
+      } else throw e; }
+    }
+    DELDATES=mergedDel;await metaPut('deletedDates',DELDATES);
+    SNAPS=merged;SNAPS.forEach(fixSnapPrincipals);CRM={};mergedCrm.forEach(c=>CRM[c.name]=c);
+    setSyncDot('ok');syncing=false;if(!silent)toast('동기화 완료 · 스냅샷 '+merged.length+'개 · CRM '+mergedCrm.length+'명');
+    if(curView)render();return true;
+  }catch(e){setSyncDot('err');syncing=false;if(!silent)toast(e.message||'동기화 실패');return false;}
+}
+
+function openSync(){const c=syncCfg()||{};$('#syRepo').value=c.repo||'Hyunseoung-Ko/kis-dashboard-data';$('#syToken').value=c.token||'';$('#syPass').value=syncPass();
+  $('#syStatus').textContent=c.enabled?'✅ 동기화 켜져 있음':'현재 꺼짐';$('#syncModal').classList.remove('hidden');toggleDrawer(false);}
+function bindSync(){
+  $('#btnSync').onclick=openSync;
+  $('#syClose').onclick=()=>$('#syncModal').classList.add('hidden');
+  $('#syTest').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim();if(!repo||!token){$('#syStatus').textContent='⚠️ repo·토큰 입력하세요';return;}
+    $('#syStatus').textContent='테스트 중...';try{const r=await fetch(`${GH_API}/repos/${repo}`,{headers:{Authorization:'Bearer '+token}});
+      $('#syStatus').textContent=r.ok?'✅ repo 연결 OK — 저장 누르세요':'⚠️ 실패('+r.status+') repo명/토큰/권한 확인';}catch(e){$('#syStatus').textContent='⚠️ 네트워크 오류';}};
+  $('#syOff').onclick=()=>{const c=syncCfg()||{};c.enabled=false;localStorage.setItem(SYNC_KEY,JSON.stringify(c));setSyncDot('');$('#syStatus').textContent='동기화 꺼짐';toast('동기화 꺼짐');};
+  $('#sySave').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim(),pass=$('#syPass').value;
+    if(!repo||!token||!pass){$('#syStatus').textContent='⚠️ 세 칸 모두 입력하세요';return;}
+    localStorage.setItem(SYNC_KEY,JSON.stringify({repo,token,enabled:true}));localStorage.setItem(SPASS_KEY,pass);
+    $('#syStatus').textContent='동기화 중...';const ok=await syncNow(false);$('#syStatus').textContent=ok?'✅ 동기화 완료 — 이제 자동 동기화됩니다':'⚠️ 실패 — 입력값/암호 확인';};
+}
+
+/* =========================================================
+   EXPORT / IMPORT / WIPE
+   ========================================================= */
+async function doExport(){
+  const all=(await idbAll()).filter(s=>!DELDATES.includes(s.date));const crm=await crmAll();
+  const blob=new Blob([JSON.stringify({app:'assetBoard',v:3,exportedAt:new Date().toISOString(),snapshots:all,crm,deleted:DELDATES})],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='assetboard_backup_'+todayStr()+'.json';a.click();toast('백업 파일 저장됨');
+}
+/* =========================================================
+   보험 고객 마이그레이션 (toss-reports/_crm/data.json → 통합 CRM)
+   리포트 배포에 쓰는 동일 PAT 사용 · 채널 '보험' 부여 · 이름 기준 병합
+   ========================================================= */
+const TOSS_OWNER='hyunseoung-ko',TOSS_REPO='toss-reports',TOSS_BRANCH='main',TOSS_PAT_KEY='toss_dashboard_pat',TOSS_CRM_PATH='_crm/data.json';
+function tossPAT(){return localStorage.getItem(TOSS_PAT_KEY)||'';}
+function b64ToUtf8(b64){const bin=atob(String(b64||'').replace(/\s/g,''));const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u);}
+async function fetchTossCRM(token){
+  const r=await fetch(`${GH_API}/repos/${TOSS_OWNER}/${TOSS_REPO}/contents/${TOSS_CRM_PATH}?ref=${TOSS_BRANCH}&t=`+Date.now(),
+    {headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'}});
+  if(r.status===404)return null;
+  if(r.status===401||r.status===403){const e=new Error('토큰 권한 없음('+r.status+')');e.status=r.status;throw e;}
+  if(!r.ok)throw new Error('읽기 실패('+r.status+')');
+  const j=await r.json();return JSON.parse(b64ToUtf8(j.content));
+}
+async function migrateInsurance(){
+  let token=tossPAT();
+  if(!token){token=prompt('toss-reports 비공개 저장소 접근 토큰(github_pat_...)을 붙여넣으세요\n· 리포트 배포에 쓰는 토큰과 동일합니다');if(!token)return;token=token.trim();if(!token)return;localStorage.setItem(TOSS_PAT_KEY,token);}
+  toast('보험 고객 불러오는 중...');
+  let data;
+  try{data=await fetchTossCRM(token);}
+  catch(e){if(e.status===401||e.status===403){localStorage.removeItem(TOSS_PAT_KEY);toast('토큰이 유효하지 않습니다 — 다시 시도하세요');}else toast('가져오기 실패: '+(e.message||e));return;}
+  if(!data||!Array.isArray(data.customers)){toast('보험 고객 데이터(_crm/data.json)를 찾지 못했습니다');return;}
+  const hist=data.history||{};
+  let added=0,merged=0;
+  for(const ic of data.customers){
+    const nm=String(ic.name||'').trim();if(!nm)continue;
+    const ex=CRM[nm]||null;
+    const channels=new Set((ex&&ex.channels)||[]);channels.add('보험');
+    const ih=Array.isArray(hist[ic.id])?hist[ic.id]:[];
+    const mergedHist=[...new Set([...((ex&&ex.history)||[]),...ih])].sort();
+    const rec={name:nm,
+      birth:(ex&&ex.birth)||ic.birth||'',
+      gender:(ex&&ex.gender)||ic.gender||'',
+      phone:(ex&&ex.phone)||ic.phone||'',
+      company:(ex&&ex.company)||'',
+      sido:(ex&&ex.sido)||ic.do||'',sigungu:(ex&&ex.sigungu)||ic.si||'',dong:(ex&&ex.dong)||'',
+      riskType:(ex&&ex.riskType)||'',pension:!!(ex&&ex.pension),prod:(ex&&ex.prod)||{},
+      memo:(ex&&ex.memo)||ic.note||'',
+      lastContact:(ex&&ex.lastContact)||(mergedHist.length?mergedHist[mergedHist.length-1]:''),
+      channels:[...channels],
+      anchorMonth:ic.anchorMonth||(ex&&ex.anchorMonth)||null,
+      history:mergedHist,
+      linkIds:(ex&&ex.linkIds)||[],
+      updatedAt:new Date().toISOString()};
+    if(ex)merged++;else added++;
+    await crmPut(rec);CRM[nm]=rec;
+  }
+  toast(`보험 고객 ${added}명 추가 · ${merged}명 병합(한투 고객과 통합)`);
+  if(syncOn())syncNow(true);
+  setView('clients');
+}
+async function doSecurity(){
+  const hasBio=!!localStorage.getItem(BIO_KEY);const cur=autolockMins();
+  const a=prompt('보안 설정 — 번호 입력\n1: PIN 변경 (6자리)\n2: 생체인증 '+(hasBio?'해제':'등록')+(bioSupported()?'':' (현재 환경 미지원)')+'\n3: 자동잠금 시간 (현재 '+(cur>0?cur+'분':'끔')+')','1');
+  if(a==='1'){const np=prompt('새 PIN 6자리 숫자');if(np==null)return;if(/^\d{6}$/.test(np)){localStorage.setItem(PIN_KEY,np);toast('PIN 변경 완료');}else toast('6자리 숫자여야 합니다');}
+  else if(a==='2'){
+    if(hasBio){if(confirm('생체인증을 해제할까요?')){localStorage.removeItem(BIO_KEY);toast('생체인증 해제됨');}}
+    else{try{await registerBio();toast('생체인증 등록 완료 — 다음 잠금부터 사용');}catch(e){toast('등록 실패/취소: '+(e.message||e));}}
+  }
+  else if(a==='3'){const v=prompt('자동잠금 시간(분) 입력 · 0 = 끄기\n모바일에서만 적용 · 미사용 시 자동 로그아웃 (PC는 잠기지 않음)',String(cur));
+    if(v==null)return;if(/^\d+$/.test(v)){localStorage.setItem(AUTOLOCK_KEY,v);resetIdle();toast(+v>0?'자동잠금 '+v+'분':'자동잠금 꺼짐');}else toast('숫자를 입력하세요');}
+}
+function bindGlobal(){
+  $('#navToggle').onclick=()=>toggleDrawer();
+  $('#navClose').onclick=()=>toggleDrawer(false);
+  $('#drawerBackdrop').onclick=()=>toggleDrawer(false);
+  $('#footToggle').onclick=()=>{const nowHidden=$('#footGroup').classList.toggle('hidden');$('#footToggle').classList.toggle('open',!nowHidden);};
+  bindSync();bindCrmForm();if(syncOn())setSyncDot('ok');
+  $('#btnExport').onclick=doExport;
+  $('#btnSecurity').onclick=doSecurity;
+  $('#btnCrmImport').onclick=()=>$('#crmFileInput').click();
+  $('#btnInsImport').onclick=migrateInsurance;
+  $('#reportFileInput').onchange=e=>{if(e.target.files.length)openReportDeploy(e.target.files);e.target.value='';};
+  $('#repModal').addEventListener('click',e=>{if(e.target.id==='repModal')closeRepModal();});
+  $('#crmFileInput').onchange=e=>{const f=e.target.files[0];if(f)importCrmExcel(f);e.target.value='';};
+  $('#btnImport').onclick=()=>$('#importInput').click();
+  $('#importInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+    try{const data=JSON.parse(await f.text());if(!data.snapshots&&!data.crm)throw 0;
+      DELDATES=mergeDel(DELDATES,data.deleted);await metaPut('deletedDates',DELDATES);
+      for(const s of (data.snapshots||[]))if(!DELDATES.includes(s.date))await idbPut(s);
+      for(const c of (data.crm||[]))await crmPut(c);
+      toast('복원 완료 · 스냅샷 '+(data.snapshots||[]).length+'개 · CRM '+(data.crm||[]).length+'명');reload();}
+    catch(err){toast('복원 실패: 파일 형식 오류');}};
+  $('#btnWipe').onclick=async()=>{if(confirm('모든 스냅샷 + CRM(직접입력 영업정보)을 삭제합니다. 되돌릴 수 없습니다. (백업 권장)\n계속할까요?')){await idbClear();await new Promise(res=>{const t=db.transaction('crm','readwrite').objectStore('crm').clear();t.onsuccess=()=>res();});await metaClear();DELDATES=[];toast('전체 삭제됨');reload();}};
+}
+
+/* =========================================================
+   misc helpers / boot
+   ========================================================= */
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function emptyView(){return `<div class="wrap"><div class="card empty"><div class="big">📭</div><b>데이터가 없습니다</b><br>홈에서 엑셀을 먼저 업로드하세요.</div></div>`;}
+
+document.querySelectorAll('[data-view]').forEach(a=>a.addEventListener('click',()=>setView(a.dataset.view)));
+
+/* ---------- biometric (WebAuthn platform authenticator) ---------- */
+const bioSupported=()=>!!(window.PublicKeyCredential&&navigator.credentials&&window.isSecureContext);
+const b64e=buf=>btoa(String.fromCharCode(...new Uint8Array(buf)));
+const b64d=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function registerBio(){
+  if(!bioSupported())throw new Error('미지원 환경 (HTTPS 또는 localhost 필요)');
+  const cred=await navigator.credentials.create({publicKey:{
+    challenge:crypto.getRandomValues(new Uint8Array(32)),
+    rp:{name:'Asset Board'},
+    user:{id:crypto.getRandomValues(new Uint8Array(16)),name:'owner',displayName:'고현승'},
+    pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+    authenticatorSelection:{authenticatorAttachment:'platform',userVerification:'required',residentKey:'preferred'},
+    timeout:60000,attestation:'none'}});
+  localStorage.setItem(BIO_KEY,b64e(cred.rawId));
+}
+async function unlockBio(){
+  const id=localStorage.getItem(BIO_KEY);if(!id||!bioSupported())return false;
+  try{await navigator.credentials.get({publicKey:{
+    challenge:crypto.getRandomValues(new Uint8Array(32)),
+    allowCredentials:[{type:'public-key',id:b64d(id)}],
+    userVerification:'required',timeout:60000}});return true;}
+  catch(e){return false;}
+}
+
+/* ---------- PIN gate (첫 사용 시 PIN 직접 생성) ---------- */
+let pinInput='';
+let gateMode=localStorage.getItem(PIN_KEY)?'unlock':'setup'; // 저장된 PIN 없으면 설정 모드
+let setupFirst='';
+function gateMsg(){
+  if(gateMode==='unlock')return 'PIN 6자리를 입력하세요';
+  return setupFirst?'확인을 위해 한 번 더 입력하세요':'처음 오셨네요 — 사용할 PIN 6자리를 만드세요';
+}
+function refreshGate(){const m=$('#gateMsg');if(m)m.textContent=gateMsg();renderDots();}
+function buildPad(){const pad=$('#pinPad');['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(k=>{
+  const b=document.createElement('button');b.textContent=k;if(k==='')b.style.visibility='hidden';
+  b.onclick=()=>{if(k==='⌫')pinInput=pinInput.slice(0,-1);else if(k!=='')pinInput=(pinInput+k).slice(0,PIN_LEN);updatePin();};pad.appendChild(b);});}
+function renderDots(){const box=$('#pinBox');box.innerHTML='';for(let i=0;i<PIN_LEN;i++){const d=document.createElement('div');d.className='pin-dot';d.textContent=pinInput[i]?'●':'';box.appendChild(d);}}
+function gateFail(msg){$('#gateErr').textContent=msg;pinInput='';setTimeout(()=>{$('#gateErr').textContent='';refreshGate();},800);}
+function updatePin(){renderDots();
+  if(pinInput.length!==PIN_LEN)return;
+  if(gateMode==='setup'){
+    if(!setupFirst){setupFirst=pinInput;pinInput='';$('#gateErr').textContent='';refreshGate();}
+    else if(pinInput===setupFirst){localStorage.setItem(PIN_KEY,pinInput);gateMode='unlock';unlockApp();}
+    else{setupFirst='';gateFail('두 번 입력이 다릅니다. 처음부터 다시 만드세요');}
+  }else{
+    if(pinInput===localStorage.getItem(PIN_KEY))unlockApp();
+    else gateFail('PIN이 일치하지 않습니다');
+  }
+}
+function unlockApp(){$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');boot();resetIdle();}
+function lockApp(){clearTimeout(idleTimer);$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');
+  pinInput='';setupFirst='';gateMode=localStorage.getItem(PIN_KEY)?'unlock':'setup';refreshGate();setupBioButton(false);}
+function setupBioButton(autoTry){const btn=$('#bioBtn');
+  if(gateMode==='unlock'&&localStorage.getItem(BIO_KEY)&&bioSupported()){btn.classList.remove('hidden');
+    btn.onclick=async()=>{$('#gateErr').textContent='';if(await unlockBio())unlockApp();else $('#gateErr').textContent='생체인증 실패 — PIN으로 입력하세요';};
+    if(autoTry!==false)setTimeout(async()=>{if(!$('#gate').classList.contains('hidden')&&await unlockBio())unlockApp();},400);
+  }else btn.classList.add('hidden');}
+
+/* 자동 로그아웃(유휴 잠금) — 모바일에서만, 기본 30분, 0=끄기. PC는 잠금 안 함 */
+const AUTOLOCK_KEY='ab_autolock';
+function autolockMins(){const v=localStorage.getItem(AUTOLOCK_KEY);return v==null?30:+v;}
+function isMobile(){return document.documentElement.classList.contains('m');}
+let idleTimer;
+function resetIdle(){clearTimeout(idleTimer);const m=autolockMins();
+  if(m>0&&isMobile()&&!$('#app').classList.contains('hidden'))idleTimer=setTimeout(lockApp,m*60000);}
+['click','keydown','touchstart','mousemove','scroll'].forEach(ev=>document.addEventListener(ev,resetIdle,{passive:true}));
+
+/* 모바일 레이아웃 판정 — JS 클래스(html.m)로 제어해 iOS 회전 후 데스크톱 잔류 버그 방지 */
+/* 터치기기(coarse pointer)는 가로·세로 무관하게 항상 모바일 레이아웃 → 회전 시 데스크톱 전환 자체가 발생 안 함 */
+function applyMobileClass(){const coarse=window.matchMedia('(pointer:coarse)').matches;document.documentElement.classList.toggle('m', coarse || window.innerWidth<=880);}
+let _rzT,_pendingRotate=false;
+function onViewportChange(){clearTimeout(_rzT);_rzT=setTimeout(()=>{applyMobileClass();
+  if(_pendingRotate){_pendingRotate=false;hardResetViewport();if(!$('#app').classList.contains('hidden'))rerenderCurrent();}
+  Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},70);}
+window.addEventListener('resize',onViewportChange);
+if(window.visualViewport)window.visualViewport.addEventListener('resize',onViewportChange);
+// iOS 회전 후 레이아웃 폭이 가로값으로 고정되는 문제 → viewport를 강제로 리셋해 device-width 재계산
+function hardResetViewport(){const vp=document.querySelector('meta[name=viewport]');if(!vp)return;
+  vp.setAttribute('content','width=10000, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+  void document.documentElement.offsetWidth;
+  vp.setAttribute('content','width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');}
+function afterRotate(rerender){hardResetViewport();applyMobileClass();
+  if(rerender&&!$('#app').classList.contains('hidden'))rerenderCurrent();
+  else Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});}
+window.addEventListener('orientationchange',()=>{
+  _pendingRotate=true;        // 실제 크기가 바뀌는 순간(visualViewport resize)에 즉시 재렌더 → 텀 최소화
+  hardResetViewport();
+  setTimeout(()=>afterRotate(true),120);   // 빠른 1차
+  setTimeout(()=>{afterRotate(true);_pendingRotate=false;},420);  // 보정(이벤트 누락 대비)
+});
+applyMobileClass();
+
+/* 스크롤 내리면 하단탭 숨김, 올리면 다시 표시 */
+let _lastY=0;
+window.addEventListener('scroll',()=>{const bn=$('#bottomNav');if(!bn)return;const y=window.scrollY||document.documentElement.scrollTop||0;
+  if(y>_lastY+6&&y>90)bn.classList.add('hide');else if(y<_lastY-6)bn.classList.remove('hide');_lastY=y;},{passive:true});
+
+/* 왼쪽 엣지에서 오른쪽으로 스와이프 = 뒤로가기 */
+function goBack(){
+  if(!$('#syncModal').classList.contains('hidden')){$('#syncModal').classList.add('hidden');return;}
+  if($('#sidebar').classList.contains('open')){toggleDrawer(false);return;}
+  if(inDetail){setView('clients');return;}
+  if(curView!=='home')setView('home');
+}
+let _swX=null,_swY=null;
+document.addEventListener('touchstart',e=>{if(e.touches.length!==1){_swX=null;return;}const t=e.touches[0];_swX=t.clientX;_swY=t.clientY;},{passive:true});
+document.addEventListener('touchend',e=>{if(_swX==null)return;const t=e.changedTouches[0];const dx=t.clientX-_swX,dy=t.clientY-_swY;
+  if(_swX<=42 && dx>70 && Math.abs(dy)<55)goBack();_swX=null;},{passive:true});
+
+let booted=false;
+async function boot(){if(booted)return;booted=true;await openDB();bindGlobal();await reload();if(syncOn())syncNow(true);}
+
+/* 물리 키보드로도 PIN 입력 가능 */
+document.addEventListener('keydown',e=>{
+  const g=$('#gate');if(!g||g.classList.contains('hidden'))return;
+  if(/^[0-9]$/.test(e.key)){pinInput=(pinInput+e.key).slice(0,PIN_LEN);updatePin();e.preventDefault();}
+  else if(e.key==='Backspace'){pinInput=pinInput.slice(0,-1);renderDots();e.preventDefault();}
+});
+buildPad();refreshGate();setupBioButton();
+</script>
+</body>
+</html>
