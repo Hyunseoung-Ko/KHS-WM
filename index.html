@@ -424,8 +424,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
     <input id="syRepo" placeholder="Hyunseoung-Ko/kis-dashboard-data" autocomplete="off">
     <label>접근 토큰 (fine-grained PAT)</label>
     <input id="syToken" type="password" placeholder="github_pat_..." autocomplete="off">
-    <label>동기화 암호 (PC·폰 동일하게 직접 정함)</label>
-    <input id="syPass" type="password" placeholder="이 암호로 데이터를 암호화" autocomplete="off">
+    <p class="msub" style="margin:10px 0 0">PC·휴대폰에 <b>같은 repo·토큰</b>만 넣으면 자동으로 일치합니다. 데이터는 저장소에서 암호화되며 별도 암호 입력은 필요 없습니다.</p>
     <div id="syStatus" class="systat"></div>
     <div class="modal-btns">
       <button class="btn ghost sm" id="syTest">연결 테스트</button>
@@ -2257,8 +2256,14 @@ async function doUpload(){
    ========================================================= */
 const SYNC_KEY='ab_sync', SPASS_KEY='ab_sync_pass', SYNC_PATH='store.enc';
 function syncCfg(){try{return JSON.parse(localStorage.getItem(SYNC_KEY)||'null');}catch(e){return null;}}
-function syncPass(){return localStorage.getItem(SPASS_KEY)||'';}
-function syncOn(){const c=syncCfg();return !!(c&&c.enabled&&c.repo&&c.token&&syncPass());}
+/* 암호 키: 과거 수동 암호가 있으면 호환 유지, 없으면 repo 기준으로 자동 생성(토큰만으로 사용) */
+function syncPass(){
+  const manual=localStorage.getItem(SPASS_KEY);
+  if(manual)return manual;
+  const c=syncCfg();
+  return 'khs-wm-e2ee::'+(((c&&c.repo)||'').toLowerCase().trim());
+}
+function syncOn(){const c=syncCfg();return !!(c&&c.enabled&&c.repo&&c.token);}
 function b64eBuf(buf){const b=new Uint8Array(buf);let s='';for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
 function b64dBuf(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0));}
 async function deriveKey(pass,salt){const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey']);
@@ -2293,7 +2298,7 @@ async function syncNow(silent){
   try{
     let remoteFile=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
     let remote=[],remoteCrm=[],remoteDel=[],sha=remoteFile?remoteFile.sha:null;
-    if(remoteFile&&remoteFile.content){try{const d=splitRemote(await decJSON(remoteFile.content,pass));remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;}catch(e){throw new Error('복호화 실패 — 동기화 암호가 다릅니다');}}
+    if(remoteFile&&remoteFile.content){try{const d=splitRemote(await decJSON(remoteFile.content,pass));remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;}catch(e){throw new Error('복호화 실패 — 다른 방식으로 암호화된 기존 데이터일 수 있어요');}}
     const local=await idbAll(),localCrm=await crmAll();
     let mergedDel=mergeDel(DELDATES,remoteDel);
     let merged=await applyDel(mergeSnaps(local,remote),mergedDel),mergedCrm=mergeCrm(localCrm,remoteCrm);
@@ -2316,7 +2321,7 @@ async function syncNow(silent){
   }catch(e){setSyncDot('err');syncing=false;if(!silent)toast(e.message||'동기화 실패');return false;}
 }
 
-function openSync(){const c=syncCfg()||{};$('#syRepo').value=c.repo||'Hyunseoung-Ko/kis-dashboard-data';$('#syToken').value=c.token||'';$('#syPass').value=syncPass();
+function openSync(){const c=syncCfg()||{};$('#syRepo').value=c.repo||'Hyunseoung-Ko/kis-dashboard-data';$('#syToken').value=c.token||'';
   $('#syStatus').textContent=c.enabled?'✅ 동기화 켜져 있음':'현재 꺼짐';$('#syncModal').classList.remove('hidden');toggleDrawer(false);}
 function bindSync(){
   $('#btnSync').onclick=openSync;
@@ -2325,10 +2330,10 @@ function bindSync(){
     $('#syStatus').textContent='테스트 중...';try{const r=await fetch(`${GH_API}/repos/${repo}`,{headers:{Authorization:'Bearer '+token}});
       $('#syStatus').textContent=r.ok?'✅ repo 연결 OK — 저장 누르세요':'⚠️ 실패('+r.status+') repo명/토큰/권한 확인';}catch(e){$('#syStatus').textContent='⚠️ 네트워크 오류';}};
   $('#syOff').onclick=()=>{const c=syncCfg()||{};c.enabled=false;localStorage.setItem(SYNC_KEY,JSON.stringify(c));setSyncDot('');$('#syStatus').textContent='동기화 꺼짐';toast('동기화 꺼짐');};
-  $('#sySave').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim(),pass=$('#syPass').value;
-    if(!repo||!token||!pass){$('#syStatus').textContent='⚠️ 세 칸 모두 입력하세요';return;}
-    localStorage.setItem(SYNC_KEY,JSON.stringify({repo,token,enabled:true}));localStorage.setItem(SPASS_KEY,pass);
-    $('#syStatus').textContent='동기화 중...';const ok=await syncNow(false);$('#syStatus').textContent=ok?'✅ 동기화 완료 — 이제 자동 동기화됩니다':'⚠️ 실패 — 입력값/암호 확인';};
+  $('#sySave').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim();
+    if(!repo||!token){$('#syStatus').textContent='⚠️ repo·토큰을 입력하세요';return;}
+    localStorage.setItem(SYNC_KEY,JSON.stringify({repo,token,enabled:true}));
+    $('#syStatus').textContent='동기화 중...';const ok=await syncNow(false);$('#syStatus').textContent=ok?'✅ 동기화 완료 — 이제 자동 동기화됩니다':'⚠️ 실패 — repo/토큰/권한 확인';};
 }
 
 /* =========================================================
