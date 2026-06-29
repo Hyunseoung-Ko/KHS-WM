@@ -482,6 +482,10 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <button class="btn ghost sm" id="syOff">동기화 끄기</button>
       <button class="btn primary sm" id="sySave">저장 &amp; 지금 동기화</button>
     </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line2)">
+      <button class="btn ghost sm" id="syReset" style="width:100%;color:var(--rise)">🧹 삭제표시 비우기 &amp; 이 기기 데이터 올리기</button>
+      <p class="msub" style="margin:6px 0 0;font-size:11.5px">동기화 후 한투 스냅샷이 사라질 때 사용 — 옛 삭제기록(tombstone)을 지우고 <b>이 기기의 현재 데이터</b>를 저장소에 올립니다. <b>한투 자산이 보이는 기기에서</b> 누르세요.</p>
+    </div>
   </div>
 </div>
 
@@ -2492,12 +2496,37 @@ async function syncNow(silent){
   }catch(e){setSyncDot('err');syncing=false;if(!silent)toast(e.message||'동기화 실패');return false;}
 }
 
+/* 삭제표시(tombstone) 비우기 + 이 기기의 현재 데이터를 저장소에 강제 업로드.
+   옛 삭제기록이 한투 스냅샷을 매 동기화마다 지우는 상황 복구용. 한투가 보이는 기기에서 실행. */
+async function resetSyncDeleted(){
+  if(!syncOn()){toast('먼저 repo·토큰을 저장하세요');return;}
+  const cfg=syncCfg();let pass=syncPass();
+  const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[],deleted:[]}:{snaps:dec.snapshots||[],crm:dec.crm||[],deleted:dec.deleted||[]};
+  const S=t=>{const e=$('#syStatus');if(e)e.textContent=t;};
+  setSyncDot('sync');S('삭제표시 초기화 중...');
+  try{
+    const rf=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
+    let rSnaps=[],rCrm=[];
+    if(rf&&rf.content){const r=await decTry(rf.content,passCandidates());const d=splitRemote(r.data);rSnaps=d.snaps;rCrm=d.crm;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}
+    const local=await idbAll(),localCrm=await crmAll();
+    const snaps=mergeSnaps(local,rSnaps),crm=mergeCrm(localCrm,rCrm);
+    DELDATES=[];await metaPut('deletedDates',[]);
+    await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:snaps,crm,deleted:[]},pass),rf?rf.sha:null,'reset tombstones '+new Date().toISOString());
+    for(const s of snaps)await idbPut(s);for(const c of crm)await crmPut(c);
+    SNAPS=snaps;SNAPS.forEach(fixSnapPrincipals);CRM={};crm.forEach(c=>CRM[c.name]=c);
+    setSyncDot('ok');S(`✅ 초기화 완료 · 스냅샷 ${snaps.length}개 · CRM ${crm.length}명 업로드 — 다른 기기에서 동기화하세요`);
+    toast('삭제표시 비움 · 스냅샷 '+snaps.length+'개 업로드');
+    if(curView)render();
+  }catch(e){setSyncDot('err');S('⚠️ 실패: '+(e.message||''));}
+}
+
 function openSync(){const c=syncCfg()||{};$('#syRepo').value=c.repo||'Hyunseoung-Ko/kis-dashboard-data';$('#syToken').value=c.token||'';
   $('#syPass').value=localStorage.getItem(SPASS_KEY)||'';
   $('#syStatus').textContent=c.enabled?'✅ 동기화 켜져 있음':'현재 꺼짐';$('#syncModal').classList.remove('hidden');toggleDrawer(false);}
 function bindSync(){
   $('#btnSync').onclick=openSync;
   $('#syClose').onclick=()=>$('#syncModal').classList.add('hidden');
+  $('#syReset').onclick=()=>{if(confirm('옛 삭제기록(tombstone)을 지우고 이 기기의 현재 데이터를 저장소에 올립니다.\n· 한투가 보이는 기기에서 실행하세요\n· 다른 기기에서 일부러 지웠던 스냅샷이 되살아날 수 있습니다\n계속할까요?'))resetSyncDeleted();};
   $('#syTest').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim(),pass=$('#syPass').value;
     const S=t=>{$('#syStatus').textContent=t;};
     if(!repo||!token){S('⚠️ repo·토큰 입력하세요');return;}
@@ -2511,9 +2540,14 @@ function bindSync(){
       const cands=[];if(pass)cands.push(pass);cands.push('khs-wm-e2ee::'+repo.toLowerCase());const sm=localStorage.getItem(SPASS_KEY);if(sm)cands.push(sm);
       try{
         const d=await decTry(f.content,[...new Set(cands.filter(Boolean))]);
-        const o=Array.isArray(d.data)?{snapshots:d.data,crm:[]}:d.data;
-        const ns=(o.snapshots||[]).length,nc=(o.crm||[]).length;
-        S(`✅ 연결·복호화 OK · 스냅샷 ${ns}개 · CRM ${nc}명${ns?' — [저장 & 지금 동기화] 누르세요':' · ⚠ 한투 자산 스냅샷이 없습니다(PC에서 동기화 필요)'}`);
+        const o=Array.isArray(d.data)?{snapshots:d.data,crm:[],deleted:[]}:d.data;
+        const ns=(o.snapshots||[]).length,nc=(o.crm||[]).length,nd=(o.deleted||[]).length;
+        const localN=(await idbAll()).length;
+        let msg=`✅ 복호화 OK · 원격: 스냅샷 ${ns} · CRM ${nc} · 삭제표시 ${nd} · 이 기기 로컬 스냅샷 ${localN}`;
+        if(localN>0&&ns<localN)msg+=` — ⚠ 로컬엔 ${localN}개 있는데 원격 ${ns}개! 삭제표시가 지우는 중일 수 있음 → 아래 [삭제표시 비우기 & 올리기]`;
+        else if(ns>0)msg+=' — [저장 & 지금 동기화] 누르면 됩니다';
+        else if(localN===0)msg+=' — 이 기기엔 한투 데이터 없음(데이터 있는 기기에서 올리세요)';
+        S(msg);
       }catch(e){S('⚠️ store.enc 복호화 실패 — 동기화 암호가 기존과 다릅니다. PC에서 쓰던 동기화 암호를 정확히 입력하세요');}
     }catch(e){S('⚠️ 네트워크 오류');}};
   $('#syOff').onclick=()=>{const c=syncCfg()||{};c.enabled=false;localStorage.setItem(SYNC_KEY,JSON.stringify(c));setSyncDot('');$('#syStatus').textContent='동기화 꺼짐';toast('동기화 꺼짐');};
