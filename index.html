@@ -2573,12 +2573,13 @@ function bindSync(){
       try{
         const d=await decTry(f.content,[...new Set(cands.filter(Boolean))]);
         const o=Array.isArray(d.data)?{snapshots:d.data,crm:[],deleted:{}}:d.data;
-        const ns=(o.snapshots||[]).length,nc=(o.crm||[]).length,nd=Object.keys(normDel(o.deleted)).length;
-        const localN=(await idbAll()).length;
-        let msg=`✅ 복호화 OK · 원격: 스냅샷 ${ns} · CRM ${nc} · 삭제표시 ${nd} · 이 기기 로컬 스냅샷 ${localN}`;
-        if(localN>0&&ns<localN)msg+=` — ⚠ 로컬엔 ${localN}개 있는데 원격 ${ns}개! 삭제표시가 지우는 중일 수 있음 → 아래 [삭제표시 비우기 & 올리기]`;
-        else if(ns>0)msg+=' — [저장 & 지금 동기화] 누르면 됩니다';
-        else if(localN===0)msg+=' — 이 기기엔 한투 데이터 없음(데이터 있는 기기에서 올리세요)';
+        const rSnaps=o.snapshots||[],ns=rSnaps.length,nc=(o.crm||[]).length,nd=Object.keys(normDel(o.deleted)).length;
+        const md=s=>String(s.date||'').slice(5);  // MM-DD
+        const rDates=rSnaps.map(md).sort().join(',');
+        const localAll=await idbAll(),localN=localAll.length,lDates=localAll.map(md).sort().join(',');
+        let msg=`✅ 복호화 OK · 원격 스냅샷 ${ns}[${rDates}] · CRM ${nc} · 삭제표시 ${nd} · 로컬 ${localN}[${lDates}]`;
+        if(ns>localN)msg+=' — [저장 & 지금 동기화] 또는 [📥 새로 받기]로 받으세요';
+        else if(localN>ns)msg+=' — 로컬이 더 많음 → [🧹 삭제표시 비우기 & 올리기]';
         S(msg);
       }catch(e){S('⚠️ store.enc 복호화 실패 — 동기화 암호가 기존과 다릅니다. PC에서 쓰던 동기화 암호를 정확히 입력하세요');}
     }catch(e){S('⚠️ 네트워크 오류');}};
