@@ -387,7 +387,6 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <a data-view="clients"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3.2 2.8-5 5.5-5s5.1 1.8 5.5 5"/><path d="M16 6.6a3 3 0 0 1 0 5.5"/><path d="M17.6 19c-.2-2-1-3.5-2.2-4.4"/></svg></span> 고객</a>
       <a data-view="assets"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg></span> 자산</a>
       <a data-view="strategy"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg></span> 영업</a>
-      <a data-view="insurance"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10V5l7-2 7 2v6c0 5.5-7 10-7 10z"/><path d="M9 11l2 2 4-4"/></svg></span> 보험</a>
       <a data-view="reports"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z" transform="translate(-1 0)"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></span> 리포트</a>
       <div class="nav-label">도구 (보험)</div>
       <a style="cursor:pointer" onclick="openDeployModal()"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span> 리포트 배포</a>
@@ -435,7 +434,6 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
     <a data-view="clients" aria-label="고객"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3.2 2.8-5 5.5-5s5.1 1.8 5.5 5"/><path d="M16 6.6a3 3 0 0 1 0 5.5"/><path d="M17.6 19c-.2-2-1-3.5-2.2-4.4"/></svg><span class="bnl">고객</span></a>
     <a data-view="assets" aria-label="자산"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg><span class="bnl">자산</span></a>
     <a data-view="strategy" aria-label="영업"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg><span class="bnl">영업</span></a>
-    <a data-view="insurance" aria-label="보험"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.5-7-10V5l7-2 7 2v6c0 5.5-7 10-7 10z"/><path d="M9 11l2 2 4-4"/></svg><span class="bnl">보험</span></a>
     <a data-view="reports" aria-label="리포트"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h6l5 5v13H7z"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg><span class="bnl">리포트</span></a>
   </nav>
 </div>
@@ -454,7 +452,9 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
     <input id="syRepo" placeholder="Hyunseoung-Ko/kis-dashboard-data" autocomplete="off">
     <label>접근 토큰 (fine-grained PAT)</label>
     <input id="syToken" type="password" placeholder="github_pat_..." autocomplete="off">
-    <p class="msub" style="margin:10px 0 0">PC·휴대폰에 <b>같은 repo·토큰</b>만 넣으면 자동으로 일치합니다. 데이터는 저장소에서 암호화되며 별도 암호 입력은 필요 없습니다.</p>
+    <label>동기화 암호 <span style="font-weight:500;color:var(--sub)">· 선택 (기존 데이터 복구용)</span></label>
+    <input id="syPass" type="password" placeholder="이전에 쓰던 동기화 암호 (없으면 비워두세요)" autocomplete="off">
+    <p class="msub" style="margin:10px 0 0">PC·휴대폰에 <b>같은 repo·토큰</b>을 넣으면 자동으로 일치합니다. <b>기존 한투 데이터</b>는 예전에 정한 <b>동기화 암호</b>로 암호화돼 있으니, 그 암호를 한 번 입력하면 복구됩니다. 처음 시작하거나 새 데이터면 비워두세요.</p>
     <div id="syStatus" class="systat"></div>
     <div class="modal-btns">
       <button class="btn ghost sm" id="syTest">연결 테스트</button>
@@ -1980,7 +1980,7 @@ async function renderReports(){
   const chBtn=(val,lab,cnt)=>`<button class="ch-fl${reportCat===val?' on':''}" data-rc="${val}">${lab}<span class="cfn">${cnt}</span></button>`;
   const rowHtml=rows.map(({file,type})=>{
     const[dot,stt]=repStatus(file,type);const linked=linkedCustomersFor(file);const href=TOSS_BASE+encodeURIComponent(file)+'?v='+OG_VER;const bs=REP_BADGE_STYLE[type];
-    return `<div class="row">
+    return `<div class="row" style="cursor:pointer" onclick="window.open('${escapeAttr(href)}','_blank','noopener')">
       <div style="min-width:0">
         <div class="nm">${esc(repName(file))}</div>
         <div class="tags"><span class="tag" style="color:${bs[0]};background:${bs[1]};font-weight:700">${REP_LABEL[type]}</span>
@@ -1988,10 +1988,8 @@ async function renderReports(){
           <span class="tag"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dot};margin-right:4px;vertical-align:middle"></span>${stt}</span>
           ${linked.length?`<span class="tag b">👤 ${esc(linked.join(', '))}</span>`:''}</div></div>
       <div class="right" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-        <button class="btn ghost sm" onclick="repCopy('${escapeAttr(href)}')">링크복사</button>
-        <button class="btn ghost sm" onclick="window.open('${escapeAttr(href)}','_blank','noopener')">열기</button>
-        <button class="btn ghost sm" onclick="openLinkReport('${escapeAttr(file)}')">👤 연결</button>
-        <button class="btn ghost sm" style="color:var(--rise)" onclick="repDelete('${escapeAttr(file)}','${type}')">삭제</button>
+        <button class="btn ghost sm" onclick="event.stopPropagation();repCopy('${escapeAttr(href)}')">링크복사</button>
+        <button class="btn ghost sm" onclick="event.stopPropagation();window.open('${escapeAttr(href)}','_blank','noopener')">열기</button>
       </div></div>`;
   }).join('');
   v.innerHTML=`<div class="wrap"><h1 class="page-title">리포트</h1>
@@ -2261,8 +2259,8 @@ function renderHelp(){
     <div class="card tip"><h3>🔗 통합 대시보드 (한투 + 보험)</h3>
       <ul>
         <li><b>고객</b> — 한투·보험 고객을 한 화면에서. 채널 칩(전체/한투/보험/양쪽)으로 필터. 양쪽 고객은 배지 2개.</li>
-        <li><b>보험</b> — 분기(3개월) 연락 스케줄·생일·연락이력. 고객 상세에서 채널 '보험' + 관리월 지정 시 자동 배정.</li>
-        <li><b>리포트</b> — 보장분석/제안/가이드 HTML을 toss-reports에 배포·공유링크 생성. 리포트를 고객에 <b>연결</b>하면 고객 상세에 표시.</li>
+        <li><b>홈 · 오늘 연락</b> — 한투·보험을 통합한 분기(3개월) 연락 스케줄. 보험은 고객 상세에서 채널 '보험' + 관리월 지정 시 자동 배정·생일·연락이력 반영.</li>
+        <li><b>리포트</b> — 보장분석/제안/가이드 HTML을 toss-reports에 배포·공유링크 생성. 목록에서 <b>항목을 누르면 바로 열림</b>. 고객 연결은 <b>고객 상세</b>에서 합니다.</li>
         <li><b>최초 1회</b> — 설정·백업의 <b>📥 보험 고객 가져오기</b>로 기존 보험 고객을 통합 CRM으로 이전(이름 기준 한투와 병합).</li>
         <li><b>저장·동기화</b> — 모든 고객정보는 E2EE 암호화로 데이터 repo에 동기화(보험 포함). 리포트/보험가져오기는 toss-reports 토큰 사용.</li>
       </ul></div>
@@ -2418,12 +2416,25 @@ async function doUpload(){
    ========================================================= */
 const SYNC_KEY='ab_sync', SPASS_KEY='ab_sync_pass', SYNC_PATH='store.enc';
 function syncCfg(){try{return JSON.parse(localStorage.getItem(SYNC_KEY)||'null');}catch(e){return null;}}
-/* 암호 키: 과거 수동 암호가 있으면 호환 유지, 없으면 repo 기준으로 자동 생성(토큰만으로 사용) */
+/* 암호 키: 수동 암호가 있으면 그것, 없으면 repo 기준으로 자동 생성(토큰만으로 사용) */
+function repoKey(){const c=syncCfg();return 'khs-wm-e2ee::'+(((c&&c.repo)||'').toLowerCase().trim());}
 function syncPass(){
   const manual=localStorage.getItem(SPASS_KEY);
   if(manual)return manual;
-  const c=syncCfg();
-  return 'khs-wm-e2ee::'+(((c&&c.repo)||'').toLowerCase().trim());
+  return repoKey();
+}
+/* 복호화 후보 키 목록 — 기존 데이터가 어떤 키로 암호화됐든 자동 복구 */
+function passCandidates(){
+  const arr=[];const manual=localStorage.getItem(SPASS_KEY);
+  if(manual)arr.push(manual);
+  arr.push(repoKey());
+  return [...new Set(arr.filter(Boolean))];
+}
+/* 후보 키들을 차례로 시도해 복호화. 성공한 키를 반환(이후 재암호화·저장에 사용) */
+async function decTry(str,passes){
+  let lastErr;
+  for(const p of passes){try{return{data:await decJSON(str,p),pass:p};}catch(e){lastErr=e;}}
+  throw lastErr||new Error('복호화 실패');
 }
 function syncOn(){const c=syncCfg();return !!(c&&c.enabled&&c.repo&&c.token);}
 function b64eBuf(buf){const b=new Uint8Array(buf);let s='';for(let i=0;i<b.length;i+=0x8000)s+=String.fromCharCode.apply(null,b.subarray(i,i+0x8000));return btoa(s);}
@@ -2453,14 +2464,14 @@ let syncing=false;
 async function syncNow(silent){
   if(!syncOn()){if(!silent)toast('동기화 설정이 필요합니다');return false;}
   if(syncing)return false;syncing=true;setSyncDot('sync');
-  const cfg=syncCfg(),pass=syncPass();
+  const cfg=syncCfg();let pass=syncPass(); // pass = 쓰기(재암호화)에 쓸 키 — 복호화 성공한 키로 갱신됨
   const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[],deleted:[]}:{snaps:dec.snapshots||[],crm:dec.crm||[],deleted:dec.deleted||[]};
   // 삭제 tombstone 적용: 삭제목록 날짜는 스냅샷에서 제거하고 로컬 DB에서도 삭제
   const applyDel=async(snaps,del)=>{const set=new Set(del);for(const d of del)await idbDel(d);return snaps.filter(s=>!set.has(s.date));};
   try{
     let remoteFile=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
     let remote=[],remoteCrm=[],remoteDel=[],sha=remoteFile?remoteFile.sha:null;
-    if(remoteFile&&remoteFile.content){try{const d=splitRemote(await decJSON(remoteFile.content,pass));remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;}catch(e){throw new Error('복호화 실패 — 다른 방식으로 암호화된 기존 데이터일 수 있어요');}}
+    if(remoteFile&&remoteFile.content){try{const r=await decTry(remoteFile.content,passCandidates());const d=splitRemote(r.data);remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}catch(e){throw new Error('복호화 실패 — 기존 데이터의 동기화 암호가 필요합니다. 동기화 설정에서 이전에 쓰던 암호를 입력하세요');}}
     const local=await idbAll(),localCrm=await crmAll();
     let mergedDel=mergeDel(DELDATES,remoteDel);
     let merged=await applyDel(mergeSnaps(local,remote),mergedDel),mergedCrm=mergeCrm(localCrm,remoteCrm);
@@ -2484,6 +2495,7 @@ async function syncNow(silent){
 }
 
 function openSync(){const c=syncCfg()||{};$('#syRepo').value=c.repo||'Hyunseoung-Ko/kis-dashboard-data';$('#syToken').value=c.token||'';
+  $('#syPass').value=localStorage.getItem(SPASS_KEY)||'';
   $('#syStatus').textContent=c.enabled?'✅ 동기화 켜져 있음':'현재 꺼짐';$('#syncModal').classList.remove('hidden');toggleDrawer(false);}
 function bindSync(){
   $('#btnSync').onclick=openSync;
@@ -2492,10 +2504,11 @@ function bindSync(){
     $('#syStatus').textContent='테스트 중...';try{const r=await fetch(`${GH_API}/repos/${repo}`,{headers:{Authorization:'Bearer '+token}});
       $('#syStatus').textContent=r.ok?'✅ repo 연결 OK — 저장 누르세요':'⚠️ 실패('+r.status+') repo명/토큰/권한 확인';}catch(e){$('#syStatus').textContent='⚠️ 네트워크 오류';}};
   $('#syOff').onclick=()=>{const c=syncCfg()||{};c.enabled=false;localStorage.setItem(SYNC_KEY,JSON.stringify(c));setSyncDot('');$('#syStatus').textContent='동기화 꺼짐';toast('동기화 꺼짐');};
-  $('#sySave').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim();
+  $('#sySave').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim(),pass=$('#syPass').value;
     if(!repo||!token){$('#syStatus').textContent='⚠️ repo·토큰을 입력하세요';return;}
+    if(pass)localStorage.setItem(SPASS_KEY,pass);else localStorage.removeItem(SPASS_KEY);
     localStorage.setItem(SYNC_KEY,JSON.stringify({repo,token,enabled:true}));
-    $('#syStatus').textContent='동기화 중...';const ok=await syncNow(false);$('#syStatus').textContent=ok?'✅ 동기화 완료 — 이제 자동 동기화됩니다':'⚠️ 실패 — repo/토큰/권한 확인';};
+    $('#syStatus').textContent='동기화 중...';const ok=await syncNow(false);$('#syStatus').textContent=ok?'✅ 동기화 완료 — 이제 자동 동기화됩니다':'⚠️ 실패 — repo/토큰/권한·동기화 암호 확인';};
 }
 
 /* =========================================================
@@ -2563,8 +2576,8 @@ async function doSecurity(){
   const a=prompt('보안 설정 — 번호 입력\n1: PIN 변경 (6자리)\n2: 생체인증 '+(hasBio?'해제':'등록')+(bioSupported()?'':' (현재 환경 미지원)')+'\n3: 자동잠금 시간 (현재 '+(cur>0?cur+'분':'끔')+')','1');
   if(a==='1'){const np=prompt('새 PIN 6자리 숫자');if(np==null)return;if(/^\d{6}$/.test(np)){localStorage.setItem(PIN_KEY,np);toast('PIN 변경 완료');}else toast('6자리 숫자여야 합니다');}
   else if(a==='2'){
-    if(hasBio){if(confirm('생체인증을 해제할까요?')){localStorage.removeItem(BIO_KEY);toast('생체인증 해제됨');}}
-    else{try{await registerBio();toast('생체인증 등록 완료 — 다음 잠금부터 사용');}catch(e){toast('등록 실패/취소: '+(e.message||e));}}
+    if(hasBio){if(confirm('생체인증을 해제할까요?')){localStorage.removeItem(BIO_KEY);localStorage.removeItem('ab_bio_declined');toast('생체인증 해제됨');}}
+    else{try{await registerBio();localStorage.removeItem('ab_bio_declined');toast('생체인증 등록 완료 — 다음 잠금부터 사용');}catch(e){toast('등록 실패/취소: '+(e.message||e));}}
   }
   else if(a==='3'){const v=prompt('자동잠금 시간(분) 입력 · 0 = 끄기\n모바일에서만 적용 · 미사용 시 자동 로그아웃 (PC는 잠기지 않음)',String(cur));
     if(v==null)return;if(/^\d+$/.test(v)){localStorage.setItem(AUTOLOCK_KEY,v);resetIdle();toast(+v>0?'자동잠금 '+v+'분':'자동잠금 꺼짐');}else toast('숫자를 입력하세요');}
@@ -2646,9 +2659,21 @@ function updatePin(){renderDots();
     else if(pinInput===setupFirst){localStorage.setItem(PIN_KEY,pinInput);gateMode='unlock';unlockApp();}
     else{setupFirst='';gateFail('두 번 입력이 다릅니다. 처음부터 다시 만드세요');}
   }else{
-    if(pinInput===localStorage.getItem(PIN_KEY))unlockApp();
+    if(pinInput===localStorage.getItem(PIN_KEY))offerBioThenUnlock();
     else gateFail('PIN이 일치하지 않습니다');
   }
+}
+/* PIN 정상 해제 직후 1회 — 생체인증(Face ID·지문) 등록 제안. 거절하면 다시 묻지 않음(설정에서 언제든 등록 가능) */
+async function offerBioThenUnlock(){
+  try{
+    if(bioSupported()&&!localStorage.getItem(BIO_KEY)&&!localStorage.getItem('ab_bio_declined')){
+      if(confirm('이 기기에서 다음부터 Face ID · 지문으로 빠르게 잠금해제할까요?')){
+        try{await registerBio();toast('생체인증 등록 완료 — 다음 잠금부터 사용');}
+        catch(e){toast('생체인증 등록 취소/실패');}
+      }else localStorage.setItem('ab_bio_declined','1');
+    }
+  }catch(e){}
+  unlockApp();
 }
 function unlockApp(){$('#gate').classList.add('hidden');$('#app').classList.remove('hidden');boot();resetIdle();}
 function lockApp(){clearTimeout(idleTimer);$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');
