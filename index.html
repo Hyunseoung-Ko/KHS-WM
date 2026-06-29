@@ -2519,6 +2519,8 @@ async function resetSyncDeleted(){
     if(rf&&rf.content){const r=await decTry(rf.content,passCandidates());const d=splitRemote(r.data);rSnaps=d.snaps;rCrm=d.crm;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}
     const local=await idbAll(),localCrm=await crmAll();
     const snaps=mergeSnaps(local,rSnaps),crm=mergeCrm(localCrm,rCrm);
+    // 모든 스냅샷 uploadedAt을 '지금'으로 갱신 → 다른 기기에 남아있는 옛 삭제표시(tombstone)보다 항상 최신이라 안 지워짐(전 기기 자동 복구)
+    const now=new Date().toISOString();snaps.forEach(s=>{s.uploadedAt=now;});
     DELDATES={};await metaPut('deletedDates',{});
     await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:snaps,crm,deleted:{}},pass),rf?rf.sha:null,'reset tombstones '+new Date().toISOString());
     for(const s of snaps)await idbPut(s);for(const c of crm)await crmPut(c);
