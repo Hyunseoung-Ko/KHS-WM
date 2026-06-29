@@ -105,6 +105,7 @@ input{font-family:inherit}
 .card h3 .meta{font-size:12.5px;color:var(--sub);font-weight:600}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 .kpi{background:var(--card);border:1px solid transparent;border-radius:18px;padding:20px;box-shadow:var(--shadow)}
 .kpi .lab{color:var(--sub);font-size:13px;font-weight:600;margin-bottom:10px}
 .kpi .val{font-size:27px;font-weight:800;letter-spacing:-.8px}
@@ -313,9 +314,10 @@ input{font-family:inherit}
 .ch-fl.on .cfn{background:rgba(255,255,255,.25);color:#fff}
 
 /* ---------- RESPONSIVE (JS 클래스 html.m 기반 — iOS 회전 안정) ---------- */
-html.m #sidebar{display:flex;width:200px;max-width:62vw;transform:translateX(-100%);transition:transform .24s cubic-bezier(.4,0,.2,1);box-shadow:0 0 50px rgba(15,20,35,.25);z-index:70}
+html.m #sidebar{display:flex;width:200px;max-width:62vw;transform:translateX(-100%);transition:transform .24s cubic-bezier(.4,0,.2,1);box-shadow:0 0 50px rgba(15,20,35,.25);z-index:70;overflow-y:auto;-webkit-overflow-scrolling:touch}
 html.m #sidebar.open{transform:translateX(0)}
-html.m .nav{flex:0 1 auto}            /* 드로어에 메인 메뉴(홈·고객·자산·전략) 표시 */
+html.m .nav{flex:0 0 auto}            /* 드로어에 메인 메뉴(홈·고객·자산·전략) 표시 — 길어지면 사이드바 전체 스크롤 */
+html.m .side-foot{flex:0 0 auto}
 html.m #drawerBackdrop{display:block;position:fixed;inset:0;background:rgba(15,20,35,.45);z-index:65;opacity:0;visibility:hidden;transition:opacity .24s,visibility .24s}
 html.m #drawerBackdrop.open{opacity:1;visibility:visible}
 html.m .drawer-close{display:flex;align-items:center;justify-content:center;margin-left:auto;width:32px;height:32px;border:none;background:var(--bg);border-radius:9px;font-size:14px;color:var(--sub)}
@@ -339,6 +341,7 @@ html.m .topbar .logo{width:28px;height:28px;border-radius:8px;background:linear-
 html.m .wrap{padding:16px 14px 26px}
 html.m .grid2{grid-template-columns:1fr}
 html.m .grid3{grid-template-columns:1fr 1fr 1fr;gap:9px}
+html.m .grid4{grid-template-columns:1fr 1fr;gap:9px}
 html.m .kpi{padding:12px}
 html.m .kpi .val{font-size:17px}
 html.m .kpi .val.sm{font-size:15px}
@@ -488,9 +491,8 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
     </div>
     <div class="cf2">
       <div><label>투자성향 <span style="font-weight:500;color:var(--sub)">· 한투</span></label><select id="cf_risk"><option value="">-</option><option>안정형</option><option>안정추구형</option><option>위험중립형</option><option>적극투자형</option><option>공격투자형</option></select></div>
-      <div><label>연락 관리월 <span style="font-weight:500;color:var(--sub)">· 분기(한투·보험 공용)</span></label><select id="cf_anchor"><option value="">-</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option></select></div>
+      <div><label>최근접촉일 <span style="font-weight:500;color:var(--sub)">· 분기 연락 기준</span></label><input id="cf_contact" type="date"></div>
     </div>
-    <label>최근접촉일 <span style="font-weight:500;color:var(--sub)">· 한투 분기 연락 기준</span></label><input id="cf_contact" type="date">
     <label>운용상품 보유 <span style="font-weight:500;color:var(--sub)">· 자산자료 자동연결</span></label>
     <div class="pstat" id="cf_prodStatus"></div>
     <div class="pstat-leg">✓ 계좌 확인 · <b>색 채움</b>=잔고 있음 · <b>테두리만</b>=0원 계좌 · 색 없음=실계좌 없음</div>
@@ -847,42 +849,22 @@ function render(){killCharts();
 }
 
 /* ----- HOME ----- */
-/* 오늘 연락할 고객 — 고객 기준 통합 리스트 (한투+보험 분기 균등배분) */
-let homeContactQ='';
+/* 오늘 연락할 고객 — 카운터 요약 카드(클릭 시 영업 페이지로 이동) */
 function homeContactCard(){
   if(!Object.keys(CRM).length)return '';
   const due=unifiedDue();
-  const over=due.filter(c=>c._st==='overdue'),tod=due.filter(c=>c._st==='today'),up=due.filter(c=>c._st==='upcoming'),done=due.filter(c=>c._st==='done');
-  let list=[...over.sort((a,b)=>a._dateIso.localeCompare(b._dateIso)),...tod];
-  const q=homeContactQ.trim().toLowerCase();
-  if(q)list=due.filter(c=>c.name.toLowerCase().includes(q)||String((c.crm&&c.crm.phone)||'').includes(q));
-  const shown=list.slice(0,15);
-  return `<div class="card"><h3>📞 오늘 연락할 고객<span class="meta">고객 기준 · 분기 1회 · 한투+보험 통합</span></h3>
-    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;padding:4px 2px 12px;border-bottom:1px solid var(--line2);margin-bottom:8px">
-      <div><span style="font-size:28px;font-weight:800;color:#E0344B">${over.length}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
-      <div><span style="font-size:28px;font-weight:800;color:#C98A0B">${tod.length}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
-      <div><span style="font-size:28px;font-weight:800;color:var(--sub2)">${up.length}</span><span style="color:var(--sub);margin-left:5px">명 예정</span></div>
-      <div><span style="font-size:28px;font-weight:800;color:var(--ok-d)">${done.length}</span><span style="color:var(--sub);margin-left:5px">명 완료</span></div>
-    </div>
-    <div class="search" style="margin-bottom:10px"><span>🔍</span><input id="hcSearch" placeholder="이름 · 연락처 검색" value="${esc(homeContactQ)}"></div>
-    <div class="list" id="hcList">${shown.map(unifiedRow).join('')||`<div class="empty" style="padding:20px">${q?'검색 결과 없음':'오늘·밀린 연락 대상이 없어요'}</div>`}</div>
-    <div id="hcMore" style="text-align:center;padding:8px;color:var(--sub);font-size:12.5px">${list.length>shown.length?'외 '+(list.length-shown.length)+'명 더 있음':''}</div></div>`;
+  const over=due.filter(c=>c._st==='overdue').length,tod=due.filter(c=>c._st==='today').length,up=due.filter(c=>c._st==='upcoming').length,done=due.filter(c=>c._st==='done').length;
+  return `<div class="card" style="cursor:pointer" onclick="goStrategyContact()">
+    <h3>📞 오늘 연락할 고객<span class="meta">한투+보험 통합 · 분기 1회 · 클릭 → 영업 ›</span></h3>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;padding:6px 2px 2px">
+      <div><span style="font-size:28px;font-weight:800;color:#E0344B">${over}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
+      <div><span style="font-size:28px;font-weight:800;color:#C98A0B">${tod}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
+      <div><span style="font-size:28px;font-weight:800;color:var(--sub2)">${up}</span><span style="color:var(--sub);margin-left:5px">명 예정</span></div>
+      <div><span style="font-size:28px;font-weight:800;color:var(--ok-d)">${done}</span><span style="color:var(--sub);margin-left:5px">명 완료</span></div>
+    </div></div>`;
 }
-/* 홈 연락 카드의 검색·행 클릭 바인딩 (홈 두 분기 공용) */
-function bindHomeContact(){
-  const hs=$('#hcSearch');if(!hs)return;
-  const rebind=()=>$('#hcList').querySelectorAll('.row[data-name]').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
-  rebind();
-  hs.oninput=()=>{homeContactQ=hs.value;const cur=hs.selectionStart;
-    const due=unifiedDue();const over=due.filter(c=>c._st==='overdue'),tod=due.filter(c=>c._st==='today');
-    let list=[...over.sort((a,b)=>a._dateIso.localeCompare(b._dateIso)),...tod];
-    const q=homeContactQ.trim().toLowerCase();if(q)list=due.filter(c=>c.name.toLowerCase().includes(q)||String((c.crm&&c.crm.phone)||'').includes(q));
-    const shown=list.slice(0,15);
-    $('#hcList').innerHTML=shown.map(unifiedRow).join('')||`<div class="empty" style="padding:20px">${q?'검색 결과 없음':'대상 없음'}</div>`;
-    $('#hcMore').textContent=list.length>shown.length?'외 '+(list.length-shown.length)+'명 더 있음':'';
-    rebind();const n=$('#hcSearch');if(n){n.focus();n.setSelectionRange(cur,cur);}
-  };
-}
+function goStrategyContact(){stratTab='contact';setView('strategy');}
+window.goStrategyContact=goStrategyContact;
 function renderHome(){
   const snap=latest();
   const v=$('#view');
@@ -908,18 +890,22 @@ function renderHome(){
     html+=homeContactCard()+`</div>`;
     v.innerHTML=html;bindUpload();bindCollapsers(v);
     const ei=$('#emptyImport');if(ei)ei.onclick=()=>$('#importInput').click();
-    bindHomeContact();
     return;}
 
   const t=snap.totals;
   const dEval=prev?t.eval-prev.totals.eval:0;
+  // 고객 수(관리고객 카드 — 리스트 대신 평가손익 옆 카드)
+  const _cc=Object.values(curCustomers());
+  const nCust=_cc.length, nKis=_cc.filter(c=>hasChannel(c,'한투')).length, nIns=_cc.filter(c=>hasChannel(c,'보험')).length;
   // KPIs
-  html+=`<div class="grid3" style="margin-bottom:18px">
+  html+=`<div class="grid4" style="margin-bottom:18px">
     <div class="kpi"><div class="lab">총 평가자산</div><div class="val">${eok(t.eval)}</div>
       ${prev?`<div class="delta ${dEval>=0?'up':'down'}">${dEval>=0?'▲':'▼'} ${eok(Math.abs(dEval))} (전주대비)</div>`:`<div class="delta flat">${won(t.eval)}</div>`}</div>
     <div class="kpi"><div class="lab">투입 원금</div><div class="val sm">${eok(t.principal)}</div><div class="delta flat">${won(t.principal)}</div></div>
     <div class="kpi"><div class="lab">평가 손익</div><div class="val sm ${t.profit>=0?'up':'down'}">${t.profit>=0?'+':''}${eok(t.profit)}</div>
       <div class="delta ${t.profit>=0?'up':'down'}">수익률 ${(t.principal>0?t.profit/t.principal*100:0).toFixed(1)}%${(()=>{const a=annualize(t.principal>0?t.profit/t.principal*100:0,snapYears(snap));return a!=null?` · 연환산 ${(a>=0?'+':'')+a.toFixed(1)}%`:'';})()}</div></div>
+    <div class="kpi" style="cursor:pointer" onclick="setView('clients')"><div class="lab">관리 고객</div><div class="val sm">${nCust}<span style="font-size:14px;font-weight:600;color:var(--sub)">명</span></div>
+      <div class="delta flat">한투 ${nKis} · 보험 ${nIns} ›</div></div>
   </div>`;
 
   // 오늘 연락할 고객 — 한투+보험 통합 카드
@@ -939,10 +925,6 @@ function renderHome(){
     <div class="card"><h3>담당 PB별 자산</h3><div class="chartbox" style="height:200px"><canvas id="cPB"></canvas></div></div>
   </div>`;
 
-  // top clients
-  const top=Object.values(snap.customers).filter(c=>c.totalEval>0).sort((a,b)=>b.totalEval-a.totalEval).slice(0,8);
-  html+=`<div class="card"><h3>관리고객 자산순<span class="meta">상위 8명</span></h3><div class="list">`+
-    top.map(c=>clientRow(c)).join('')+`</div></div>`;
   html+=`</div>`;
   v.innerHTML=html;
   bindUpload();bindCollapsers(v);
@@ -951,8 +933,6 @@ function renderHome(){
   drawTrend('cTrend');
   drawBar('cBranch',t.branches,'#3182F6');
   drawBar('cPB',t.pbs,'#16b5d0');
-  v.querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
-  bindHomeContact();
 }
 
 /* 투자성향 색상 코딩 (토스 디자인 위험도 순) */
@@ -965,7 +945,7 @@ function clientRow(c){
   const right=c.totalEval>0
     ?`<span class="amt">${won(c.totalEval)}</span><span class="rate ${c.rate>=0?'up':'down'}">${pct(c.rate)}${ann!=null?`<small class="ann">연 ${(ann>=0?'+':'')+ann.toFixed(1)}%</small>`:''}</span>`
     :insOnly
-    ?`<span class="amt" style="color:var(--ok-d);font-weight:600">보험 고객</span>${c.crm&&c.crm.anchorMonth?`<span class="rate flat"><small class="ann">관리 ${c.crm.anchorMonth}월</small></span>`:''}`
+    ?`<span class="amt" style="color:var(--ok-d);font-weight:600">보험 고객</span>`
     :`<span class="amt" style="color:var(--sub);font-weight:600">자산 미연결</span>`;
   return `<div class="row" data-name="${esc(c.name)}">
     <div><div class="nm">${esc(c.name)} <small>${c.acctPrefix||''}</small></div>
@@ -1173,7 +1153,6 @@ function crmBody(c){
     ${row('휴대폰',cr.phone)}
     ${row('투자성향',cr.riskType)}
     ${cr.pension?`<div class="crmrow"><span>연금개시</span><b>O</b></div>`:''}
-    ${ins&&cr.anchorMonth?row('보험 관리월',cr.anchorMonth+'월 (분기)'):''}
     ${row('최근접촉',cr.lastContact)}
     ${ins&&lastHist?row('보험 최근연락',lastHist):''}
     ${ins&&hist.length?row('보험 연락횟수',hist.length+'회'):''}
@@ -1201,7 +1180,6 @@ function openCrmForm(name){
   $('#cf_risk').value=(cr&&cr.riskType)||(c&&c.riskType)||'';
   $('#cf_contact').value=cr?cr.lastContact||'':'';
   $('#cf_pension').checked=!!(cr&&cr.pension);
-  $('#cf_anchor').value=(cr&&cr.anchorMonth)?String(cr.anchorMonth):'';
   // 채널: 기존 crm.channels 우선, 없으면 현재 자산/보험정보로 자동 추정 체크
   const chs=c?custChannels(c):((cr&&cr.channels)||[]);
   $('#cf_ch_kis').checked=chs.includes('한투');
@@ -1227,12 +1205,11 @@ function bindCrmForm(){
     const ex=CRM[nm]||{};
     const prod=ex.prod||{};   // 운용상품은 실계좌 자동연결 — 기존 값 유지(수동체크 폐지)
     const channels=[];if($('#cf_ch_kis').checked)channels.push('한투');if($('#cf_ch_ins').checked)channels.push('보험');
-    const am=parseInt($('#cf_anchor').value,10);
     const rec={name:nm,birth:dnorm($('#cf_birth').value),gender:$('#cf_gender').value,phone:$('#cf_phone').value.trim(),
       company:$('#cf_company').value.trim(),sido:$('#cf_sido').value.trim(),sigungu:$('#cf_sigungu').value.trim(),dong:$('#cf_dong').value.trim(),
       riskType:$('#cf_risk').value,pension:$('#cf_pension').checked,prod,memo:$('#cf_memo').value.trim(),
       lastContact:$('#cf_contact').value,
-      channels,anchorMonth:am>=1&&am<=12?am:null,
+      channels,anchorMonth:ex.anchorMonth||null,
       history:ex.history||[],linkIds:ex.linkIds||[],
       updatedAt:new Date().toISOString()};
     await crmPut(rec);CRM[nm]=rec;close();toast('저장됨');
@@ -1546,27 +1523,33 @@ function renderStrategy(){
   let rows='',desc='',lead='';
 
   if(stratTab==='contact'){
-    const q=contactQueue(),due=q.due,upcoming=q.upcoming;
-    const freshTotal=due.filter(x=>x.isNew).length+upcoming.filter(x=>x.isNew).length;
-    const perDay=Math.max(1,Math.round(freshTotal/CONTACT_CYCLE_DAYS));
-    const overN=due.filter(x=>x.over>0).length, todayN=due.filter(x=>x.over===0).length;
-    desc=`최초 연락은 ${CONTACT_START}부터 ${CONTACT_CYCLE_DAYS}일 기간에 고르게 분산(하루 약 ${perDay}명) · 이후 접촉할 때마다 ${CONTACT_CYCLE_DAYS}일 주기로 재등장 · 위에서부터 한 명씩, 통화 후 [✓연락완료]`;
-    const newTag='<span class="tag" style="background:#EEF1F4;color:var(--sub2)">최초 연락</span>';
-    const statusTag=it=>it.over>0
-      ? `<span class="tag" style="background:#FDECEE;color:#E0344B">${it.over}일 지남</span>`
-      : it.over===0 ? `<span class="tag" style="background:#FCF3E0;color:#C98A0B">오늘 연락</span>`
-      : `<span class="tag" style="background:#EEF3FF;color:#3182F6">예정 ${it.date}·D-${-it.over}</span>`;
-    const st=it=>statusTag(it)+(it.isNew?newTag:'');
-    // 다음 한 명 강조 카드 (도래 고객 우선, 없으면 가장 가까운 예정)
-    const next=due[0]||upcoming[0]||null;
-    const nextName=next?next.c.name:null;
+    const NOW=new Date();const TM=NOW.getMonth()+1;
+    const started=todayStr()>=PROGRAM_START;
+    const items=unifiedDue();
+    const over=items.filter(c=>c._st==='overdue').sort((a,b)=>a._dateIso.localeCompare(b._dateIso));
+    const tod=items.filter(c=>c._st==='today');
+    const up=items.filter(c=>c._st==='upcoming').sort((a,b)=>a._day-b._day);
+    const done=items.filter(c=>c._st==='done');
+    const overN=over.length, todayN=tod.length;
+    const dueList=[...over,...tod];
+    desc=started
+      ? `2026-07 시작 · 분기(3개월) 1회 · 영업일 분산 · 한투+보험 균형 배분 · 이번 달 도래 ${items.length}명 · 위에서부터 통화 후 [✓연락완료]`
+      : `영업 진행은 2026-07부터 시작됩니다 · 7월이 되면 한투+보험 고객이 분기별·영업일 기준으로 자동 배분됩니다`;
+    const md=c=>`${TM}/${c._day}`;
+    const statusTag=c=>c._st==='overdue'?`<span class="tag" style="background:#FDECEE;color:#E0344B">${md(c)} 지남</span>`
+      :c._st==='today'?`<span class="tag" style="background:#FCF3E0;color:#C98A0B">오늘 연락</span>`
+      :c._st==='upcoming'?`<span class="tag" style="background:#EEF3FF;color:#3182F6">${md(c)} 예정</span>`
+      :`<span class="tag" style="background:#E5F8EE;color:#0F9D58">완료</span>`;
+    // 다음 한 명 강조 카드 (밀림→오늘→가까운 예정)
+    const next=dueList[0]||up[0]||null;
+    const nextName=next?next.name:null;
     if(next){
-      const c=next.c,ph=(c.crm&&c.crm.phone)||'';
+      const c=next,ph=(c.crm&&c.crm.phone)||'';
       const reasons=contactReasons(c).slice(0,2).map(r=>`<div style="font-size:13px;color:var(--ink);margin-top:4px">${r}</div>`).join('');
       lead=`<div class="card" style="border:1.5px solid var(--primary);background:#F5F9FF">
-        <div style="font-size:12px;color:var(--primary);font-weight:700;margin-bottom:6px">${next.over>=0?'▶ 지금 연락할 고객':'▶ 다음 예정 고객'}</div>
+        <div style="font-size:12px;color:var(--primary);font-weight:700;margin-bottom:6px">${c._st==='upcoming'?'▶ 다음 예정 고객':'▶ 지금 연락할 고객'}</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-size:19px;font-weight:800">${esc(c.name)}</span>${st(next)}
+          <span style="font-size:19px;font-weight:800">${esc(c.name)}</span>${chBadges(c)}${statusTag(c)}
           ${pensionTarget(c)?'<span class="tag" style="background:#EAF1FE;color:#3182F6">퇴직연금</span>':''}${riskTag(c.riskType)}</div>
         <div style="color:var(--sub);font-size:13px;margin:6px 0 2px">${c.crm.lastContact?'최근접촉 '+c.crm.lastContact:'접촉기록 없음'}${ph?' · '+esc(ph):''}</div>
         <div style="margin:8px 0 12px;padding:8px 11px;background:#fff;border-radius:10px;border:1px solid #E5EDFB">
@@ -1576,16 +1559,15 @@ function renderStrategy(){
           <button class="btn primary btn-contacted" data-name="${esc(c.name)}">✓ 연락완료</button>
           <button class="btn ghost btn-openclient" data-name="${esc(c.name)}">고객 상세 ›</button>
         </div></div>
-        <p class="page-sub">${CONTACT_START} 시작 · 오늘 도래 <b>${overN+todayN}명</b>(지남 ${overN}·오늘 ${todayN}) · 예정 ${upcoming.length}명 · 하루 약 ${perDay}명</p>`;
+        <p class="page-sub">오늘 도래 <b>${overN+todayN}명</b>(지남 ${overN}·오늘 ${todayN}) · 이번 달 예정 ${up.length}명 · 완료 ${done.length}명</p>`;
     }
     const hdr=t=>`<div style="font-size:12px;font-weight:700;color:var(--sub);padding:12px 8px 6px">${t}</div>`;
-    const dueRows=due.filter(x=>x.c.name!==nextName).map(it=>contactRow(it.c,st(it))).join('');
-    const upPrev=upcoming.filter(x=>x.c.name!==nextName).slice(0,7);
-    const upRows=upPrev.map(it=>contactRow(it.c,st(it))).join('');
-    const upMore=upcoming.length-(next&&next.over<0?1:0)-upPrev.length;
-    rows=(due.length?hdr(`🔴 오늘 연락 (지남 ${overN} · 오늘 ${todayN})`)+(dueRows||'<div class="empty" style="padding:10px">위 고객만 남음</div>'):'')
-        +(upcoming.length?hdr(`🗓 다가오는 예정 (가까운 순 · 총 ${upcoming.length}명)`)+upRows+(upMore>0?`<div style="padding:10px 8px;color:var(--sub);font-size:12.5px">… 외 ${upMore}명, 이후 날짜로 고르게 분산 배정</div>`:''):'');
-    if(!due.length&&!upcoming.length)rows='<div class="empty">연락 대상 고객이 없습니다 · CRM 고객을 추가하거나 최근접촉일을 입력하세요</div>';
+    const dueRows=dueList.filter(c=>c.name!==nextName).map(c=>contactRow(c,statusTag(c))).join('');
+    const upRows=up.filter(c=>c.name!==nextName).map(c=>contactRow(c,statusTag(c))).join('');
+    rows=(dueList.length?hdr(`🔴 오늘 연락 (지남 ${overN} · 오늘 ${todayN})`)+(dueRows||'<div class="empty" style="padding:10px">위 고객만 남음</div>'):'')
+        +(up.length?hdr(`🗓 이번 달 예정 (영업일 순 · ${up.length}명)`)+upRows:'')
+        +(done.length?hdr(`✅ 이번 달 완료 (${done.length}명)`)+done.map(c=>contactRow(c,statusTag(c))).join(''):'');
+    if(!items.length)rows=`<div class="empty">${started?'이번 달 도래 고객이 없습니다':'영업 진행은 2026-07부터 시작됩니다'}</div>`;
   }
   else if(stratTab==='gap'){
     desc='현금성 자산 보유 고객(현금 많은 순) = 투자 권유 기회 · LMS = 권유문자 발송가능';
@@ -1692,7 +1674,7 @@ function renderStrategy(){
     <div class="card" style="padding:8px 14px"><div class="list">${rows||'<div class="empty">해당 고객 없음</div>'}</div></div>
   </div>`;
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{stratTab=b.dataset.t;renderStrategy();});
-  v.querySelectorAll('.btn-contacted').forEach(b=>b.onclick=e=>{e.stopPropagation();markContacted(b.dataset.name);});
+  v.querySelectorAll('.btn-contacted').forEach(b=>b.onclick=e=>{e.stopPropagation();contactDone(b.dataset.name);});
   v.querySelectorAll('.btn-openclient').forEach(b=>b.onclick=e=>{e.stopPropagation();openClient(b.dataset.name);});
   v.querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
 }
@@ -1762,29 +1744,44 @@ async function insUndo(name){
 }
 window.insMarkDone=insMarkDone;window.insUndo=insUndo;
 
-/* ===== 통합 연락 (한투+보험 · 고객 기준 · 분기 1회 균등배분) =====
-   모든 CRM 고객을 분기(3개월) 1회 연락 대상으로 보고, 관리월(없으면 자동배분)로
-   영업일에 고르게 배치. 완료는 history/lastContact 공용. 채널 무관 고객 기준 표시. */
-function effAnchor(c){
-  if(c&&c.crm&&c.crm.anchorMonth)return c.crm.anchorMonth;
-  let h=0;const n=(c&&c.name)||'';for(let i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))>>>0;
-  return (h%12)+1;   // 관리월 미지정 고객 자동 균등배분(이름 기반·안정)
+/* ===== 통합 연락 스케줄 (한투+보험 · 고객 기준 · 분기 1회) =====
+   - 2026-07부터 시작(그 전엔 대상 없음)
+   - 분기(3개월) 1회: 고객을 채널별로 3개 슬롯에 균등 배분 → 매월 한 슬롯만 도래(분기마다 재등장)
+   - 한투·보험을 번갈아 영업일에 고르게 배치
+   - 완료는 history/lastContact 공용 */
+const PROGRAM_START='2026-07-01';
+/* 달력 월의 분기 슬롯(0/1/2) — 2026-07을 0으로 기준 */
+function monthSlot(y,m){const idx=(y-2026)*12+(m-1)-6;return ((idx%3)+3)%3;}
+/* 고객별 분기 슬롯 — 채널(한투/보험)별로 3슬롯에 균등 배분(이름순·안정) */
+function customerSlots(){
+  const all=Object.values(curCustomers()).filter(c=>c.crm);
+  const grp={kis:[],ins:[]};
+  all.forEach(c=>{(hasChannel(c,'한투')?grp.kis:grp.ins).push(c);});
+  const map={};
+  ['kis','ins'].forEach(g=>{grp[g].sort((a,b)=>a.name.localeCompare(b.name,'ko'));grp[g].forEach((c,i)=>{map[c.name]=i%3;});});
+  return map;
 }
 function unifiedLastContact(c){const a=insLastContact(c)||'',b=(c.crm&&c.crm.lastContact)||'';return a>b?a:b;}
 function unifiedDue(){
   const NOW=new Date();NOW.setHours(0,0,0,0);
-  const TY=NOW.getFullYear(),TM=NOW.getMonth()+1,TODAY=insIso(NOW),monthFirst=`${TY}-${insPad(TM)}-01`;
+  const TODAY=insIso(NOW);
+  if(TODAY<PROGRAM_START)return [];   // 영업 진행은 2026-07부터
+  const TY=NOW.getFullYear(),TM=NOW.getMonth()+1,monthFirst=`${TY}-${insPad(TM)}-01`;
+  const slot=customerSlots(),curSlot=monthSlot(TY,TM);
   const all=Object.values(curCustomers()).filter(c=>c.crm);
-  const due=all.filter(c=>(effAnchor(c)%3)===(TM%3));
-  due.sort((a,b)=>effAnchor(a)-effAnchor(b)||a.name.localeCompare(b.name,'ko'));
-  const bd=insBizDaysOfMonth(TY,TM),N=due.length;
-  due.forEach((c,i)=>{
+  const due=all.filter(c=>slot[c.name]===curSlot);
+  // 한투/보험 번갈아 → 영업일에 두 채널 고르게
+  const kis=due.filter(c=>hasChannel(c,'한투')).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const ins=due.filter(c=>!hasChannel(c,'한투')).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const ordered=[];for(let i=0;i<Math.max(kis.length,ins.length);i++){if(i<kis.length)ordered.push(kis[i]);if(i<ins.length)ordered.push(ins[i]);}
+  const bd=insBizDaysOfMonth(TY,TM),N=ordered.length;
+  ordered.forEach((c,i)=>{
     const di=N<=1?0:Math.min(bd.length-1,Math.floor(i*bd.length/N));
     c._day=bd[di];c._dateIso=insIso(new Date(TY,TM-1,c._day));
     const lc=unifiedLastContact(c);c._doneCycle=lc&&lc>=monthFirst;
     c._st=c._doneCycle?'done':c._dateIso<TODAY?'overdue':c._dateIso===TODAY?'today':'upcoming';
   });
-  return due;
+  return ordered;
 }
 async function contactDone(name){
   const cr=CRM[name];if(!cr)return;const t=todayStr();
@@ -1794,16 +1791,6 @@ async function contactDone(name){
   if(syncOn())syncNow(true);render();
 }
 window.contactDone=contactDone;
-function unifiedRow(c){
-  const m={overdue:['#E0344B','#FDECEE','밀림'],today:['#1B64DA','#EBF2FE','오늘'],upcoming:['#4E5968','#EDEFF2',c._day+'일 예정'],done:['#0F9D58','#E5F8EE','완료']}[c._st];
-  const ph=(c.crm&&c.crm.phone)||'';
-  const act=c._st==='done'?`<button class="btn ghost sm" onclick="event.stopPropagation();contactDone('${esc(c.name)}')" title="다시 표시">완료됨</button>`
-    :`${ph?`<a class="btn ghost sm" href="tel:${esc(ph)}" onclick="event.stopPropagation()">📞</a>`:''}<button class="btn primary sm" onclick="event.stopPropagation();contactDone('${esc(c.name)}')">✓ 완료</button>`;
-  return `<div class="row" data-name="${esc(c.name)}"><div style="min-width:0">
-    <div class="nm">${esc(c.name)} <span class="tag" style="color:${m[0]};background:${m[1]};font-weight:700">${m[2]}</span></div>
-    <div class="tags">${chBadges(c)}<span class="tag">관리 ${effAnchor(c)}월</span>${c.totalEval>0?`<span class="tag">${eok(c.totalEval)}</span>`:''}${ph?`<span class="tag">${esc(ph)}</span>`:''}</div></div>
-    <div class="right" style="display:flex;gap:6px;align-items:center">${act}</div><span class="chev">›</span></div>`;
-}
 const telA=p=>'tel:'+String(p||'').replace(/[^0-9]/g,'');
 const smsA=p=>'sms:'+String(p||'').replace(/[^0-9]/g,'');
 function insContactRow(c){
