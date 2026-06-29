@@ -2484,6 +2484,7 @@ async function syncNow(silent){
     const local=await idbAll(),localCrm=await crmAll();
     let mergedDel=mergeDelMap(DELDATES,remoteDel);
     let merged=await applyTomb(mergeSnaps(local,remote),mergedDel),mergedCrm=mergeCrm(localCrm,remoteCrm);
+    merged.forEach(s=>{delete mergedDel[s.date];}); // 살아남은 스냅샷의 tombstone은 정리(stale 삭제표시 자동 청소)
     for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
     const payload={snapshots:merged,crm:mergedCrm,deleted:mergedDel};
     if(JSON.stringify(payload)!==JSON.stringify({snapshots:remote,crm:remoteCrm,deleted:remoteDel})){
@@ -2492,6 +2493,7 @@ async function syncNow(silent){
         const rf=await ghGet(cfg.repo,SYNC_PATH,cfg.token);const rd=rf&&rf.content?splitRemote(await decJSON(rf.content,pass)):{snaps:[],crm:[],deleted:{}};
         mergedDel=mergeDelMap(mergedDel,rd.deleted);
         merged=await applyTomb(mergeSnaps(merged,rd.snaps),mergedDel);mergedCrm=mergeCrm(mergedCrm,rd.crm);
+        merged.forEach(s=>{delete mergedDel[s.date];});
         for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
         await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:merged,crm:mergedCrm,deleted:mergedDel},pass),rf?rf.sha:null,'sync(merge) '+new Date().toISOString());
       } else throw e; }
