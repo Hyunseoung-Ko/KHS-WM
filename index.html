@@ -391,7 +391,8 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <a data-view="assets"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg></span> 자산</a>
       <a data-view="strategy"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg></span> 영업</a>
       <a data-view="reports"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z" transform="translate(-1 0)"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></span> 리포트</a>
-      <div class="nav-label">도구 (보험)</div>
+      <div class="nav-label">도구</div>
+      <a style="cursor:pointer" onclick="openUploadModal()"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a0 0 0 0 1 0 0H4z"/><path d="M14 4v5h5"/><path d="M12 18v-5M12 13l-2 2M12 13l2 2"/></svg></span> 한투자산 업로드</a>
       <a style="cursor:pointer" onclick="openDeployModal()"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span> 리포트 배포</a>
       <a style="cursor:pointer" onclick="openCleanupModal()"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg></span> 오래된 링크 정리</a>
       <a href="https://hyunseoung-ko.github.io/toss-reports/CRM_가입설계_입력변환.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4"/><path d="M21 6v12"/></svg></span> CRM 데이터 변환</a>
@@ -445,6 +446,23 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
 <input type="file" id="importInput" accept=".json" class="hidden">
 <input type="file" id="crmFileInput" accept=".xls,.xlsx" class="hidden">
 <div class="toast" id="toast"></div>
+
+<div id="uploadModal" class="modal hidden">
+  <div class="modal-card">
+    <button class="modal-x" id="upClose">✕</button>
+    <h3>📤 한투자산 업로드</h3>
+    <p class="msub">한투 HTS 엑셀 6종을 올리면 자동 분석·누적됩니다 · 고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS</p>
+    <div id="drop"><b>이곳으로 엑셀 파일을 드래그하세요</b>고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS (.xls)</div>
+    <div class="filechips" id="fileChips"></div>
+    <div class="up-row">
+      <label style="font-size:13px;color:var(--sub);font-weight:600">기준일</label>
+      <input type="date" id="snapDate">
+      <button class="btn primary" id="btnUpload">업로드</button>
+      <button class="btn ghost" id="btnReset">리셋</button>
+      <button class="btn ghost" id="btnPick">파일 선택</button>
+    </div>
+  </div>
+</div>
 
 <div id="syncModal" class="modal hidden">
   <div class="modal-card">
@@ -869,26 +887,15 @@ function renderHome(){
   const snap=latest();
   const v=$('#view');
   const prev=SNAPS.length>1?SNAPS[SNAPS.length-2]:null;
-  let html=`<div class="wrap"><h1 class="page-title">홈</h1><p class="page-sub">엑셀 6종을 올리면 자동으로 누적·분석됩니다 · 데이터는 이 기기에만 저장됩니다</p>`;
-  // upload card (접기/펼침 — 데이터 있으면 기본 접힘)
-  const upCol=!!snap;
-  html+=`<div class="card"><h3 class="collapser" data-target="upBody">📤 엑셀 업로드<span class="meta">${upCol?'▾ 펼치기':'▴ 접기'}</span></h3>
-    <div id="upBody" class="collapse-body${upCol?' collapsed':''}">
-    <div id="drop"><b>이곳으로 6개 엑셀 파일을 드래그하세요</b>고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS (.xls)</div>
-    <div class="filechips" id="fileChips"></div>
-    <div class="up-row">
-      <label style="font-size:13px;color:var(--sub);font-weight:600">기준일</label>
-      <input type="date" id="snapDate" value="${todayStr()}">
-      <button class="btn primary" id="btnUpload">업로드</button>
-      <button class="btn ghost" id="btnReset">리셋</button>
-      <button class="btn ghost" id="btnPick">파일 선택</button>
-    </div></div></div>`;
+  let html=`<div class="wrap"><h1 class="page-title">홈</h1><p class="page-sub">한투 자산 + 보험 고객 통합 대시보드 · 데이터는 이 기기에만 저장됩니다</p>`;
 
-  if(!snap){html+=`<div class="card empty"><div class="big">📥</div><b>아직 데이터가 없습니다</b>
-    <p style="margin:10px 0 16px;color:var(--sub);font-size:13.5px;line-height:1.6">위에서 엑셀을 올리거나, PC에서 쓰던 데이터는<br><b style="color:var(--ink)">백업 파일(JSON)</b>을 불러오세요.<br><span style="font-size:12.5px">※ 데이터는 기기마다 따로 저장됩니다 (PC ↔ 휴대폰 별도)</span></p>
-    <button class="btn primary" id="emptyImport">⬆ 백업 불러오기</button></div>`;
+  if(!snap){html+=`<div class="card empty"><div class="big">📥</div><b>아직 한투 자산 데이터가 없습니다</b>
+    <p style="margin:10px 0 16px;color:var(--sub);font-size:13.5px;line-height:1.6">왼쪽 <b style="color:var(--ink)">도구 → 한투자산 업로드</b>로 엑셀을 올리거나,<br>PC에서 쓰던 데이터는 <b style="color:var(--ink)">백업 파일(JSON)</b>을 불러오세요.<br><span style="font-size:12.5px">※ 동기화를 켜면 다른 기기 데이터가 합쳐집니다</span></p>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="btn primary" onclick="openUploadModal()">📤 한투자산 업로드</button>
+      <button class="btn ghost" id="emptyImport">⬆ 백업 불러오기</button></div></div>`;
     html+=homeContactCard()+`</div>`;
-    v.innerHTML=html;bindUpload();bindCollapsers(v);
+    v.innerHTML=html;bindCollapsers(v);
     const ei=$('#emptyImport');if(ei)ei.onclick=()=>$('#importInput').click();
     return;}
 
@@ -927,7 +934,7 @@ function renderHome(){
 
   html+=`</div>`;
   v.innerHTML=html;
-  bindUpload();bindCollapsers(v);
+  bindCollapsers(v);
   // charts
   drawPie('cPie',t.cats,'pieLeg');
   drawTrend('cTrend');
@@ -2371,8 +2378,11 @@ function bindUpload(){
   $('#fileInput').onchange=e=>addFiles(e.target.files);
   $('#btnReset').onclick=()=>{pendingFiles=[];showChips();};
   $('#btnUpload').onclick=doUpload;
+  const ux=$('#upClose');if(ux)ux.onclick=()=>$('#uploadModal').classList.add('hidden');
   showChips();
 }
+function openUploadModal(){bindUpload();$('#snapDate').value=todayStr();pendingFiles=[];showChips();$('#uploadModal').classList.remove('hidden');toggleDrawer(false);}
+window.openUploadModal=openUploadModal;
 function addFiles(fl){for(const f of fl)pendingFiles.push(f);showChips();}
 const TYPE_LABEL={customer:'고객리스트',trust:'위탁계좌',pensionAccount:'퇴직연금(계약)',pensionProduct:'퇴직연금(상품)',fund:'펀드CMA신탁',bondels:'채권·ELS',generic:'추가 자산파일'};
 async function showChips(){const box=$('#fileChips');if(!box)return;
@@ -2394,6 +2404,7 @@ async function doUpload(){
   pendingFiles=[];
   const types=found.map(t=>TYPE_LABEL[t]||t).join('·');
   toast(`${date} 저장 완료 · 고객 ${snap.totals.count}명 · 인식: ${types}`);
+  $('#uploadModal').classList.add('hidden');
   await reload();
   if(syncOn())syncNow(true);
 }
@@ -2487,9 +2498,24 @@ function openSync(){const c=syncCfg()||{};$('#syRepo').value=c.repo||'Hyunseoung
 function bindSync(){
   $('#btnSync').onclick=openSync;
   $('#syClose').onclick=()=>$('#syncModal').classList.add('hidden');
-  $('#syTest').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim();if(!repo||!token){$('#syStatus').textContent='⚠️ repo·토큰 입력하세요';return;}
-    $('#syStatus').textContent='테스트 중...';try{const r=await fetch(`${GH_API}/repos/${repo}`,{headers:{Authorization:'Bearer '+token}});
-      $('#syStatus').textContent=r.ok?'✅ repo 연결 OK — 저장 누르세요':'⚠️ 실패('+r.status+') repo명/토큰/권한 확인';}catch(e){$('#syStatus').textContent='⚠️ 네트워크 오류';}};
+  $('#syTest').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim(),pass=$('#syPass').value;
+    const S=t=>{$('#syStatus').textContent=t;};
+    if(!repo||!token){S('⚠️ repo·토큰 입력하세요');return;}
+    S('테스트 중...');
+    try{
+      const r=await fetch(`${GH_API}/repos/${repo}`,{headers:{Authorization:'Bearer '+token}});
+      if(!r.ok){S('⚠️ 실패('+r.status+') repo명/토큰/권한 확인');return;}
+      // 데이터 파일(store.enc) 존재·복호화·내용 점검
+      let f;try{f=await ghGet(repo,SYNC_PATH,token);}catch(e){S('⚠️ repo는 OK · store.enc 읽기 실패('+(e.message||'')+')');return;}
+      if(!f||!f.content){S('✅ repo 연결 OK · 단, 저장된 동기화 데이터(store.enc) 없음 — 먼저 PC에서 [저장 & 지금 동기화]로 한투 데이터를 올리세요');return;}
+      const cands=[];if(pass)cands.push(pass);cands.push('khs-wm-e2ee::'+repo.toLowerCase());const sm=localStorage.getItem(SPASS_KEY);if(sm)cands.push(sm);
+      try{
+        const d=await decTry(f.content,[...new Set(cands.filter(Boolean))]);
+        const o=Array.isArray(d.data)?{snapshots:d.data,crm:[]}:d.data;
+        const ns=(o.snapshots||[]).length,nc=(o.crm||[]).length;
+        S(`✅ 연결·복호화 OK · 스냅샷 ${ns}개 · CRM ${nc}명${ns?' — [저장 & 지금 동기화] 누르세요':' · ⚠ 한투 자산 스냅샷이 없습니다(PC에서 동기화 필요)'}`);
+      }catch(e){S('⚠️ store.enc 복호화 실패 — 동기화 암호가 기존과 다릅니다. PC에서 쓰던 동기화 암호를 정확히 입력하세요');}
+    }catch(e){S('⚠️ 네트워크 오류');}};
   $('#syOff').onclick=()=>{const c=syncCfg()||{};c.enabled=false;localStorage.setItem(SYNC_KEY,JSON.stringify(c));setSyncDot('');$('#syStatus').textContent='동기화 꺼짐';toast('동기화 꺼짐');};
   $('#sySave').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim(),pass=$('#syPass').value;
     if(!repo||!token){$('#syStatus').textContent='⚠️ repo·토큰을 입력하세요';return;}
@@ -2574,7 +2600,7 @@ function bindGlobal(){
   $('#navClose').onclick=()=>toggleDrawer(false);
   $('#drawerBackdrop').onclick=()=>toggleDrawer(false);
   $('#footToggle').onclick=()=>{const nowHidden=$('#footGroup').classList.toggle('hidden');$('#footToggle').classList.toggle('open',!nowHidden);};
-  bindSync();bindCrmForm();if(syncOn())setSyncDot('ok');
+  bindSync();bindCrmForm();bindUpload();if(syncOn())setSyncDot('ok');
   $('#btnExport').onclick=doExport;
   $('#btnSecurity').onclick=doSecurity;
   $('#btnCrmImport').onclick=()=>$('#crmFileInput').click();
@@ -2597,7 +2623,7 @@ function bindGlobal(){
    misc helpers / boot
    ========================================================= */
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
-function emptyView(){return `<div class="wrap"><div class="card empty"><div class="big">📭</div><b>데이터가 없습니다</b><br>홈에서 엑셀을 먼저 업로드하세요.</div></div>`;}
+function emptyView(){return `<div class="wrap"><div class="card empty"><div class="big">📭</div><b>데이터가 없습니다</b><br>도구 → <b>한투자산 업로드</b>로 엑셀을 먼저 올리세요.</div></div>`;}
 
 document.querySelectorAll('[data-view]').forEach(a=>a.addEventListener('click',()=>setView(a.dataset.view)));
 
