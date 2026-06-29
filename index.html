@@ -829,10 +829,11 @@ function killCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e
 const latest=()=>SNAPS[SNAPS.length-1]||null;
 
 async function reload(){DELDATES=normDel(await metaGet('deletedDates'));
-  // 삭제시각이 업로드시각보다 나중인 스냅샷만 실제 삭제(재업로드분은 보존)
+  // 존재하는 스냅샷은 절대 자동삭제하지 않음(데이터 유실 방지) — 해당 날짜의 삭제표시는 제거
   const allS=await idbAll();
-  for(const s of allS){if(isTombed(s,DELDATES))await idbDel(s.date);}
-  SNAPS=(await idbAll()).filter(s=>!isTombed(s,DELDATES));
+  let chg=false;for(const s of allS){if(DELDATES[s.date]){delete DELDATES[s.date];chg=true;}}
+  if(chg)await metaPut('deletedDates',DELDATES);
+  SNAPS=allS;
   SNAPS.forEach(fixSnapPrincipals);const cl=await crmAll();CRM={};cl.forEach(c=>CRM[c.name]=c);render();}
 
 /* ---------- 자산(스냅샷) + CRM(직접입력) 통합 고객 맵 ---------- */
@@ -2475,25 +2476,23 @@ async function syncNow(silent){
   if(syncing)return false;syncing=true;setSyncDot('sync');
   const cfg=syncCfg();let pass=syncPass(); // pass = 쓰기(재암호화)에 쓸 키 — 복호화 성공한 키로 갱신됨
   const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[],deleted:{}}:{snaps:dec.snapshots||[],crm:dec.crm||[],deleted:normDel(dec.deleted)};
-  // 시간기준 tombstone 적용: 삭제시각 > 업로드시각인 스냅샷만 제거(재업로드분은 보존)
-  const applyTomb=async(snaps,del)=>{const out=[];for(const s of snaps){if(isTombed(s,del)){await idbDel(s.date);}else out.push(s);}return out;};
+  // 정책: 실제로 존재하는 스냅샷은 어떤 삭제표시로도 지우지 않는다(데이터 유실 방지). 삭제표시는 '없는 날짜'에만 의미.
   try{
     let remoteFile=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
     let remote=[],remoteCrm=[],remoteDel={},sha=remoteFile?remoteFile.sha:null;
     if(remoteFile&&remoteFile.content){try{const r=await decTry(remoteFile.content,passCandidates());const d=splitRemote(r.data);remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}catch(e){throw new Error('복호화 실패 — 기존 데이터의 동기화 암호가 필요합니다. 동기화 설정에서 이전에 쓰던 암호를 입력하세요');}}
     const local=await idbAll(),localCrm=await crmAll();
-    let mergedDel=mergeDelMap(DELDATES,remoteDel);
-    let merged=await applyTomb(mergeSnaps(local,remote),mergedDel),mergedCrm=mergeCrm(localCrm,remoteCrm);
-    merged.forEach(s=>{delete mergedDel[s.date];}); // 살아남은 스냅샷의 tombstone은 정리(stale 삭제표시 자동 청소)
+    let merged=mergeSnaps(local,remote),mergedCrm=mergeCrm(localCrm,remoteCrm);
+    // 존재하는 스냅샷 날짜의 삭제표시는 모두 제거(부활 후 재삭제 루프 방지) → 사실상 비파괴
+    let mergedDel=mergeDelMap(DELDATES,remoteDel);merged.forEach(s=>{delete mergedDel[s.date];});
     for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
     const payload={snapshots:merged,crm:mergedCrm,deleted:mergedDel};
     if(JSON.stringify(payload)!==JSON.stringify({snapshots:remote,crm:remoteCrm,deleted:remoteDel})){
       try{await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON(payload,pass),sha,'sync '+new Date().toISOString());}
       catch(e){ if(e.status===409||/sha|409/.test(e.message)){ // 충돌 → 재병합 1회
         const rf=await ghGet(cfg.repo,SYNC_PATH,cfg.token);const rd=rf&&rf.content?splitRemote(await decJSON(rf.content,pass)):{snaps:[],crm:[],deleted:{}};
-        mergedDel=mergeDelMap(mergedDel,rd.deleted);
-        merged=await applyTomb(mergeSnaps(merged,rd.snaps),mergedDel);mergedCrm=mergeCrm(mergedCrm,rd.crm);
-        merged.forEach(s=>{delete mergedDel[s.date];});
+        merged=mergeSnaps(merged,rd.snaps);mergedCrm=mergeCrm(mergedCrm,rd.crm);
+        mergedDel=mergeDelMap(mergedDel,rd.deleted);merged.forEach(s=>{delete mergedDel[s.date];});
         for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
         await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:merged,crm:mergedCrm,deleted:mergedDel},pass),rf?rf.sha:null,'sync(merge) '+new Date().toISOString());
       } else throw e; }
