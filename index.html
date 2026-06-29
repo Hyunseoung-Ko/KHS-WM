@@ -63,7 +63,7 @@ input{font-family:inherit}
   display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:19px}
 .brand b{font-size:16px;letter-spacing:-.3px;font-weight:800}
 .brand small{display:block;color:var(--sub);font-size:11px;font-weight:500}
-.nav{padding:8px 12px;flex:1}
+.nav{padding:8px 12px;flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .nav-label{font-size:11px;letter-spacing:.4px;color:var(--faint);font-weight:600;padding:8px 11px 8px}
 .nav a{display:flex;align-items:center;gap:12px;padding:11px 11px;border-radius:12px;color:var(--sub2);
   text-decoration:none;font-weight:500;font-size:14.5px;margin-bottom:2px;transition:color .15s,background .15s}
@@ -71,7 +71,7 @@ input{font-family:inherit}
 .nav a .ic svg{width:19px;height:19px;stroke:currentColor;fill:none}
 .nav a:hover{background:var(--inset);color:var(--ink)}
 .nav a.active{background:var(--primary-l);color:var(--primary);font-weight:700}
-.side-foot{padding:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.side-foot{padding:14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px;flex:0 0 auto}
 .side-foot button{width:100%;padding:9px;border-radius:11px;border:1px solid var(--line);background:#fff;
   color:var(--sub2);font-weight:600;font-size:12.5px}
 .side-foot button:hover{background:var(--inset);color:var(--ink)}
@@ -314,10 +314,9 @@ input{font-family:inherit}
 .ch-fl.on .cfn{background:rgba(255,255,255,.25);color:#fff}
 
 /* ---------- RESPONSIVE (JS 클래스 html.m 기반 — iOS 회전 안정) ---------- */
-html.m #sidebar{display:flex;width:200px;max-width:62vw;transform:translateX(-100%);transition:transform .24s cubic-bezier(.4,0,.2,1);box-shadow:0 0 50px rgba(15,20,35,.25);z-index:70;overflow-y:auto;-webkit-overflow-scrolling:touch}
+html.m #sidebar{display:flex;width:200px;max-width:62vw;transform:translateX(-100%);transition:transform .24s cubic-bezier(.4,0,.2,1);box-shadow:0 0 50px rgba(15,20,35,.25);z-index:70}
 html.m #sidebar.open{transform:translateX(0)}
-html.m .nav{flex:0 0 auto}            /* 드로어에 메인 메뉴(홈·고객·자산·전략) 표시 — 길어지면 사이드바 전체 스크롤 */
-html.m .side-foot{flex:0 0 auto}
+/* 드로어: 가운데 메뉴(.nav)가 내부 스크롤, 상단 브랜드·하단 푸터는 고정 — 길어지면 메뉴만 스크롤 */
 html.m #drawerBackdrop{display:block;position:fixed;inset:0;background:rgba(15,20,35,.45);z-index:65;opacity:0;visibility:hidden;transition:opacity .24s,visibility .24s}
 html.m #drawerBackdrop.open{opacity:1;visibility:visible}
 html.m .drawer-close{display:flex;align-items:center;justify-content:center;margin-left:auto;width:32px;height:32px;border:none;background:var(--bg);border-radius:9px;font-size:14px;color:var(--sub)}
@@ -467,8 +466,8 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
 <div id="syncModal" class="modal hidden">
   <div class="modal-card">
     <button class="modal-x" id="syClose">✕</button>
-    <h3>🔄 기기간 동기화 <span style="font-size:11px;font-weight:600;color:var(--sub);background:var(--inset);padding:2px 7px;border-radius:8px;vertical-align:middle">빌드 sync9-nodelete</span></h3>
-    <p class="msub">내 GitHub 비공개 repo에 <b>암호화(E2EE)</b>해서 저장합니다. PC·휴대폰에 같은 값을 넣으면 자동으로 일치합니다. 서버는 암호문만 보관 — 내용은 못 봅니다. <b>세 기기의 빌드 번호가 같아야</b> 정상 동작합니다.</p>
+    <h3>🔄 기기간 동기화</h3>
+    <p class="msub">내 GitHub 비공개 repo에 <b>암호화(E2EE)</b>해서 저장합니다. PC·휴대폰에 <b>같은 repo·토큰·동기화 암호</b>를 넣으면 자동으로 일치합니다. 서버는 암호문만 보관 — 내용은 못 봅니다.</p>
     <label>데이터 repo (owner/name)</label>
     <input id="syRepo" placeholder="Hyunseoung-Ko/kis-dashboard-data" autocomplete="off">
     <label>접근 토큰 (fine-grained PAT)</label>
@@ -481,12 +480,6 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <button class="btn ghost sm" id="syTest">연결 테스트</button>
       <button class="btn ghost sm" id="syOff">동기화 끄기</button>
       <button class="btn primary sm" id="sySave">저장 &amp; 지금 동기화</button>
-    </div>
-    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line2)">
-      <button class="btn ghost sm" id="syReset" style="width:100%;color:var(--rise)">🧹 삭제표시 비우기 &amp; 이 기기 데이터 올리기</button>
-      <p class="msub" style="margin:6px 0 0;font-size:11.5px">한투 자산이 <b>보이는 기기</b>(주로 PC)에서 — 옛 삭제기록을 지우고 이 기기의 데이터를 저장소에 올립니다.</p>
-      <button class="btn ghost sm" id="syFresh" style="width:100%;margin-top:8px">📥 이 기기 비우고 저장소에서 새로 받기</button>
-      <p class="msub" style="margin:6px 0 0;font-size:11.5px">한투가 <b>안 보이는 기기</b>(노트북·모바일)에서 — 이 기기 로컬을 싹 비우고 저장소 내용을 새로 내려받습니다. (저장소는 그대로, 이 기기만 초기화)</p>
     </div>
   </div>
 </div>
@@ -2506,59 +2499,12 @@ async function syncNow(silent){
   }catch(e){setSyncDot('err');syncing=false;if(!silent)toast(e.message||'동기화 실패');return false;}
 }
 
-/* 삭제표시(tombstone) 비우기 + 이 기기의 현재 데이터를 저장소에 강제 업로드.
-   옛 삭제기록이 한투 스냅샷을 매 동기화마다 지우는 상황 복구용. 한투가 보이는 기기에서 실행. */
-async function resetSyncDeleted(){
-  if(!syncOn()){toast('먼저 repo·토큰을 저장하세요');return;}
-  const cfg=syncCfg();let pass=syncPass();
-  const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[]}:{snaps:dec.snapshots||[],crm:dec.crm||[]};
-  const S=t=>{const e=$('#syStatus');if(e)e.textContent=t;};
-  setSyncDot('sync');S('삭제표시 초기화 중...');
-  try{
-    const rf=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
-    let rSnaps=[],rCrm=[];
-    if(rf&&rf.content){const r=await decTry(rf.content,passCandidates());const d=splitRemote(r.data);rSnaps=d.snaps;rCrm=d.crm;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}
-    const local=await idbAll(),localCrm=await crmAll();
-    const snaps=mergeSnaps(local,rSnaps),crm=mergeCrm(localCrm,rCrm);
-    // 모든 스냅샷 uploadedAt을 '지금'으로 갱신 → 다른 기기에 남아있는 옛 삭제표시(tombstone)보다 항상 최신이라 안 지워짐(전 기기 자동 복구)
-    const now=new Date().toISOString();snaps.forEach(s=>{s.uploadedAt=now;});
-    DELDATES={};await metaPut('deletedDates',{});
-    await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:snaps,crm,deleted:{}},pass),rf?rf.sha:null,'reset tombstones '+new Date().toISOString());
-    for(const s of snaps)await idbPut(s);for(const c of crm)await crmPut(c);
-    SNAPS=snaps;SNAPS.forEach(fixSnapPrincipals);CRM={};crm.forEach(c=>CRM[c.name]=c);
-    setSyncDot('ok');S(`✅ 초기화 완료 · 스냅샷 ${snaps.length}개 · CRM ${crm.length}명 업로드 — 다른 기기에서 동기화하세요`);
-    toast('삭제표시 비움 · 스냅샷 '+snaps.length+'개 업로드');
-    if(curView)render();
-  }catch(e){setSyncDot('err');S('⚠️ 실패: '+(e.message||''));}
-}
-
-/* 이 기기 로컬(스냅샷·CRM·삭제표시)을 모두 비우고 저장소에서 새로 내려받기. 저장소는 변경 안 함(이 기기만 초기화). */
-async function freshPull(){
-  if(!syncOn()){toast('먼저 repo·토큰을 저장하세요');return;}
-  if(!confirm('이 기기의 로컬 데이터(스냅샷·CRM·삭제표시)를 모두 비우고 저장소에서 새로 받습니다.\n· 저장소(다른 기기)는 그대로입니다 — 이 기기만 초기화\n계속할까요?'))return;
-  const S=t=>{const e=$('#syStatus');if(e)e.textContent=t;};
-  setSyncDot('sync');
-  try{
-    S('이 기기 초기화 중...');
-    await idbClear();
-    await new Promise(res=>{const t=db.transaction('crm','readwrite').objectStore('crm').clear();t.onsuccess=()=>res();t.onerror=()=>res();});
-    await metaClear();
-    DELDATES={};SNAPS=[];CRM={};
-    S('저장소에서 새로 받는 중...');
-    const ok=await syncNow(false);
-    S(ok?'✅ 새로 받기 완료 — 자산·고객 확인하세요':'⚠️ 받기 실패 — repo/토큰/동기화 암호 확인');
-    if(ok)toast('저장소에서 새로 받음 · 스냅샷 '+SNAPS.length+'개');
-  }catch(e){setSyncDot('err');S('⚠️ 실패: '+(e.message||''));}
-}
-
 function openSync(){const c=syncCfg()||{};$('#syRepo').value=c.repo||'Hyunseoung-Ko/kis-dashboard-data';$('#syToken').value=c.token||'';
   $('#syPass').value=localStorage.getItem(SPASS_KEY)||'';
   $('#syStatus').textContent=c.enabled?'✅ 동기화 켜져 있음':'현재 꺼짐';$('#syncModal').classList.remove('hidden');toggleDrawer(false);}
 function bindSync(){
   $('#btnSync').onclick=openSync;
   $('#syClose').onclick=()=>$('#syncModal').classList.add('hidden');
-  $('#syReset').onclick=()=>{if(confirm('옛 삭제기록(tombstone)을 지우고 이 기기의 현재 데이터를 저장소에 올립니다.\n· 한투가 보이는 기기에서 실행하세요\n· 다른 기기에서 일부러 지웠던 스냅샷이 되살아날 수 있습니다\n계속할까요?'))resetSyncDeleted();};
-  $('#syFresh').onclick=freshPull;
   $('#syTest').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim(),pass=$('#syPass').value;
     const S=t=>{$('#syStatus').textContent=t;};
     if(!repo||!token){S('⚠️ repo·토큰 입력하세요');return;}
