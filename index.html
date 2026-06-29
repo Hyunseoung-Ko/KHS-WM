@@ -813,7 +813,13 @@ async function parseFiles(fileList){
    ========================================================= */
 let SNAPS=[];           // all snapshots sorted by date
 let CRM={};             // name -> CRM record (직접입력·영구)
-let DELDATES=[];        // 삭제된 스냅샷 날짜(tombstone) — 동기화 후 부활 방지
+let DELDATES={};        // 삭제 tombstone: {날짜: 삭제시각ISO} — 삭제시각 > 스냅샷 업로드시각일 때만 삭제(재업로드하면 부활)
+/* tombstone 정규화: 구버전(문자열 배열)·null → {날짜: epoch0} 변환(=옛 삭제표시는 실제 스냅샷보다 항상 오래됨 → 무력화·자동치유) */
+function normDel(x){if(Array.isArray(x)){const m={};x.forEach(d=>{m[d]='1970-01-01T00:00:00.000Z';});return m;}return (x&&typeof x==='object')?x:{};}
+/* 두 tombstone 맵 병합 — 날짜별 최신 삭제시각 채택 */
+function mergeDelMap(a,b){const m={...normDel(a)},nb=normDel(b);for(const d in nb){if(!m[d]||nb[d]>m[d])m[d]=nb[d];}return m;}
+/* 이 스냅샷이 tombstone으로 삭제돼야 하는가? (삭제시각 > 업로드시각) */
+function isTombed(snap,del){const at=del&&del[snap.date];return !!(at&&at>(snap.uploadedAt||''));}
 let pendingFiles=[];    // selected for upload
 let curView='home';
 let inDetail=false;
@@ -822,10 +828,11 @@ let charts={};
 function killCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};}
 const latest=()=>SNAPS[SNAPS.length-1]||null;
 
-async function reload(){DELDATES=(await metaGet('deletedDates'))||[];
-  // tombstone 날짜가 로컬에 남아있으면(동기화/백업 복원으로 부활) 제거 후 목록에서 제외
-  for(const d of DELDATES){await idbDel(d);}
-  SNAPS=(await idbAll()).filter(s=>!DELDATES.includes(s.date));
+async function reload(){DELDATES=normDel(await metaGet('deletedDates'));
+  // 삭제시각이 업로드시각보다 나중인 스냅샷만 실제 삭제(재업로드분은 보존)
+  const allS=await idbAll();
+  for(const s of allS){if(isTombed(s,DELDATES))await idbDel(s.date);}
+  SNAPS=(await idbAll()).filter(s=>!isTombed(s,DELDATES));
   SNAPS.forEach(fixSnapPrincipals);const cl=await crmAll();CRM={};cl.forEach(c=>CRM[c.name]=c);render();}
 
 /* ---------- 자산(스냅샷) + CRM(직접입력) 통합 고객 맵 ---------- */
@@ -1442,7 +1449,7 @@ function renderAssets(){
       const d=r.dataset.date;
       if(confirm(d+' 스냅샷을 완전히 삭제할까요?\n(동기화·다른 기기에서도 삭제됩니다)')){
         await idbDel(d);
-        DELDATES=Array.from(new Set([...DELDATES,d]));
+        DELDATES[d]=new Date().toISOString();   // 삭제시각 기록(이후 업로드분만 부활)
         await metaPut('deletedDates',DELDATES);
         toast('삭제됨');
         if(syncOn())await syncNow(true);
@@ -2404,7 +2411,7 @@ async function doUpload(){
   const snap=buildSnapshot(date,buckets);
   await idbPut(snap);
   // 삭제했던 날짜를 다시 올리면 tombstone 해제(부활 허용)
-  if(DELDATES.includes(date)){DELDATES=DELDATES.filter(d=>d!==date);await metaPut('deletedDates',DELDATES);}
+  if(DELDATES[date]){delete DELDATES[date];await metaPut('deletedDates',DELDATES);}
   pendingFiles=[];
   const types=found.map(t=>TYPE_LABEL[t]||t).join('·');
   toast(`${date} 저장 완료 · 고객 ${snap.totals.count}명 · 인식: ${types}`);
@@ -2467,24 +2474,24 @@ async function syncNow(silent){
   if(!syncOn()){if(!silent)toast('동기화 설정이 필요합니다');return false;}
   if(syncing)return false;syncing=true;setSyncDot('sync');
   const cfg=syncCfg();let pass=syncPass(); // pass = 쓰기(재암호화)에 쓸 키 — 복호화 성공한 키로 갱신됨
-  const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[],deleted:[]}:{snaps:dec.snapshots||[],crm:dec.crm||[],deleted:dec.deleted||[]};
-  // 삭제 tombstone 적용: 삭제목록 날짜는 스냅샷에서 제거하고 로컬 DB에서도 삭제
-  const applyDel=async(snaps,del)=>{const set=new Set(del);for(const d of del)await idbDel(d);return snaps.filter(s=>!set.has(s.date));};
+  const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[],deleted:{}}:{snaps:dec.snapshots||[],crm:dec.crm||[],deleted:normDel(dec.deleted)};
+  // 시간기준 tombstone 적용: 삭제시각 > 업로드시각인 스냅샷만 제거(재업로드분은 보존)
+  const applyTomb=async(snaps,del)=>{const out=[];for(const s of snaps){if(isTombed(s,del)){await idbDel(s.date);}else out.push(s);}return out;};
   try{
     let remoteFile=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
-    let remote=[],remoteCrm=[],remoteDel=[],sha=remoteFile?remoteFile.sha:null;
+    let remote=[],remoteCrm=[],remoteDel={},sha=remoteFile?remoteFile.sha:null;
     if(remoteFile&&remoteFile.content){try{const r=await decTry(remoteFile.content,passCandidates());const d=splitRemote(r.data);remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}catch(e){throw new Error('복호화 실패 — 기존 데이터의 동기화 암호가 필요합니다. 동기화 설정에서 이전에 쓰던 암호를 입력하세요');}}
     const local=await idbAll(),localCrm=await crmAll();
-    let mergedDel=mergeDel(DELDATES,remoteDel);
-    let merged=await applyDel(mergeSnaps(local,remote),mergedDel),mergedCrm=mergeCrm(localCrm,remoteCrm);
+    let mergedDel=mergeDelMap(DELDATES,remoteDel);
+    let merged=await applyTomb(mergeSnaps(local,remote),mergedDel),mergedCrm=mergeCrm(localCrm,remoteCrm);
     for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
     const payload={snapshots:merged,crm:mergedCrm,deleted:mergedDel};
     if(JSON.stringify(payload)!==JSON.stringify({snapshots:remote,crm:remoteCrm,deleted:remoteDel})){
       try{await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON(payload,pass),sha,'sync '+new Date().toISOString());}
       catch(e){ if(e.status===409||/sha|409/.test(e.message)){ // 충돌 → 재병합 1회
-        const rf=await ghGet(cfg.repo,SYNC_PATH,cfg.token);const rd=rf&&rf.content?splitRemote(await decJSON(rf.content,pass)):{snaps:[],crm:[],deleted:[]};
-        mergedDel=mergeDel(mergedDel,rd.deleted);
-        merged=await applyDel(mergeSnaps(merged,rd.snaps),mergedDel);mergedCrm=mergeCrm(mergedCrm,rd.crm);
+        const rf=await ghGet(cfg.repo,SYNC_PATH,cfg.token);const rd=rf&&rf.content?splitRemote(await decJSON(rf.content,pass)):{snaps:[],crm:[],deleted:{}};
+        mergedDel=mergeDelMap(mergedDel,rd.deleted);
+        merged=await applyTomb(mergeSnaps(merged,rd.snaps),mergedDel);mergedCrm=mergeCrm(mergedCrm,rd.crm);
         for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
         await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:merged,crm:mergedCrm,deleted:mergedDel},pass),rf?rf.sha:null,'sync(merge) '+new Date().toISOString());
       } else throw e; }
@@ -2501,7 +2508,7 @@ async function syncNow(silent){
 async function resetSyncDeleted(){
   if(!syncOn()){toast('먼저 repo·토큰을 저장하세요');return;}
   const cfg=syncCfg();let pass=syncPass();
-  const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[],deleted:[]}:{snaps:dec.snapshots||[],crm:dec.crm||[],deleted:dec.deleted||[]};
+  const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[]}:{snaps:dec.snapshots||[],crm:dec.crm||[]};
   const S=t=>{const e=$('#syStatus');if(e)e.textContent=t;};
   setSyncDot('sync');S('삭제표시 초기화 중...');
   try{
@@ -2510,8 +2517,8 @@ async function resetSyncDeleted(){
     if(rf&&rf.content){const r=await decTry(rf.content,passCandidates());const d=splitRemote(r.data);rSnaps=d.snaps;rCrm=d.crm;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}
     const local=await idbAll(),localCrm=await crmAll();
     const snaps=mergeSnaps(local,rSnaps),crm=mergeCrm(localCrm,rCrm);
-    DELDATES=[];await metaPut('deletedDates',[]);
-    await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:snaps,crm,deleted:[]},pass),rf?rf.sha:null,'reset tombstones '+new Date().toISOString());
+    DELDATES={};await metaPut('deletedDates',{});
+    await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:snaps,crm,deleted:{}},pass),rf?rf.sha:null,'reset tombstones '+new Date().toISOString());
     for(const s of snaps)await idbPut(s);for(const c of crm)await crmPut(c);
     SNAPS=snaps;SNAPS.forEach(fixSnapPrincipals);CRM={};crm.forEach(c=>CRM[c.name]=c);
     setSyncDot('ok');S(`✅ 초기화 완료 · 스냅샷 ${snaps.length}개 · CRM ${crm.length}명 업로드 — 다른 기기에서 동기화하세요`);
@@ -2540,8 +2547,8 @@ function bindSync(){
       const cands=[];if(pass)cands.push(pass);cands.push('khs-wm-e2ee::'+repo.toLowerCase());const sm=localStorage.getItem(SPASS_KEY);if(sm)cands.push(sm);
       try{
         const d=await decTry(f.content,[...new Set(cands.filter(Boolean))]);
-        const o=Array.isArray(d.data)?{snapshots:d.data,crm:[],deleted:[]}:d.data;
-        const ns=(o.snapshots||[]).length,nc=(o.crm||[]).length,nd=(o.deleted||[]).length;
+        const o=Array.isArray(d.data)?{snapshots:d.data,crm:[],deleted:{}}:d.data;
+        const ns=(o.snapshots||[]).length,nc=(o.crm||[]).length,nd=Object.keys(normDel(o.deleted)).length;
         const localN=(await idbAll()).length;
         let msg=`✅ 복호화 OK · 원격: 스냅샷 ${ns} · CRM ${nc} · 삭제표시 ${nd} · 이 기기 로컬 스냅샷 ${localN}`;
         if(localN>0&&ns<localN)msg+=` — ⚠ 로컬엔 ${localN}개 있는데 원격 ${ns}개! 삭제표시가 지우는 중일 수 있음 → 아래 [삭제표시 비우기 & 올리기]`;
@@ -2562,7 +2569,7 @@ function bindSync(){
    EXPORT / IMPORT / WIPE
    ========================================================= */
 async function doExport(){
-  const all=(await idbAll()).filter(s=>!DELDATES.includes(s.date));const crm=await crmAll();
+  const all=(await idbAll()).filter(s=>!isTombed(s,DELDATES));const crm=await crmAll();
   const blob=new Blob([JSON.stringify({app:'assetBoard',v:3,exportedAt:new Date().toISOString(),snapshots:all,crm,deleted:DELDATES})],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='assetboard_backup_'+todayStr()+'.json';a.click();toast('백업 파일 저장됨');
 }
@@ -2645,12 +2652,12 @@ function bindGlobal(){
   $('#btnImport').onclick=()=>$('#importInput').click();
   $('#importInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;
     try{const data=JSON.parse(await f.text());if(!data.snapshots&&!data.crm)throw 0;
-      DELDATES=mergeDel(DELDATES,data.deleted);await metaPut('deletedDates',DELDATES);
-      for(const s of (data.snapshots||[]))if(!DELDATES.includes(s.date))await idbPut(s);
+      DELDATES=mergeDelMap(DELDATES,data.deleted);await metaPut('deletedDates',DELDATES);
+      for(const s of (data.snapshots||[]))if(!isTombed(s,DELDATES))await idbPut(s);
       for(const c of (data.crm||[]))await crmPut(c);
       toast('복원 완료 · 스냅샷 '+(data.snapshots||[]).length+'개 · CRM '+(data.crm||[]).length+'명');reload();}
     catch(err){toast('복원 실패: 파일 형식 오류');}};
-  $('#btnWipe').onclick=async()=>{if(confirm('모든 스냅샷 + CRM(직접입력 영업정보)을 삭제합니다. 되돌릴 수 없습니다. (백업 권장)\n계속할까요?')){await idbClear();await new Promise(res=>{const t=db.transaction('crm','readwrite').objectStore('crm').clear();t.onsuccess=()=>res();});await metaClear();DELDATES=[];toast('전체 삭제됨');reload();}};
+  $('#btnWipe').onclick=async()=>{if(confirm('모든 스냅샷 + CRM(직접입력 영업정보)을 삭제합니다. 되돌릴 수 없습니다. (백업 권장)\n계속할까요?')){await idbClear();await new Promise(res=>{const t=db.transaction('crm','readwrite').objectStore('crm').clear();t.onsuccess=()=>res();});await metaClear();DELDATES={};toast('전체 삭제됨');reload();}};
 }
 
 /* =========================================================
