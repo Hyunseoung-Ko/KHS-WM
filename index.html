@@ -1457,6 +1457,9 @@ function renderAssets(){
 
 /* ----- 영업 (CRM × 자산 도출) ----- */
 let stratTab='contact';
+/* 영업 탭 그룹화 — 7개 탭을 3그룹(연락/기회/리스크)으로 묶어 모바일 가로스크롤 완화 */
+const STRAT_GROUPS=[['연락',['contact']],['기회',['gap','calendar','nocrm']],['리스크',['care','zero','closed']]];
+const STRAT_TAB_LABEL={contact:'오늘연락',gap:'현금자산',calendar:'캘린더',nocrm:'정보없음',care:'관리',zero:'0원계좌',closed:'해지'};
 /* 퇴직연금(DC·IRP·연금) 관리 대상 여부 — CRM 운용상품 체크 또는 실제 보유자산 기준 */
 function pensionTarget(c){const p=(c.crm&&c.crm.prod)||{};if(p.DC||p.IRP||p.연금)return true;const k=c.cats||{};return ((k['DC']||0)+(k['개인형IRP']||0)+(k['연금저축']||0)+(k['DB']||0))>0;}
 /* 연락 추천 사유 — 고객 자산·상태에서 통화 명분 도출 (우선순위 순) */
@@ -1634,20 +1637,15 @@ function renderStrategy(){
       <div class="right"><span class="amt" style="color:var(--sub)">계좌 종료</span></div><span class="chev">›</span></div>`).join('');
   }
 
+  const sg=STRAT_GROUPS.find(g=>g[1].includes(stratTab))||STRAT_GROUPS[0];
   v.innerHTML=`<div class="wrap"><h1 class="page-title">영업</h1><p class="page-sub">CRM × 자산 도출 액션 리스트</p>
-    <div class="toolbar"><div class="seg">
-      <button data-t="contact" class="${stratTab==='contact'?'on':''}">오늘연락</button>
-      <button data-t="gap" class="${stratTab==='gap'?'on':''}">현금자산</button>
-      <button data-t="care" class="${stratTab==='care'?'on':''}">관리</button>
-      <button data-t="calendar" class="${stratTab==='calendar'?'on':''}">캘린더</button>
-      <button data-t="nocrm" class="${stratTab==='nocrm'?'on':''}">정보없음</button>
-      <button data-t="zero" class="${stratTab==='zero'?'on':''}">0원계좌</button>
-      <button data-t="closed" class="${stratTab==='closed'?'on':''}">해지</button>
-    </div></div>
+    <div class="ch-fls">${STRAT_GROUPS.map(([g,tabs])=>`<button class="ch-fl${sg[0]===g?' on':''}" data-sg="${g}">${g}<span class="cfn">${tabs.length}</span></button>`).join('')}</div>
+    ${sg[1].length>1?`<div class="toolbar"><div class="seg">${sg[1].map(t=>`<button data-t="${t}" class="${stratTab===t?'on':''}">${STRAT_TAB_LABEL[t]}</button>`).join('')}</div></div>`:''}
     <p class="page-sub">${desc}</p>
     ${lead||''}
     <div class="card" style="padding:8px 14px"><div class="list">${rows||'<div class="empty">해당 고객 없음</div>'}</div></div>
   </div>`;
+  v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{const g=STRAT_GROUPS.find(x=>x[0]===b.dataset.sg);if(g){stratTab=g[1][0];renderStrategy();}});
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{stratTab=b.dataset.t;renderStrategy();});
   v.querySelectorAll('.btn-contacted').forEach(b=>b.onclick=e=>{e.stopPropagation();contactDone(b.dataset.name);});
   v.querySelectorAll('.btn-openclient').forEach(b=>b.onclick=e=>{e.stopPropagation();openClient(b.dataset.name);});
@@ -1819,7 +1817,7 @@ async function renderReports(){
   const chBtn=(val,lab,cnt)=>`<button class="ch-fl${reportCat===val?' on':''}" data-rc="${val}">${lab}<span class="cfn">${cnt}</span></button>`;
   const rowHtml=rows.map(({file,type})=>{
     const[dot,stt]=repStatus(file,type);const linked=linkedCustomersFor(file);const href=TOSS_BASE+encodeURIComponent(file)+'?v='+OG_VER;const bs=REP_BADGE_STYLE[type];
-    return `<div class="row" style="cursor:pointer" onclick="window.open('${escapeAttr(href)}','_blank','noopener')">
+    return `<div class="row rep-row" style="cursor:pointer" data-href="${escapeAttr(href)}">
       <div style="min-width:0">
         <div class="nm">${esc(repName(file))}</div>
         <div class="tags"><span class="tag" style="color:${bs[0]};background:${bs[1]};font-weight:700">${REP_LABEL[type]}</span>
@@ -1827,8 +1825,8 @@ async function renderReports(){
           <span class="tag"><span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dot};margin-right:4px;vertical-align:middle"></span>${stt}</span>
           ${linked.length?`<span class="tag b">👤 ${esc(linked.join(', '))}</span>`:''}</div></div>
       <div class="right" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
-        <button class="btn ghost sm" onclick="event.stopPropagation();repCopy('${escapeAttr(href)}')">링크복사</button>
-        <button class="btn ghost sm" onclick="event.stopPropagation();window.open('${escapeAttr(href)}','_blank','noopener')">열기</button>
+        <button class="btn ghost sm rep-copy" data-href="${escapeAttr(href)}">링크복사</button>
+        <button class="btn ghost sm rep-open" data-href="${escapeAttr(href)}">열기</button>
       </div></div>`;
   }).join('');
   v.innerHTML=`<div class="wrap"><h1 class="page-title">리포트</h1>
@@ -1848,6 +1846,10 @@ async function renderReports(){
   </div>`;
   v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{reportCat=b.dataset.rc;renderReports();});
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{reportSort=b.dataset.rs;renderReports();});
+  const repOpen=h=>window.open(h,'_blank','noopener');
+  v.querySelectorAll('.rep-row').forEach(r=>r.onclick=()=>repOpen(r.dataset.href));
+  v.querySelectorAll('.rep-copy').forEach(b=>b.onclick=e=>{e.stopPropagation();repCopy(b.dataset.href);});
+  v.querySelectorAll('.rep-open').forEach(b=>b.onclick=e=>{e.stopPropagation();repOpen(b.dataset.href);});
   $('#repDeployBtn').onclick=openDeployModal;
   const rcb=$('#repCleanBtn');if(rcb)rcb.onclick=openCleanupModal;
   const s=$('#repSearch');s.oninput=()=>{reportSearch=s.value.trim();const cur=s.selectionStart;renderReports();const ns=$('#repSearch');if(ns){ns.focus();ns.setSelectionRange(cur,cur);}};
@@ -2043,36 +2045,6 @@ async function clnRun(){
   card.innerHTML+=`<div class="modal-btns"><button class="btn primary sm" onclick="closeRepModal();reportsLoaded=false;if(curView==='reports')renderReports()">완료</button></div>`;
 }
 window.openCleanupModal=openCleanupModal;
-
-/* 리포트 ↔ 고객 연결 모달 */
-let linkReportFile=null,linkReportQuery='';
-function openLinkReport(file){linkReportFile=file;linkReportQuery='';drawLinkReport();$('#repModal').classList.remove('hidden');}
-function drawLinkReport(){
-  const card=$('#repModalCard');const file=linkReportFile;
-  const all=Object.values(curCustomers()).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
-  const q=linkReportQuery.toLowerCase();const list=all.filter(c=>!q||c.name.toLowerCase().includes(q)).slice(0,60);
-  const linkedNow=linkedCustomersFor(file);
-  card.innerHTML=`<button class="modal-x" onclick="closeRepModal()">✕</button>
-    <h3>고객 연결</h3><p class="msub">${esc(repName(file))}<br>이 리포트를 받은 고객을 연결하면 고객 상세에 표시됩니다.</p>
-    ${linkedNow.length?`<div style="margin-bottom:10px">${linkedNow.map(n=>`<span class="tag b" style="margin:0 4px 4px 0;display:inline-block">👤 ${esc(n)} ✕</span>`).join('')}</div>`:''}
-    <input id="linkQ" placeholder="고객 이름 검색" style="width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;font-size:14px" value="${esc(linkReportQuery)}">
-    <div class="list" style="max-height:42vh;overflow:auto;margin-top:8px">
-    ${list.map(c=>{const on=(CRM[c.name]&&(CRM[c.name].linkIds||[]).includes(file));
-      return `<div class="row" style="cursor:pointer" onclick="toggleReportLink('${escapeAttr(c.name)}')"><div><div class="nm">${esc(c.name)}</div><div class="tags">${chBadges(c)}</div></div>
-        <div class="right"><span class="tag ${on?'b':''}">${on?'✓ 연결됨':'연결'}</span></div></div>`;}).join('')||'<div class="empty">고객 없음</div>'}
-    </div>
-    <div class="modal-btns"><button class="btn primary sm" onclick="closeRepModal();if(curView==='reports')renderReports()">닫기</button></div>`;
-  const lq=$('#linkQ');lq.oninput=()=>{linkReportQuery=lq.value.trim();const cur=lq.selectionStart;drawLinkReport();const n=$('#linkQ');if(n){n.focus();n.setSelectionRange(cur,cur);}};
-}
-async function toggleReportLink(name){
-  const file=linkReportFile;let cr=CRM[name];
-  if(!cr){cr={name,channels:['보험'],history:[],linkIds:[],updatedAt:new Date().toISOString()};}
-  cr.linkIds=cr.linkIds||[];const i=cr.linkIds.indexOf(file);
-  if(i>-1)cr.linkIds.splice(i,1);else cr.linkIds.push(file);
-  cr.updatedAt=new Date().toISOString();await crmPut(cr);CRM[name]=cr;
-  if(syncOn())syncNow(true);drawLinkReport();
-}
-window.openLinkReport=openLinkReport;window.toggleReportLink=toggleReportLink;
 
 async function repDelete(file,type){
   if(!confirm('이 리포트를 삭제할까요?\n· '+repName(file)+'\n파일·공유링크가 제거됩니다(고객 연결도 해제).'))return;
@@ -2446,7 +2418,16 @@ async function doSecurity(){
   else if(a==='3'){const v=prompt('자동잠금 시간(분) 입력 · 0 = 끄기\n모바일에서만 적용 · 미사용 시 자동 로그아웃 (PC는 잠기지 않음)',String(cur));
     if(v==null)return;if(/^\d+$/.test(v)){localStorage.setItem(AUTOLOCK_KEY,v);resetIdle();toast(+v>0?'자동잠금 '+v+'분':'자동잠금 꺼짐');}else toast('숫자를 입력하세요');}
 }
+/* 키보드 접근성 — href 없는 클릭형 메뉴(<a>)를 Tab 포커스·Enter/Space로 작동 가능하게 */
+function enhanceNavA11y(){
+  document.querySelectorAll('#navPC a:not([href]),#bottomNav a,.foot-help').forEach(a=>{
+    a.setAttribute('tabindex','0');a.setAttribute('role','button');
+    if(a._a11y)return;a._a11y=1;
+    a.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();a.click();}});
+  });
+}
 function bindGlobal(){
+  enhanceNavA11y();
   $('#navToggle').onclick=()=>toggleDrawer();
   $('#navClose').onclick=()=>toggleDrawer(false);
   $('#drawerBackdrop').onclick=()=>toggleDrawer(false);
