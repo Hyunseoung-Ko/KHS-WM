@@ -1225,7 +1225,7 @@ function openCrmForm(name){
   $('#cfTitle').textContent=name?name+' · 정보 편집':'신규 고객 추가';
   const nf=$('#cf_name');nf.value=name||'';nf.readOnly=!!name;nf.style.background=name?'#F8F9FA':'';
   const bd=(cr&&cr.birth)||(c&&/^\d{4}-\d{2}-\d{2}/.test(c.birth||'')?(c.birth||'').slice(0,10):'')||'';
-  $('#cf_birth').value=/^\d{4}-\d{2}-\d{2}$/.test(bd)?bd:'';
+  $('#cf_birth').value=/^\d{4}-\d{2}(-\d{2})?$/.test(bd)?bd:'';   // YYYY-MM(일 없음)도 다시 표시
   $('#cf_gender').value=(cr&&cr.gender)||(c&&c.gender)||'';
   $('#cf_phone').value=cr?cr.phone||'':'';
   $('#cf_company').value=cr?cr.company||'':'';
@@ -1911,21 +1911,15 @@ function repTokenCard(extra){
       ${extra?`<p style="color:var(--rise);font-size:13px;font-weight:600;margin-bottom:10px">${esc(extra)}</p>`:''}
       <button class="btn primary" id="repConnect">토큰 연결하기</button></div></div>`;
 }
-async function renderReports(){
-  const v=$('#view');
-  if(!tossPAT()){v.innerHTML=repTokenCard('');$('#repConnect').onclick=repConnect;return;}
-  if(!reportsLoaded&&!reportsErr){v.innerHTML=`<div class="wrap"><h1 class="page-title">리포트</h1><p class="page-sub">불러오는 중…</p></div>`;await loadReports();return renderReports();}
-  if(reportsErr){v.innerHTML=repTokenCard(reportsErr);$('#repConnect').onclick=repConnect;return;}
-  const counts={analysis:REPORTS.analysis.length,proposal:REPORTS.proposal.length,guide:REPORTS.guide.length};counts.all=counts.analysis+counts.proposal+counts.guide;
-  const ym=(()=>{const d=new Date();return ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0');})();
-  let monthCount=0;REP_CATS.forEach(t=>REPORTS[t].forEach(f=>{const d=repExtractDate(f);if(d&&d.slice(0,6)===ym)monthCount++;}));
+/* 리포트 리스트 HTML — 현재 필터(검색·분류·정렬) 기준. 검색 시 이 부분만 갱신(입력칸 유지 → 한글 IME 안 끊김) */
+function repListHtml(){
   const types=reportCat==='all'?REP_CATS:[reportCat];
   let rows=[];types.forEach(t=>REPORTS[t].forEach(f=>rows.push({file:f,type:t})));
-  const q=reportSearch.replace(/_/g,' ').toLowerCase();
+  const q=reportSearch.replace(/_/g,' ').toLowerCase().trim();
   if(q)rows=rows.filter(r=>repName(r.file).toLowerCase().includes(q));
   rows.sort((a,b)=>{if(reportSort==='name')return repName(a.file).localeCompare(repName(b.file),'ko');
     const da=repExtractDate(a.file),db=repExtractDate(b.file);return reportSort==='latest'?db.localeCompare(da):da.localeCompare(db);});
-  const chBtn=(val,lab,cnt)=>`<button class="ch-fl${reportCat===val?' on':''}" data-rc="${val}">${lab}<span class="cfn">${cnt}</span></button>`;
+  const total=REPORTS.analysis.length+REPORTS.proposal.length+REPORTS.guide.length;
   const rowHtml=rows.map(({file,type})=>{
     const[dot,stt]=repStatus(file,type);const linked=linkedCustomersFor(file);const href=TOSS_BASE+encodeURIComponent(file)+'?v='+OG_VER;const bs=REP_BADGE_STYLE[type];
     return `<div class="row rep-row" style="cursor:pointer" data-href="${escapeAttr(href)}">
@@ -1940,6 +1934,23 @@ async function renderReports(){
         <button class="btn ghost sm rep-open" data-href="${escapeAttr(href)}">열기</button>
       </div></div>`;
   }).join('');
+  return rowHtml||'<div class="empty">'+(total?'검색 결과 없음':'아직 배포된 리포트가 없습니다')+'</div>';
+}
+function bindRepRows(scope){
+  const repOpen=h=>window.open(h,'_blank','noopener');
+  scope.querySelectorAll('.rep-row').forEach(r=>r.onclick=()=>repOpen(r.dataset.href));
+  scope.querySelectorAll('.rep-copy').forEach(b=>b.onclick=e=>{e.stopPropagation();repCopy(b.dataset.href);});
+  scope.querySelectorAll('.rep-open').forEach(b=>b.onclick=e=>{e.stopPropagation();repOpen(b.dataset.href);});
+}
+async function renderReports(){
+  const v=$('#view');
+  if(!tossPAT()){v.innerHTML=repTokenCard('');$('#repConnect').onclick=repConnect;return;}
+  if(!reportsLoaded&&!reportsErr){v.innerHTML=`<div class="wrap"><h1 class="page-title">리포트</h1><p class="page-sub">불러오는 중…</p></div>`;await loadReports();return renderReports();}
+  if(reportsErr){v.innerHTML=repTokenCard(reportsErr);$('#repConnect').onclick=repConnect;return;}
+  const counts={analysis:REPORTS.analysis.length,proposal:REPORTS.proposal.length,guide:REPORTS.guide.length};counts.all=counts.analysis+counts.proposal+counts.guide;
+  const ym=(()=>{const d=new Date();return ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0');})();
+  let monthCount=0;REP_CATS.forEach(t=>REPORTS[t].forEach(f=>{const d=repExtractDate(f);if(d&&d.slice(0,6)===ym)monthCount++;}));
+  const chBtn=(val,lab,cnt)=>`<button class="ch-fl${reportCat===val?' on':''}" data-rc="${val}">${lab}<span class="cfn">${cnt}</span></button>`;
   v.innerHTML=`<div class="wrap"><h1 class="page-title">리포트</h1>
     <p class="page-sub">전체 ${counts.all}건 · 이번 달 ${monthCount}건 · 보장분석 ${counts.analysis} · 보장제안 ${counts.proposal} · 가이드 ${counts.guide} · ${TOSS_HOST}</p>
     <div class="ch-fls">${chBtn('all','전체',counts.all)}${chBtn('analysis','보장분석',counts.analysis)}${chBtn('proposal','보장제안',counts.proposal)}${chBtn('guide','가이드',counts.guide)}</div>
@@ -1953,17 +1964,15 @@ async function renderReports(){
       <button class="btn primary sm" id="repDeployBtn">＋ 새 리포트 배포</button>
     </div>
     <div class="search"><span>🔍</span><input id="repSearch" placeholder="리포트 이름 검색" value="${esc(reportSearch)}"></div>
-    <div class="card" style="padding:8px 14px"><div class="list">${rowHtml||'<div class="empty">'+(counts.all?'검색 결과 없음':'아직 배포된 리포트가 없습니다')+'</div>'}</div></div>
+    <div class="card" style="padding:8px 14px"><div class="list">${repListHtml()}</div></div>
   </div>`;
   v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{reportCat=b.dataset.rc;renderReports();});
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{reportSort=b.dataset.rs;renderReports();});
-  const repOpen=h=>window.open(h,'_blank','noopener');
-  v.querySelectorAll('.rep-row').forEach(r=>r.onclick=()=>repOpen(r.dataset.href));
-  v.querySelectorAll('.rep-copy').forEach(b=>b.onclick=e=>{e.stopPropagation();repCopy(b.dataset.href);});
-  v.querySelectorAll('.rep-open').forEach(b=>b.onclick=e=>{e.stopPropagation();repOpen(b.dataset.href);});
+  bindRepRows(v);
   $('#repDeployBtn').onclick=openDeployModal;
   const rcb=$('#repCleanBtn');if(rcb)rcb.onclick=openCleanupModal;
-  const s=$('#repSearch');s.oninput=()=>{reportSearch=s.value.trim();const cur=s.selectionStart;renderReports();const ns=$('#repSearch');if(ns){ns.focus();ns.setSelectionRange(cur,cur);}};
+  // 검색: 뷰 전체를 다시 그리지 않고 리스트만 갱신 → 입력칸이 살아있어 한글 IME 조합이 끊기지 않음
+  const s=$('#repSearch');s.oninput=()=>{reportSearch=s.value;const list=v.querySelector('.list');if(list){list.innerHTML=repListHtml();bindRepRows(list);}};
 }
 function repConnect(){const t=prompt('toss-reports 접근 토큰(github_pat_...) 붙여넣기\n· 보험 고객 가져오기·리포트 배포에 쓰는 동일 토큰');if(!t)return;localStorage.setItem(TOSS_PAT_KEY,t.trim());reportsLoaded=false;reportsErr='';renderReports();}
 function repCopy(url){navigator.clipboard.writeText(url).then(()=>toast('링크 복사됨'),()=>toast('복사 실패'));}
