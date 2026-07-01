@@ -251,6 +251,10 @@ input{font-family:inherit}
 .cf3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
 .modal-card select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;font-size:14px;background:#fff}
 .modal-card textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;font-size:14px;font-family:inherit;resize:vertical}
+.rchips{display:flex;flex-wrap:wrap;gap:7px}
+.rchip{border:1.5px solid var(--line);background:#fff;color:var(--ink);padding:8px 13px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;transition:all .12s}
+.rchip:hover{border-color:var(--primary);color:var(--primary)}
+.rchip.on{background:var(--primary);border-color:var(--primary);color:#fff}
 .cfchk{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
 .cfchk label{display:flex!important;align-items:center;gap:5px;margin:0!important;padding:8px 12px;border:1px solid var(--line);border-radius:10px;font-size:13.5px;color:var(--ink);font-weight:600;cursor:pointer}
 .cfchk input{width:auto!important;accent-color:var(--primary)}
@@ -500,7 +504,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <label><input type="checkbox" id="cf_ch_ins">보험</label>
     </div>
     <div class="cf2">
-      <div><label>생년월일</label><input id="cf_birth" type="date"></div>
+      <div><label>생년월일</label><input id="cf_birth" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off"></div>
       <div><label>성별</label><select id="cf_gender"><option value="">-</option><option>남</option><option>여</option></select></div>
     </div>
     <label>휴대폰</label><input id="cf_phone" inputmode="tel" placeholder="010-0000-0000">
@@ -512,7 +516,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
     </div>
     <div class="cf2">
       <div><label>투자성향 <span style="font-weight:500;color:var(--sub)">· 한투</span></label><select id="cf_risk"><option value="">-</option><option>안정형</option><option>안정추구형</option><option>위험중립형</option><option>적극투자형</option><option>공격투자형</option></select></div>
-      <div><label>최근접촉일 <span style="font-weight:500;color:var(--sub)">· 분기 연락 기준</span></label><input id="cf_contact" type="date"></div>
+      <div><label>최근접촉일 <span style="font-weight:500;color:var(--sub)">· 분기 연락 기준</span></label><input id="cf_contact" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off"></div>
     </div>
     <label>운용상품 보유 <span style="font-weight:500;color:var(--sub)">· 자산자료 자동연결</span></label>
     <div class="pstat" id="cf_prodStatus"></div>
@@ -528,6 +532,38 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
 </div>
 
 <div id="repModal" class="modal hidden"><div class="modal-card" id="repModalCard"></div></div>
+
+<div id="logModal" class="modal hidden">
+  <div class="modal-card" style="max-width:400px">
+    <button class="modal-x" id="lgClose">✕</button>
+    <h3 id="lgTitle">연락 처리</h3>
+    <div class="seg" style="margin:6px 0 14px">
+      <button data-lt="pass" class="on">⏭ 패스(건너뛰기)</button>
+      <button data-lt="date">📅 지난 연락일</button>
+    </div>
+    <div id="lgPassPane">
+      <p class="msub" style="margin:0 0 10px">이번 분기 연락을 건너뜁니다. 사유는 접촉 이력에 남아 다음 연락 때 함께 표시됩니다.</p>
+      <div class="rchips" id="lgReasons">
+        <button class="rchip" data-r="다른 고객 가족">다른 고객 가족</button>
+        <button class="rchip" data-r="논의할 내용 없음">논의할 내용 없음</button>
+        <button class="rchip" data-r="접촉이 껄끄러움">접촉이 껄끄러움</button>
+        <button class="rchip" data-r="이미 최근 연락함">이미 최근 연락함</button>
+        <button class="rchip" data-r="기타">기타</button>
+      </div>
+      <label style="margin-top:4px">메모(선택)</label>
+      <textarea id="lgMemo" rows="2" placeholder="추가 메모"></textarea>
+    </div>
+    <div id="lgDatePane" style="display:none">
+      <p class="msub" style="margin:0 0 10px">이미 연락했지만 기록하지 못한 경우, 실제 연락일을 입력하세요. <b>최근 3개월 이내</b>면 이번 분기 완료로 처리되어 다음 일정으로 넘어갑니다.</p>
+      <label>연락일</label>
+      <input id="lgDate" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off">
+    </div>
+    <div class="modal-btns">
+      <button class="btn ghost sm" id="lgCancel">취소</button>
+      <button class="btn primary sm" id="lgSave">기록</button>
+    </div>
+  </div>
+</div>
 <input type="file" id="reportFileInput" accept=".html,.htm" multiple class="hidden">
 
 <script src="lib/xlsx.full.min.js"></script>
@@ -552,6 +588,14 @@ const won=v=>Math.round(v).toLocaleString('ko-KR')+'원';
 const eok=v=>{const a=Math.abs(v);if(a>=1e8)return(v/1e8).toFixed(2)+'억';if(a>=1e4)return Math.round(v/1e4).toLocaleString()+'만';return Math.round(v).toLocaleString();};
 const pct=v=>(v>0?'+':'')+v.toFixed(1)+'%';
 const dnorm=s=>{s=String(s||'').trim();if(!s)return '';const m=s.replace(/[.]/g,'/').match(/(\d{4})\/?(\d{1,2})\/?(\d{1,2})?/);if(!m)return s;return m[1]+'-'+String(m[2]).padStart(2,'0')+(m[3]?'-'+String(m[3]).padStart(2,'0'):'');};
+/* 날짜 입력칸: 숫자만 받아 YYYY-MM-DD 로 자동 하이픈(연도 4자리 고정) + 붙여넣기(어떤 형식이든 정규화) */
+function fmtDateTyping(v){const d=String(v||'').replace(/\D/g,'').slice(0,8);
+  if(d.length<=4)return d;if(d.length<=6)return d.slice(0,4)+'-'+d.slice(4);
+  return d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6);}
+function bindDateInput(el){if(!el||el._dbound)return;el._dbound=1;
+  el.addEventListener('input',()=>{el.value=fmtDateTyping(el.value);});
+  el.addEventListener('blur',()=>{if(el.value.trim())el.value=dnorm(el.value);});
+  el.addEventListener('paste',e=>{e.preventDefault();const t=((e.clipboardData||window.clipboardData).getData('text')||'');el.value=dnorm(t);});}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2200);}
 /* 도구 페이지를 별도 창(팝업)으로 열기 */
 function openTool(url){const w=Math.min(1280,screen.availWidth||1280),h=Math.min(940,screen.availHeight||940);
@@ -1166,6 +1210,8 @@ function crmBody(c){
     ${ins&&lastHist?row('보험 최근연락',lastHist):''}
     ${ins&&hist.length?row('보험 연락횟수',hist.length+'회'):''}
   </div>
+  ${(cr.passes&&cr.passes.length)?`<div style="margin-top:12px"><span style="font-size:12px;color:var(--sub);font-weight:600">연락 패스 이력 ${cr.passes.length}건</span>
+    <div style="display:flex;flex-direction:column;gap:5px;margin-top:6px">${cr.passes.slice().reverse().slice(0,5).map(p=>`<div style="font-size:12.5px;color:var(--ink);background:#F2EEFB;border-radius:8px;padding:6px 10px"><b style="color:#7C5CD6">⏭ ${esc(p.date)}</b>${p.reason?' · '+esc(p.reason):''}</div>`).join('')}</div></div>`:''}
   ${prodSec}
   ${(cr.linkIds&&cr.linkIds.length)?`<div style="margin-top:12px"><span style="font-size:12px;color:var(--sub);font-weight:600">연결된 보험 리포트 ${cr.linkIds.length}건</span>
     <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px">${cr.linkIds.map(f=>`<a href="${escapeAttr(TOSS_BASE+encodeURIComponent(f))}" target="_blank" rel="noopener" class="rep-link">📄 ${esc(repName(f))}</a>`).join('')}</div></div>`:''}
@@ -1208,6 +1254,7 @@ function refreshFormProdChips(){
 function bindCrmForm(){
   const close=()=>$('#crmModal').classList.add('hidden');
   $('#cfClose').onclick=close;$('#cfCancel').onclick=close;
+  bindDateInput($('#cf_birth'));bindDateInput($('#cf_contact'));
   $('#cfSave').onclick=async()=>{
     const nm=crmEditName||$('#cf_name').value.trim();
     if(!nm){toast('이름을 입력하세요');return;}
@@ -1217,9 +1264,9 @@ function bindCrmForm(){
     const rec={name:nm,birth:dnorm($('#cf_birth').value),gender:$('#cf_gender').value,phone:$('#cf_phone').value.trim(),
       company:$('#cf_company').value.trim(),sido:$('#cf_sido').value.trim(),sigungu:$('#cf_sigungu').value.trim(),dong:$('#cf_dong').value.trim(),
       riskType:$('#cf_risk').value,pension:$('#cf_pension').checked,prod,memo:$('#cf_memo').value.trim(),
-      lastContact:$('#cf_contact').value,
+      lastContact:dnorm($('#cf_contact').value),
       channels,anchorMonth:ex.anchorMonth||null,
-      history:ex.history||[],linkIds:ex.linkIds||[],
+      history:ex.history||[],passes:ex.passes||[],linkIds:ex.linkIds||[],
       updatedAt:new Date().toISOString()};
     await crmPut(rec);CRM[nm]=rec;close();toast('저장됨');
     if(syncOn())syncNow(true);
@@ -1482,12 +1529,14 @@ function contactRow(c,statusTag){
   const lc=c.crm&&c.crm.lastContact;
   const pt=pensionTarget(c)?'<span class="tag" style="background:#EAF1FE;color:#3182F6">퇴직연금</span>':'';
   const reason=contactReasons(c)[0];
+  const doneMode=c._doneCycle;   // 이미 처리된 고객은 버튼 숨김
   return `<div class="row" data-name="${esc(c.name)}"><div style="min-width:0"><div class="nm">${esc(c.name)} <small>${c.acctPrefix||''}</small></div>
-    <div class="tags">${statusTag}${pt}${riskTag(c.riskType)}<span class="tag">${lc?'최근접촉 '+lc:'접촉기록 없음'}</span></div>
+    <div class="tags">${statusTag}${pt}${riskTag(c.riskType)}<span class="tag">${lc?'최근접촉 '+lc:'접촉기록 없음'}</span>${passTag(c.crm)}</div>
     <div style="font-size:12px;color:var(--sub2);margin-top:4px;line-height:1.35">${reason}</div></div>
     <div class="right" style="display:flex;gap:6px;align-items:center">
       ${ph?`<a class="btn ghost sm" href="tel:${esc(ph)}" onclick="event.stopPropagation()">📞</a>`:''}
-      <button class="btn primary sm btn-contacted" data-name="${esc(c.name)}">✓ 연락완료</button>
+      ${doneMode?'':`<button class="btn ghost sm btn-pass" data-name="${esc(c.name)}">⏭</button>
+      <button class="btn primary sm btn-contacted" data-name="${esc(c.name)}">✓ 연락완료</button>`}
     </div><span class="chev">›</span></div>`;
 }
 function srow(c,extra,tags){
@@ -1517,6 +1566,7 @@ function renderStrategy(){
     const statusTag=c=>c._st==='overdue'?`<span class="tag" style="background:#FDECEE;color:#E0344B">${md(c)} 지남</span>`
       :c._st==='today'?`<span class="tag" style="background:#FCF3E0;color:#C98A0B">오늘 연락</span>`
       :c._st==='upcoming'?`<span class="tag" style="background:#EEF3FF;color:#3182F6">${md(c)} 예정</span>`
+      :c._passed?`<span class="tag" style="background:#F2EEFB;color:#7C5CD6">⏭ 패스</span>`
       :`<span class="tag" style="background:#E5F8EE;color:#0F9D58">완료</span>`;
     // 다음 한 명 강조 카드 (밀림→오늘→가까운 예정)
     const next=dueList[0]||up[0]||null;
@@ -1535,6 +1585,7 @@ function renderStrategy(){
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           ${ph?`<a class="btn ghost" href="tel:${esc(ph)}">📞 전화</a>`:''}
           <button class="btn primary btn-contacted" data-name="${esc(c.name)}">✓ 연락완료</button>
+          <button class="btn ghost btn-pass" data-name="${esc(c.name)}">⏭ 패스 / 지난 연락일</button>
           <button class="btn ghost btn-openclient" data-name="${esc(c.name)}">고객 상세 ›</button>
         </div></div>
         <p class="page-sub">오늘 도래 <b>${overN+todayN}명</b>(지남 ${overN}·오늘 ${todayN}) · 이번 달 예정 ${up.length}명 · 완료 ${done.length}명</p>`;
@@ -1648,6 +1699,7 @@ function renderStrategy(){
   v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{const g=STRAT_GROUPS.find(x=>x[0]===b.dataset.sg);if(g){stratTab=g[1][0];renderStrategy();}});
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{stratTab=b.dataset.t;renderStrategy();});
   v.querySelectorAll('.btn-contacted').forEach(b=>b.onclick=e=>{e.stopPropagation();contactDone(b.dataset.name);});
+  v.querySelectorAll('.btn-pass').forEach(b=>b.onclick=e=>{e.stopPropagation();openLogModal(b.dataset.name,'pass');});
   v.querySelectorAll('.btn-openclient').forEach(b=>b.onclick=e=>{e.stopPropagation();openClient(b.dataset.name);});
   v.querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
 }
@@ -1696,22 +1748,81 @@ function unifiedDue(){
   const ins=due.filter(c=>!hasChannel(c,'한투')).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   const ordered=[];for(let i=0;i<Math.max(kis.length,ins.length);i++){if(i<kis.length)ordered.push(kis[i]);if(i<ins.length)ordered.push(ins[i]);}
   const bd=insBizDaysOfMonth(TY,TM),N=ordered.length;
+  const cycleFrom=addMonths(TODAY,-3);   // 최근 3개월 이내 접촉/패스 = 이번 분기 처리 완료
   ordered.forEach((c,i)=>{
     const di=N<=1?0:Math.min(bd.length-1,Math.floor(i*bd.length/N));
     c._day=bd[di];c._dateIso=insIso(new Date(TY,TM-1,c._day));
-    const lc=unifiedLastContact(c);c._doneCycle=lc&&lc>=monthFirst;
+    const lc=unifiedLastContact(c);
+    const contactedRecently=!!(lc&&lc>=cycleFrom);
+    const passedRecently=((c.crm.passes||[]).some(p=>p.date>=cycleFrom));
+    c._passed=passedRecently&&!contactedRecently;   // 실접촉 없이 패스만 있으면 '패스'로 표시
+    c._doneCycle=contactedRecently||passedRecently;
     c._st=c._doneCycle?'done':c._dateIso<TODAY?'overdue':c._dateIso===TODAY?'today':'upcoming';
   });
   return ordered;
 }
-async function contactDone(name){
-  const cr=CRM[name];if(!cr)return;const t=todayStr();
+async function contactDone(name,dateOverride){
+  const cr=CRM[name];if(!cr)return;
+  const t=dnorm(dateOverride||todayStr())||todayStr();
   cr.history=cr.history||[];if(!cr.history.includes(t))cr.history.push(t);
-  cr.lastContact=t;cr.updatedAt=new Date().toISOString();
-  await crmPut(cr);CRM[name]=cr;toast(name+' · 연락완료 '+t);
+  if(!cr.lastContact||t>cr.lastContact)cr.lastContact=t;   // 실제 최근접촉은 과거날짜로 밀지 않음
+  cr.updatedAt=new Date().toISOString();
+  await crmPut(cr);CRM[name]=cr;toast(name+' · 연락기록 '+t);
   if(syncOn())syncNow(true);render();
 }
 window.contactDone=contactDone;
+async function contactPass(name,reason){
+  const cr=CRM[name];if(!cr)return;const t=todayStr();
+  cr.passes=cr.passes||[];cr.passes.push({date:t,reason:reason||''});
+  cr.updatedAt=new Date().toISOString();
+  await crmPut(cr);CRM[name]=cr;toast(name+' · 이번 분기 패스');
+  if(syncOn())syncNow(true);render();
+}
+window.contactPass=contactPass;
+/* 접촉 이력의 마지막 패스(사유) — 다음 연락 때 참고용 표시 */
+function lastPass(cr){const p=(cr&&cr.passes)||[];return p.length?p[p.length-1]:null;}
+function passTag(cr){const p=lastPass(cr);if(!p)return '';const r=p.reason?' · '+esc(p.reason):'';return `<span class="tag" style="background:#F2EEFB;color:#7C5CD6" title="패스 ${esc(p.date)}${r}">⏭ 패스 ${esc(p.date)}${r}</span>`;}
+
+/* ----- 연락 처리 모달 (패스 / 지난 연락일) ----- */
+let logModalName=null,logTab='pass',logReason='';
+function openLogModal(name,tab){
+  logModalName=name;logTab=tab||'pass';logReason='';
+  $('#lgTitle').textContent=name+' · 연락 처리';
+  $('#lgMemo').value='';$('#lgDate').value=todayStr();
+  $('#lgReasons').querySelectorAll('.rchip').forEach(b=>b.classList.remove('on'));
+  setLogTab(logTab);
+  $('#logModal').classList.remove('hidden');
+}
+function setLogTab(tab){logTab=tab;
+  $('#logModal').querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.lt===tab));
+  $('#lgPassPane').style.display=tab==='pass'?'':'none';
+  $('#lgDatePane').style.display=tab==='date'?'':'none';
+  $('#lgSave').textContent=tab==='pass'?'패스 기록':'연락일 기록';
+}
+function bindLogModal(){
+  const close=()=>$('#logModal').classList.add('hidden');
+  $('#lgClose').onclick=close;$('#lgCancel').onclick=close;
+  bindDateInput($('#lgDate'));
+  $('#logModal').querySelectorAll('.seg button').forEach(b=>b.onclick=()=>setLogTab(b.dataset.lt));
+  $('#lgReasons').querySelectorAll('.rchip').forEach(b=>b.onclick=()=>{
+    $('#lgReasons').querySelectorAll('.rchip').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');logReason=b.dataset.r;});
+  $('#lgSave').onclick=async()=>{
+    const nm=logModalName;if(!nm)return;
+    if(logTab==='pass'){
+      const memo=$('#lgMemo').value.trim();
+      const reason=[logReason,memo].filter(Boolean).join(' — ');
+      if(!reason){toast('패스 사유를 선택하세요');return;}
+      close();await contactPass(nm,reason);
+    }else{
+      const d=dnorm($('#lgDate').value);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){toast('연락일을 YYYY-MM-DD 로 입력하세요');return;}
+      if(d>todayStr()){toast('미래 날짜는 기록할 수 없습니다');return;}
+      close();await contactDone(nm,d);
+    }
+  };
+}
+window.openLogModal=openLogModal;
 
 /* =========================================================
    ----- 리포트 (보험 리포트 배포·관리) -----
@@ -2397,7 +2508,7 @@ async function migrateInsurance(){
       lastContact:(ex&&ex.lastContact)||(mergedHist.length?mergedHist[mergedHist.length-1]:''),
       channels:[...channels],
       anchorMonth:ic.anchorMonth||(ex&&ex.anchorMonth)||null,
-      history:mergedHist,
+      history:mergedHist,passes:(ex&&ex.passes)||[],
       linkIds:(ex&&ex.linkIds)||[],
       updatedAt:new Date().toISOString()};
     if(ex)merged++;else added++;
@@ -2432,7 +2543,7 @@ function bindGlobal(){
   $('#navClose').onclick=()=>toggleDrawer(false);
   $('#drawerBackdrop').onclick=()=>toggleDrawer(false);
   $('#footToggle').onclick=()=>{const nowHidden=$('#footGroup').classList.toggle('hidden');$('#footToggle').classList.toggle('open',!nowHidden);};
-  bindSync();bindCrmForm();bindUpload();if(syncOn())setSyncDot('ok');
+  bindSync();bindCrmForm();bindLogModal();bindUpload();if(syncOn())setSyncDot('ok');
   $('#btnExport').onclick=doExport;
   $('#btnSecurity').onclick=doSecurity;
   $('#btnCrmImport').onclick=()=>$('#crmFileInput').click();
