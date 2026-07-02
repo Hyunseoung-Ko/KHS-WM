@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>통합 대시보드 · 한투+보험</title>
 <style>
 /* 로컬 번들 폰트 (외부 CDN 아님) — 한투/토스 계열 Pretendard */
@@ -66,7 +66,7 @@ input{font-family:inherit}
 .nav{padding:8px 12px;flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .nav-label{font-size:11px;letter-spacing:.4px;color:var(--faint);font-weight:600;padding:8px 11px 8px}
 .nav a{display:flex;align-items:center;gap:12px;padding:11px 11px;border-radius:12px;color:var(--sub2);
-  text-decoration:none;font-weight:500;font-size:14.5px;margin-bottom:2px;transition:color .15s,background .15s}
+  text-decoration:none;font-weight:500;font-size:14.5px;margin-bottom:2px;transition:color .15s,background .15s;cursor:pointer}
 .nav a .ic{width:19px;height:19px;display:flex;align-items:center;justify-content:center;font-size:17px}
 .nav a .ic svg{width:19px;height:19px;stroke:currentColor;fill:none}
 .nav a:hover{background:var(--inset);color:var(--ink)}
@@ -91,7 +91,7 @@ input{font-family:inherit}
 .collapse-body.collapsed{display:none}
 
 .drawer-close{display:none}
-#main{flex:1;margin-left:230px;padding:0 0 40px}
+#main{flex:1;margin-left:236px;padding:0 0 40px}
 .topbar{display:none}
 #drawerBackdrop{display:none}
 #bottomNav{display:none}
@@ -317,9 +317,10 @@ input{font-family:inherit}
 .ch-fl.on{background:var(--primary);color:#fff;border-color:var(--primary)}
 .ch-fl .cfn{font-size:11.5px;font-weight:700;background:var(--line2);color:var(--sub3);border-radius:10px;padding:1px 7px}
 .ch-fl.on .cfn{background:rgba(255,255,255,.25);color:#fff}
+.ch-fl .cfn.hot{background:#FDECEE;color:var(--danger)}
 
 /* ---------- RESPONSIVE (JS 클래스 html.m 기반 — iOS 회전 안정) ---------- */
-html.m #sidebar{display:flex;width:200px;max-width:62vw;transform:translateX(-100%);transition:transform .24s cubic-bezier(.4,0,.2,1);box-shadow:0 0 50px rgba(15,20,35,.25);z-index:70}
+html.m #sidebar{display:flex;width:220px;max-width:66vw;transform:translateX(-100%);transition:transform .24s cubic-bezier(.4,0,.2,1);box-shadow:0 0 50px rgba(15,20,35,.25);z-index:70}
 html.m #sidebar.open{transform:translateX(0)}
 /* 드로어: 가운데 메뉴(.nav)가 내부 스크롤, 상단 브랜드·하단 푸터는 고정 — 길어지면 메뉴만 스크롤 */
 html.m #drawerBackdrop{display:block;position:fixed;inset:0;background:rgba(15,20,35,.45);z-index:65;opacity:0;visibility:hidden;transition:opacity .24s,visibility .24s}
@@ -361,6 +362,10 @@ html.m #bottomNav a .bnl{line-height:1}
 html.m #bottomNav a.active{color:var(--primary)}
 html.m #bottomNav a.active .bnl{font-weight:800}
 html.m #bottomNav a:active{background:var(--bg)}
+/* 연락 큐 행: 모바일에선 정보(이름·태그·사유)를 전체 폭으로, 버튼은 아랫줄로 스택 */
+html.m .list .crow{flex-wrap:wrap}
+html.m .list .crow>div:first-child{flex:1 1 calc(100% - 34px);min-width:0}
+html.m .list .crow .right{flex-basis:100%;margin-left:0;margin-top:6px;justify-content:flex-end}
 html.m .seg{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;scrollbar-width:none}
 html.m .seg::-webkit-scrollbar{display:none}
 html.m .seg button{flex:0 0 auto;padding:10px 12px}
@@ -372,7 +377,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
 <!-- ===== PIN GATE ===== -->
 <div id="gate">
   <div class="gate-logo"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></div>
-  <h1>Asset Board 잠금 해제</h1>
+  <h1>통합 대시보드 잠금 해제</h1>
   <p id="gateMsg">PIN 6자리를 입력하세요</p>
   <div class="pin-box" id="pinBox"></div>
   <div class="pin-pad" id="pinPad"></div>
@@ -396,9 +401,9 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <a data-view="strategy"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg></span> 영업</a>
       <a data-view="reports"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z" transform="translate(-1 0)"/><path d="M13 3v5h5"/><path d="M9 13h6M9 17h6"/></svg></span> 리포트</a>
       <div class="nav-label">작업</div>
-      <a style="cursor:pointer" onclick="openUploadModal()"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a0 0 0 0 1 0 0H4z"/><path d="M14 4v5h5"/><path d="M12 18v-5M12 13l-2 2M12 13l2 2"/></svg></span> 한투자산 업로드</a>
-      <a style="cursor:pointer" onclick="openDeployModal()"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span> 리포트 배포</a>
-      <a style="cursor:pointer" onclick="openCleanupModal()"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg></span> 오래된 링크 정리</a>
+      <a data-act="upload"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a0 0 0 0 1 0 0H4z"/><path d="M14 4v5h5"/><path d="M12 18v-5M12 13l-2 2M12 13l2 2"/></svg></span> 한투자산 업로드</a>
+      <a data-act="deploy"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></span> 리포트 배포</a>
+      <a data-act="cleanup"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14"/></svg></span> 오래된 링크 정리</a>
       <div class="nav-label">외부 도구</div>
       <a href="https://hyunseoung-ko.github.io/toss-reports/CRM_가입설계_입력변환.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 12l4-4M3 12l4 4"/><path d="M21 6v12"/></svg></span> CRM 데이터 변환<span class="ext">↗</span></a>
       <a href="https://va-planner-license.pages.dev/" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></span> VA플래너<span class="ext">↗</span></a>
@@ -407,9 +412,9 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <a href="https://hyunseoung-ko.github.io/toss-reports/checklist2.html" onclick="return openTool(this.href)"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span> 보장 종합분석<span class="ext">↗</span></a>
     </nav>
     <div class="side-foot">
-      <button id="btnSync" class="foot-ic" aria-label="새로고침">
+      <button id="btnSync" class="foot-ic" aria-label="지금 동기화" title="클릭 시 바로 동기화 · 설정은 설정 ▾ 안에">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
-        <span class="ft">새로고침(동기화)</span><span class="sync-dot" id="syncDot"></span>
+        <span class="ft">지금 동기화</span><span class="sync-dot" id="syncDot"></span>
       </button>
       <button class="foot-toggle foot-ic" id="footToggle" aria-label="설정">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -420,6 +425,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
         <span class="ft">사용설명서</span>
       </a>
       <div class="foot-group hidden" id="footGroup">
+        <button id="btnSyncSet">🔄 동기화 설정 (repo · 토큰 · 암호)</button>
         <button id="btnSecurity">🔐 PIN · 생체인증 · 자동잠금</button>
         <button id="btnCrmImport">📇 한투 CRM 엑셀 가져오기(최초 1회)</button>
         <button id="btnInsImport">📥 보험 고객 가져오기(toss-reports)</button>
@@ -856,13 +862,20 @@ async function parseFiles(fileList){
    ========================================================= */
 let SNAPS=[];           // all snapshots sorted by date
 let CRM={};             // name -> CRM record (직접입력·영구)
-let DELDATES={};        // 삭제 tombstone: {날짜: 삭제시각ISO} — 삭제시각 > 스냅샷 업로드시각일 때만 삭제(재업로드하면 부활)
-/* tombstone 정규화: 구버전(문자열 배열)·null → {날짜: epoch0} 변환(=옛 삭제표시는 실제 스냅샷보다 항상 오래됨 → 무력화·자동치유) */
+let DELDATES={};        // 삭제 tombstone: {날짜: 삭제시각ISO}
+/* ---- 삭제 전파 정책 (2026-07-02 재설계) ----
+   · DEL_FENCE 이전의 삭제표시는 전부 무효(2026-06 동기화 사고 잔재 차단) — 발견 즉시 정리
+   · 이후의 🗑 삭제(삭제시각=now)는 유효: 삭제시각 > 스냅샷 업로드시각이면 모든 기기에서 삭제 반영
+   · 같은 날짜를 다시 업로드하면 uploadedAt=now > 삭제시각 → 의도적 부활 */
+const DEL_FENCE='2026-07-02T00:00:00.000Z';
+/* tombstone 정규화: 구버전(문자열 배열)·null → {날짜: epoch0}(펜스 이전 → 무효) */
 function normDel(x){if(Array.isArray(x)){const m={};x.forEach(d=>{m[d]='1970-01-01T00:00:00.000Z';});return m;}return (x&&typeof x==='object')?x:{};}
 /* 두 tombstone 맵 병합 — 날짜별 최신 삭제시각 채택 */
 function mergeDelMap(a,b){const m={...normDel(a)},nb=normDel(b);for(const d in nb){if(!m[d]||nb[d]>m[d])m[d]=nb[d];}return m;}
-/* 이 스냅샷이 tombstone으로 삭제돼야 하는가? (삭제시각 > 업로드시각) */
-function isTombed(snap,del){const at=del&&del[snap.date];return !!(at&&at>(snap.uploadedAt||''));}
+/* 펜스 이전 삭제표시 제거 (in place) */
+function pruneStaleDel(del){for(const d in del){if(del[d]<DEL_FENCE)delete del[d];}return del;}
+/* 이 스냅샷이 tombstone으로 삭제돼야 하는가? (펜스 이후 삭제 && 삭제시각 > 업로드시각) */
+function isTombed(snap,del){const at=del&&del[snap.date];return !!(at&&at>=DEL_FENCE&&at>(snap.uploadedAt||''));}
 let pendingFiles=[];    // selected for upload
 let curView='home';
 let inDetail=false;
@@ -872,11 +885,16 @@ function killCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e
 const latest=()=>SNAPS[SNAPS.length-1]||null;
 
 async function reload(){DELDATES=normDel(await metaGet('deletedDates'));
-  // 존재하는 스냅샷은 절대 자동삭제하지 않음(데이터 유실 방지) — 해당 날짜의 삭제표시는 제거
-  const allS=await idbAll();
-  let chg=false;for(const s of allS){if(DELDATES[s.date]){delete DELDATES[s.date];chg=true;}}
-  if(chg)await metaPut('deletedDates',DELDATES);
-  SNAPS=allS;
+  const before=JSON.stringify(DELDATES);
+  pruneStaleDel(DELDATES);   // 펜스 이전(과거 사고 잔재) 삭제표시 정리
+  const allS=await idbAll(),keep=[];
+  for(const s of allS){
+    if(isTombed(s,DELDATES)){await idbDel(s.date);continue;}   // 유효한 명시 삭제만 반영
+    if(DELDATES[s.date])delete DELDATES[s.date];               // 스냅샷이 이긴(재업로드된) 표시는 정리
+    keep.push(s);
+  }
+  if(JSON.stringify(DELDATES)!==before)await metaPut('deletedDates',DELDATES);
+  SNAPS=keep;
   SNAPS.forEach(fixSnapPrincipals);const cl=await crmAll();CRM={};cl.forEach(c=>CRM[c.name]=c);render();}
 
 /* ---------- 자산(스냅샷) + CRM(직접입력) 통합 고객 맵 ---------- */
@@ -929,8 +947,8 @@ function homeContactCard(){
   return `<div class="card" style="cursor:pointer" onclick="goStrategyContact()">
     <h3>📞 오늘 연락할 고객<span class="meta">한투+보험 통합 · 분기 1회 · 클릭 → 영업 ›</span></h3>
     <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;padding:6px 2px 2px">
-      <div><span style="font-size:28px;font-weight:800;color:#E0344B">${over}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
-      <div><span style="font-size:28px;font-weight:800;color:#C98A0B">${tod}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
+      <div><span style="font-size:28px;font-weight:800;color:var(--danger)">${over}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
+      <div><span style="font-size:28px;font-weight:800;color:var(--warn-d)">${tod}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
       <div><span style="font-size:28px;font-weight:800;color:var(--sub2)">${up}</span><span style="color:var(--sub);margin-left:5px">명 예정</span></div>
       <div><span style="font-size:28px;font-weight:800;color:var(--ok-d)">${done}</span><span style="color:var(--sub);margin-left:5px">명 완료</span></div>
     </div></div>`;
@@ -1307,13 +1325,27 @@ async function importCrmExcel(file){
       riskType:sv(I.risk,ex.riskType),pension:flag('pension'),
       prod:{DC:flag('DC'),IRP:flag('IRP'),연금:flag('연금'),CMA:flag('CMA'),주식:flag('주식'),기타:flag('기타')},
       memo:sv(I.memo,ex.memo),lastContact:ex.lastContact||'',
-      channels:[...new Set([...(ex.channels||[]),'한투'])],anchorMonth:ex.anchorMonth||null,history:ex.history||[],linkIds:ex.linkIds||[],
+      channels:[...new Set([...(ex.channels||[]),'한투'])],anchorMonth:ex.anchorMonth||null,history:ex.history||[],passes:ex.passes||[],linkIds:ex.linkIds||[],
       updatedAt:new Date().toISOString()};
     await crmPut(rec);CRM[nm]=rec;n++;
   }
   toast('CRM '+n+'명 가져옴 · 보험고객 시트 제외');render();if(syncOn())syncNow(true);
 }
-function mergeCrm(a,b){const m={};[...(a||[]),...(b||[])].forEach(c=>{if(!c||!c.name)return;const ex=m[c.name];if(!ex||(c.updatedAt||'')>=(ex.updatedAt||''))m[c.name]=c;});return Object.values(m);}
+/* CRM 병합: 편집 필드는 updatedAt 최신 레코드 승리, 누적 배열(history·passes·linkIds)은 union —
+   두 기기에서 같은 고객에게 각각 연락기록을 남겨도 유실되지 않음 (channels는 편집값이라 최신 승리) */
+function mergeCrm(a,b){const m={};[...(a||[]),...(b||[])].forEach(c=>{
+  if(!c||!c.name)return;const ex=m[c.name];
+  if(!ex){m[c.name]={...c};return;}
+  const newer=(c.updatedAt||'')>=(ex.updatedAt||'')?c:ex;
+  const u={...newer};
+  u.history=[...new Set([...(ex.history||[]),...(c.history||[])])].sort();
+  const pk=p=>p.date+'|'+(p.reason||'');const pm={};
+  [...(ex.passes||[]),...(c.passes||[])].forEach(p=>{if(p&&p.date&&!pm[pk(p)])pm[pk(p)]=p;});
+  u.passes=Object.values(pm).sort((x,y)=>String(x.date).localeCompare(String(y.date)));
+  u.linkIds=[...new Set([...(ex.linkIds||[]),...(c.linkIds||[])])];
+  if(u.history.length){const last=u.history[u.history.length-1];if(!u.lastContact||last>u.lastContact)u.lastContact=last;}
+  m[c.name]=u;});
+  return Object.values(m);}
 function prodCard(p){
   const cat=p.category||'기타자산';
   return `<div class="prod"><div class="pmain">
@@ -1491,7 +1523,7 @@ function renderAssets(){
     v.querySelectorAll('#snapList .snap-del').forEach(b=>b.onclick=async(e)=>{
       e.stopPropagation();
       const d=b.dataset.date;
-      if(confirm(d+' 스냅샷을 완전히 삭제할까요?\n(동기화·다른 기기에서도 삭제됩니다)')){
+      if(confirm(d+' 스냅샷을 완전히 삭제할까요?\n(동기화 시 다른 기기에서도 삭제 · 같은 날짜를 다시 업로드하면 복원됩니다)')){
         await idbDel(d);
         DELDATES[d]=new Date().toISOString();   // 삭제시각 기록(이후 업로드분만 부활)
         await metaPut('deletedDates',DELDATES);
@@ -1528,9 +1560,9 @@ function contactRow(c,statusTag){
   const ph=(c.crm&&c.crm.phone)||'';
   const lc=c.crm&&c.crm.lastContact;
   const pt=pensionTarget(c)?'<span class="tag" style="background:#EAF1FE;color:#3182F6">퇴직연금</span>':'';
-  const reason=contactReasons(c)[0];
+  const reason=esc(contactReasons(c)[0]);
   const doneMode=c._doneCycle;   // 이미 처리된 고객은 버튼 숨김
-  return `<div class="row" data-name="${esc(c.name)}"><div style="min-width:0"><div class="nm">${esc(c.name)} <small>${c.acctPrefix||''}</small></div>
+  return `<div class="row crow" data-name="${esc(c.name)}"><div style="min-width:0"><div class="nm">${esc(c.name)} <small>${c.acctPrefix||''}</small></div>
     <div class="tags">${statusTag}${pt}${riskTag(c.riskType)}<span class="tag">${lc?'최근접촉 '+lc:'접촉기록 없음'}</span>${passTag(c.crm)}</div>
     <div style="font-size:12px;color:var(--sub2);margin-top:4px;line-height:1.35">${reason}</div></div>
     <div class="right" style="display:flex;gap:6px;align-items:center">
@@ -1573,7 +1605,7 @@ function renderStrategy(){
     const nextName=next?next.name:null;
     if(next){
       const c=next,ph=(c.crm&&c.crm.phone)||'';
-      const reasons=contactReasons(c).slice(0,2).map(r=>`<div style="font-size:13px;color:var(--ink);margin-top:4px">${r}</div>`).join('');
+      const reasons=contactReasons(c).slice(0,2).map(r=>`<div style="font-size:13px;color:var(--ink);margin-top:4px">${esc(r)}</div>`).join('');
       lead=`<div class="card" style="border:1.5px solid var(--primary);background:#F5F9FF">
         <div style="font-size:12px;color:var(--primary);font-weight:700;margin-bottom:6px">${c._st==='upcoming'?'▶ 다음 예정 고객':'▶ 지금 연락할 고객'}</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -1689,8 +1721,10 @@ function renderStrategy(){
   }
 
   const sg=STRAT_GROUPS.find(g=>g[1].includes(stratTab))||STRAT_GROUPS[0];
+  // 연락 그룹칩 뱃지 = 오늘 도래(밀림+오늘) 고객 수 — 하위탭 개수 뱃지는 고객 수로 오독되어 제거
+  const dueN=unifiedDue().filter(c=>c._st==='overdue'||c._st==='today').length;
   v.innerHTML=`<div class="wrap"><h1 class="page-title">영업</h1><p class="page-sub">CRM × 자산 도출 액션 리스트</p>
-    <div class="ch-fls">${STRAT_GROUPS.map(([g,tabs])=>`<button class="ch-fl${sg[0]===g?' on':''}" data-sg="${g}">${g}<span class="cfn">${tabs.length}</span></button>`).join('')}</div>
+    <div class="ch-fls">${STRAT_GROUPS.map(([g])=>`<button class="ch-fl${sg[0]===g?' on':''}" data-sg="${g}">${g}${g==='연락'?`<span class="cfn${dueN>0?' hot':''}">${dueN}</span>`:''}</button>`).join('')}</div>
     ${sg[1].length>1?`<div class="toolbar"><div class="seg">${sg[1].map(t=>`<button data-t="${t}" class="${stratTab===t?'on':''}">${STRAT_TAB_LABEL[t]}</button>`).join('')}</div></div>`:''}
     <p class="page-sub">${desc}</p>
     ${lead||''}
@@ -1945,7 +1979,9 @@ function bindRepRows(scope){
 async function renderReports(){
   const v=$('#view');
   if(!tossPAT()){v.innerHTML=repTokenCard('');$('#repConnect').onclick=repConnect;return;}
-  if(!reportsLoaded&&!reportsErr){v.innerHTML=`<div class="wrap"><h1 class="page-title">리포트</h1><p class="page-sub">불러오는 중…</p></div>`;await loadReports();return renderReports();}
+  if(!reportsLoaded&&!reportsErr){v.innerHTML=`<div class="wrap"><h1 class="page-title">리포트</h1><p class="page-sub">불러오는 중…</p></div>`;await loadReports();
+    if(curView!=='reports')return;   // 로딩 중 다른 화면으로 이동했으면 덮어쓰지 않음
+    return renderReports();}
   if(reportsErr){v.innerHTML=repTokenCard(reportsErr);$('#repConnect').onclick=repConnect;return;}
   const counts={analysis:REPORTS.analysis.length,proposal:REPORTS.proposal.length,guide:REPORTS.guide.length};counts.all=counts.analysis+counts.proposal+counts.guide;
   const ym=(()=>{const d=new Date();return ''+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0');})();
@@ -2401,23 +2437,29 @@ async function syncNow(silent){
   if(syncing)return false;syncing=true;setSyncDot('sync');
   const cfg=syncCfg();let pass=syncPass(); // pass = 쓰기(재암호화)에 쓸 키 — 복호화 성공한 키로 갱신됨
   const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[],deleted:{}}:{snaps:dec.snapshots||[],crm:dec.crm||[],deleted:normDel(dec.deleted)};
-  // 정책: 실제로 존재하는 스냅샷은 어떤 삭제표시로도 지우지 않는다(데이터 유실 방지). 삭제표시는 '없는 날짜'에만 의미.
+  // 정책(2026-07-02): DEL_FENCE 이후의 명시 삭제(삭제시각>업로드시각)만 전 기기 반영, 펜스 이전 표시는 무효·정리. 재업로드(uploadedAt=now)는 삭제를 이김.
+  const applyDelPolicy=async(snaps,del)=>{pruneStaleDel(del);
+    const alive=[];for(const s of snaps){if(isTombed(s,del)){await idbDel(s.date);}else{if(del[s.date])delete del[s.date];alive.push(s);}}
+    return alive;};
   try{
     let remoteFile=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
     let remote=[],remoteCrm=[],remoteDel={},sha=remoteFile?remoteFile.sha:null;
     if(remoteFile&&remoteFile.content){try{const r=await decTry(remoteFile.content,passCandidates());const d=splitRemote(r.data);remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}catch(e){throw new Error('복호화 실패 — 기존 데이터의 동기화 암호가 필요합니다. 동기화 설정에서 이전에 쓰던 암호를 입력하세요');}}
     const local=await idbAll(),localCrm=await crmAll();
     let merged=mergeSnaps(local,remote),mergedCrm=mergeCrm(localCrm,remoteCrm);
-    // 존재하는 스냅샷 날짜의 삭제표시는 모두 제거(부활 후 재삭제 루프 방지) → 사실상 비파괴
-    let mergedDel=mergeDelMap(DELDATES,remoteDel);merged.forEach(s=>{delete mergedDel[s.date];});
+    let mergedDel=mergeDelMap(DELDATES,remoteDel);
+    merged=await applyDelPolicy(merged,mergedDel);
     for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
     const payload={snapshots:merged,crm:mergedCrm,deleted:mergedDel};
     if(JSON.stringify(payload)!==JSON.stringify({snapshots:remote,crm:remoteCrm,deleted:remoteDel})){
       try{await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON(payload,pass),sha,'sync '+new Date().toISOString());}
       catch(e){ if(e.status===409||/sha|409/.test(e.message)){ // 충돌 → 재병합 1회
-        const rf=await ghGet(cfg.repo,SYNC_PATH,cfg.token);const rd=rf&&rf.content?splitRemote(await decJSON(rf.content,pass)):{snaps:[],crm:[],deleted:{}};
+        const rf=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
+        let rd={snaps:[],crm:[],deleted:{}};
+        if(rf&&rf.content){const rr=await decTry(rf.content,[...new Set([pass,...passCandidates()])]);rd=splitRemote(rr.data);pass=rr.pass;}
         merged=mergeSnaps(merged,rd.snaps);mergedCrm=mergeCrm(mergedCrm,rd.crm);
-        mergedDel=mergeDelMap(mergedDel,rd.deleted);merged.forEach(s=>{delete mergedDel[s.date];});
+        mergedDel=mergeDelMap(mergedDel,rd.deleted);
+        merged=await applyDelPolicy(merged,mergedDel);
         for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
         await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:merged,crm:mergedCrm,deleted:mergedDel},pass),rf?rf.sha:null,'sync(merge) '+new Date().toISOString());
       } else throw e; }
@@ -2433,7 +2475,9 @@ function openSync(){const c=syncCfg()||{};$('#syRepo').value=c.repo||'Hyunseoung
   $('#syPass').value=localStorage.getItem(SPASS_KEY)||'';
   $('#syStatus').textContent=c.enabled?'✅ 동기화 켜져 있음':'현재 꺼짐';$('#syncModal').classList.remove('hidden');toggleDrawer(false);}
 function bindSync(){
-  $('#btnSync').onclick=openSync;
+  // 순환 아이콘 = 즉시 동기화(가장 잦은 동작). 미설정 상태면 설정 모달로 안내.
+  $('#btnSync').onclick=()=>{if(syncOn())syncNow(false);else openSync();};
+  $('#btnSyncSet').onclick=openSync;
   $('#syClose').onclick=()=>$('#syncModal').classList.add('hidden');
   $('#syTest').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim(),pass=$('#syPass').value;
     const S=t=>{$('#syStatus').textContent=t;};
@@ -2530,7 +2574,7 @@ async function migrateInsurance(){
 async function doSecurity(){
   const hasBio=!!localStorage.getItem(BIO_KEY);const cur=autolockMins();
   const a=prompt('보안 설정 — 번호 입력\n1: PIN 변경 (6자리)\n2: 생체인증 '+(hasBio?'해제':'등록')+(bioSupported()?'':' (현재 환경 미지원)')+'\n3: 자동잠금 시간 (현재 '+(cur>0?cur+'분':'끔')+')','1');
-  if(a==='1'){const np=prompt('새 PIN 6자리 숫자');if(np==null)return;if(/^\d{6}$/.test(np)){localStorage.setItem(PIN_KEY,np);toast('PIN 변경 완료');}else toast('6자리 숫자여야 합니다');}
+  if(a==='1'){const np=prompt('새 PIN 6자리 숫자');if(np==null)return;if(/^\d{6}$/.test(np)){await storePin(np);toast('PIN 변경 완료');}else toast('6자리 숫자여야 합니다');}
   else if(a==='2'){
     if(hasBio){if(confirm('생체인증을 해제할까요?')){localStorage.removeItem(BIO_KEY);localStorage.removeItem('ab_bio_declined');toast('생체인증 해제됨');}}
     else{try{await registerBio();localStorage.removeItem('ab_bio_declined');toast('생체인증 등록 완료 — 다음 잠금부터 사용');}catch(e){toast('등록 실패/취소: '+(e.message||e));}}
@@ -2546,11 +2590,25 @@ function enhanceNavA11y(){
     a.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();a.click();}});
   });
 }
+const MODAL_IDS=['repModal','uploadModal','syncModal','logModal','crmModal'];
+function openModalEl(){return MODAL_IDS.map(id=>document.getElementById(id)).find(m=>m&&!m.classList.contains('hidden'))||null;}
 function bindGlobal(){
   enhanceNavA11y();
   $('#navToggle').onclick=()=>toggleDrawer();
   $('#navClose').onclick=()=>toggleDrawer(false);
   $('#drawerBackdrop').onclick=()=>toggleDrawer(false);
+  // 사이드바 '작업' 메뉴 (인라인 onclick 제거 → 위임)
+  const ACT={upload:openUploadModal,deploy:openDeployModal,cleanup:openCleanupModal};
+  document.querySelectorAll('[data-act]').forEach(a=>a.onclick=()=>{const f=ACT[a.dataset.act];if(f)f();});
+  // 모달 공통 닫기: ESC = 모두 · 배경 클릭 = CRM 편집 제외(작성 중 실수 손실 방지)
+  ['uploadModal','syncModal','logModal'].forEach(id=>{const m=document.getElementById(id);
+    m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');});});
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Escape')return;
+    const open=openModalEl();
+    if(open){open.classList.add('hidden');return;}
+    if($('#sidebar').classList.contains('open'))toggleDrawer(false);
+  });
   $('#footToggle').onclick=()=>{const nowHidden=$('#footGroup').classList.toggle('hidden');$('#footToggle').classList.toggle('open',!nowHidden);};
   bindSync();bindCrmForm();bindLogModal();bindUpload();if(syncOn())setSyncDot('ok');
   $('#btnExport').onclick=doExport;
@@ -2604,6 +2662,30 @@ async function unlockBio(){
 }
 
 /* ---------- PIN gate (첫 사용 시 PIN 직접 생성) ---------- */
+/* PIN은 SHA-256 해시로 저장(평문 제거). 구버전 평문(6자리)은 다음 성공 해제 때 해시로 자동 교체.
+   crypto.subtle 미지원(file:// 등 비보안 컨텍스트)이면 평문 폴백. */
+async function pinHash(p){
+  if(!(window.crypto&&crypto.subtle))return null;
+  try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('ab-pin::'+p));
+    return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}catch(e){return null;}
+}
+async function storePin(p){const h=await pinHash(p);localStorage.setItem(PIN_KEY,h||p);}
+async function verifyPin(p){
+  const stored=localStorage.getItem(PIN_KEY)||'';
+  if(/^\d{6}$/.test(stored)){   // 구버전 평문 저장분 — 일치 시 해시로 업그레이드
+    if(stored!==p)return false;
+    const h=await pinHash(p);if(h)localStorage.setItem(PIN_KEY,h);
+    return true;
+  }
+  const h=await pinHash(p);
+  return h!=null&&h===stored;
+}
+/* 연속 실패 제한 — 5회 실패 시 30초 입력 잠금 */
+const PIN_FAIL_KEY='ab_pin_fail';
+function pinFailInfo(){try{return JSON.parse(localStorage.getItem(PIN_FAIL_KEY)||'{}')||{};}catch(e){return{};}}
+function pinFailLeftMs(){const f=pinFailInfo();return f.until?Math.max(0,f.until-Date.now()):0;}
+function pinRecordFail(){const f=pinFailInfo();f.n=(f.n||0)+1;if(f.n>=5){f.until=Date.now()+30000;f.n=0;}localStorage.setItem(PIN_FAIL_KEY,JSON.stringify(f));return f;}
+function pinClearFail(){localStorage.removeItem(PIN_FAIL_KEY);}
 let pinInput='';
 let gateMode=localStorage.getItem(PIN_KEY)?'unlock':'setup'; // 저장된 PIN 없으면 설정 모드
 let setupFirst='';
@@ -2621,11 +2703,17 @@ function updatePin(){renderDots();
   if(pinInput.length!==PIN_LEN)return;
   if(gateMode==='setup'){
     if(!setupFirst){setupFirst=pinInput;pinInput='';$('#gateErr').textContent='';refreshGate();}
-    else if(pinInput===setupFirst){localStorage.setItem(PIN_KEY,pinInput);gateMode='unlock';unlockApp();}
+    else if(pinInput===setupFirst){storePin(pinInput).then(()=>{gateMode='unlock';unlockApp();});}
     else{setupFirst='';gateFail('두 번 입력이 다릅니다. 처음부터 다시 만드세요');}
   }else{
-    if(pinInput===localStorage.getItem(PIN_KEY))offerBioThenUnlock();
-    else gateFail('PIN이 일치하지 않습니다');
+    const wait=pinFailLeftMs();
+    if(wait>0){gateFail('시도 초과 — '+Math.ceil(wait/1000)+'초 후 다시 시도하세요');return;}
+    const p=pinInput;
+    verifyPin(p).then(ok=>{
+      if(ok){pinClearFail();offerBioThenUnlock();}
+      else{const f=pinRecordFail();
+        gateFail((f.until&&f.until>Date.now())?'5회 연속 실패 — 30초 후 다시 시도하세요':'PIN이 일치하지 않습니다');}
+    });
   }
 }
 /* PIN 정상 해제 직후 1회 — 생체인증(Face ID·지문) 등록 제안. 거절하면 다시 묻지 않음(설정에서 언제든 등록 가능) */
@@ -2669,9 +2757,9 @@ window.addEventListener('resize',onViewportChange);
 if(window.visualViewport)window.visualViewport.addEventListener('resize',onViewportChange);
 // iOS 회전 후 레이아웃 폭이 가로값으로 고정되는 문제 → viewport를 강제로 리셋해 device-width 재계산
 function hardResetViewport(){const vp=document.querySelector('meta[name=viewport]');if(!vp)return;
-  vp.setAttribute('content','width=10000, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+  vp.setAttribute('content','width=10000, initial-scale=1.0');
   void document.documentElement.offsetWidth;
-  vp.setAttribute('content','width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');}
+  vp.setAttribute('content','width=device-width, initial-scale=1.0, viewport-fit=cover');}
 function afterRotate(rerender){hardResetViewport();applyMobileClass();
   if(rerender&&!$('#app').classList.contains('hidden'))rerenderCurrent();
   else Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});}
@@ -2690,7 +2778,8 @@ window.addEventListener('scroll',()=>{const bn=$('#bottomNav');if(!bn)return;con
 
 /* 왼쪽 엣지에서 오른쪽으로 스와이프 = 뒤로가기 */
 function goBack(){
-  if(!$('#syncModal').classList.contains('hidden')){$('#syncModal').classList.add('hidden');return;}
+  const open=openModalEl();
+  if(open){open.classList.add('hidden');return;}
   if($('#sidebar').classList.contains('open')){toggleDrawer(false);return;}
   if(inDetail){setView('clients');return;}
   if(curView!=='home')setView('home');
