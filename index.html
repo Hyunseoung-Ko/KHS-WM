@@ -243,8 +243,51 @@ input{font-family:inherit}
 .gc-cell .dn{font-size:12px;font-weight:700;color:var(--sub2);width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex:none}
 .gc-cell .dn.sun{color:var(--danger)}.gc-cell .dn.sat{color:var(--primary)}
 .gc-cell.today .dn{background:var(--primary);color:#fff}
-.gc-ev,.gc-tk{font-size:11px;line-height:1.35;border-radius:6px;padding:1px 4px 1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--card);border-left:3px solid transparent;color:var(--ink)}
+.gc-ev{font-size:11px;line-height:1.4;border-radius:5px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.gc-tk{font-size:11px;line-height:1.4;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;background:none}
 .gc-tk.done{text-decoration:line-through;opacity:.5}
+.gc-seg{display:flex;background:var(--inset);border-radius:10px;padding:3px;gap:2px}
+.gc-seg button{border:none;background:none;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;color:var(--sub2)}
+.gc-seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.gc-tg{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.gc-tg-head{display:grid;background:var(--inset)}
+.gc-tg-hd{padding:7px 2px 4px;text-align:center;border-left:1px solid var(--line);cursor:pointer;min-width:0}
+.gc-tg-hd .dw{font-size:11px;color:var(--sub);font-weight:700}
+.gc-tg-hd .dw.sun{color:var(--danger)}.gc-tg-hd .dw.sat{color:var(--primary)}
+.gc-tg-hd .dd{font-size:16px;font-weight:800;width:30px;height:30px;line-height:30px;border-radius:50%;display:inline-block;color:var(--ink)}
+.gc-tg-hd.today .dd{background:var(--primary);color:#fff}
+.gc-tg-ad{border-left:1px solid var(--line);border-top:1px solid var(--line2);padding:1px 2px 3px;min-width:0;overflow:hidden}
+.gc-adlb{font-size:10px;color:var(--sub);text-align:right;padding:3px 5px;border-top:1px solid var(--line2)}
+.gc-adev{font-size:11px;border-radius:5px;padding:1px 5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:600}
+.gc-adtk{font-size:11px;padding:0 3px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-weight:700}
+.gc-adtk.done{text-decoration:line-through;opacity:.55}
+.gc-tg-body{display:grid;max-height:64vh;overflow-y:auto;background:var(--card);overscroll-behavior:contain}
+.gc-tg-gut{position:relative}
+.gc-gh{position:absolute;right:5px;font-size:10px;color:var(--sub);transform:translateY(-50%);background:var(--card);padding:0 2px}
+.gc-tg-col{position:relative;border-left:1px solid var(--line2);cursor:pointer}
+.gc-tgev{position:absolute;border-radius:6px;padding:2px 5px;font-size:11px;line-height:1.3;overflow:hidden;cursor:pointer;font-weight:600;box-shadow:0 0 0 1px var(--card)}
+.gc-now{position:absolute;left:0;right:0;height:2px;background:var(--danger);z-index:5;pointer-events:none}
+.gc-now::before{content:'';position:absolute;left:-1px;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--danger)}
+html.m .gc-tgev{font-size:9.5px;padding:1px 3px;border-radius:4px}
+html.m .gc-adev,html.m .gc-adtk{font-size:9.5px}
+html.m .gc-tg-hd .dd{font-size:13px;width:24px;height:24px;line-height:24px}
+html.m .gc-seg button{padding:5px 9px;font-size:12px}
+.gc-layout{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+.gc-maincol{min-width:0}
+.gc-side{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto}
+.gc-side .card{margin-bottom:12px}
+.gc-sidebk{display:none}
+.gc-sidehead{display:flex;align-items:center}
+.gc-sidehead h3{flex:1}
+#gcSideClose{display:none;border:none;background:none;font-size:16px;color:var(--sub);padding:4px 8px}
+#gcSideBtn{display:none}
+html.m .gc-layout{display:block}
+html.m .gc-side{position:fixed;top:0;right:0;bottom:0;width:min(86vw,330px);z-index:136;transform:translateX(105%);transition:transform .25s ease;overflow-y:auto;background:var(--bg);padding:12px;max-height:none}
+html.m .gc-side.open{transform:none}
+html.m .gc-sidebk{display:block;position:fixed;inset:0;background:rgba(15,23,42,.35);z-index:135;opacity:0;pointer-events:none;transition:opacity .2s}
+html.m .gc-sidebk.open{opacity:1;pointer-events:auto}
+html.m #gcSideClose{display:block}
+html.m #gcSideBtn{display:flex}
 .gc-more{font-size:10px;color:var(--sub);padding-left:4px}
 .gc-lrow{display:flex;align-items:center;gap:9px;padding:8px 2px;border-bottom:1px solid var(--line2)}
 .gc-lrow:last-child{border-bottom:none}
@@ -265,7 +308,8 @@ input{font-family:inherit}
 .gc-addrow input{flex:1;min-width:0}
 .gc-conn{display:flex;flex-direction:column;align-items:center;gap:12px;padding:26px 10px;text-align:center}
 html.m .gc-cell{min-height:66px;padding:2px 2px 4px;border-radius:8px}
-html.m .gc-ev,html.m .gc-tk{font-size:9px;padding:0 2px 0 3px;border-left-width:2px}
+html.m .gc-ev{font-size:9px;padding:0 3px}
+html.m .gc-tk{font-size:9px;padding:0 2px}
 html.m .gc-cell .dn{width:18px;height:18px;font-size:10.5px}
 html.m .gc-grid{gap:2px}
 .modal.hidden{display:none}
@@ -2749,7 +2793,9 @@ async function gFetch(url,opt){
 
 /* ---------- 데이터 ---------- */
 let GC={cals:[],palette:null,lists:[],tasks:{},events:{},loadedAt:0,err:null,needAuth:false,_showDone:{},_ev:null,_tk:null,_colorCb:null};
-let gcMonth=(()=>{const d=new Date();return{y:d.getFullYear(),m:d.getMonth()};})();
+let gcDate=(()=>{const d=new Date();d.setHours(0,0,0,0);return d;})();
+let gcView=localStorage.getItem('ab_gc_view')||'';
+function gcCurView(){return gcView||(isMobile()?'d3':'week');}
 let gcBusy=false;
 async function gcRefresh(silent){
   if(!gClientId()||gcBusy)return;gcBusy=true;
@@ -2760,7 +2806,8 @@ async function gcRefresh(silent){
       gFetch(GT_API+'/users/@me/lists?maxResults=100')]);
     GC.cals=(cl.items||[]).sort((a,b)=>((b.primary?1:0)-(a.primary?1:0))||String(a.summary||'').localeCompare(String(b.summary||''),'ko'));
     GC.lists=tl.items||[];
-    const t0=new Date(gcMonth.y,gcMonth.m-1,1).toISOString(),t1=new Date(gcMonth.y,gcMonth.m+2,1).toISOString();
+    const t0=new Date(gcDate.getFullYear(),gcDate.getMonth(),gcDate.getDate()-45).toISOString(),
+          t1=new Date(gcDate.getFullYear(),gcDate.getMonth(),gcDate.getDate()+45).toISOString();
     const hid=gmeta().hiddenCals||{},evs={},tks={};
     await Promise.all([
       ...GC.cals.filter(c=>!hid[c.id]).map(async c=>{
@@ -2805,6 +2852,85 @@ function gcDayMap(){
   return map;
 }
 
+/* ---------- 시간 그리드 (3일·주 보기) ---------- */
+const GC_HH=()=>isMobile()?44:48;   /* 1시간 높이(px) */
+function txtOn(hex){try{const h=String(hex).replace('#','');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
+  return (r*299+g*587+b*114)/1000>150?'rgba(0,0,0,.78)':'#fff';}catch(e){return '#fff';}}
+function gcRangeDays(){return gcCurView()==='d3'?3:7;}
+function gcRangeStart(){const d=new Date(gcDate);d.setHours(0,0,0,0);if(gcCurView()==='week')d.setDate(d.getDate()-d.getDay());return d;}
+function gcTitle(){
+  const y=gcDate.getFullYear(),m=gcDate.getMonth();
+  if(gcCurView()==='month')return y+'년 '+(m+1)+'월';
+  const s=gcRangeStart(),e=new Date(s);e.setDate(e.getDate()+gcRangeDays()-1);
+  const f=d=>(d.getMonth()+1)+'월 '+d.getDate()+'일';
+  const yy=(s.getFullYear()!==new Date().getFullYear())?s.getFullYear()+'년 ':'';
+  return yy+(s.getMonth()===e.getMonth()?f(s)+' – '+e.getDate()+'일':f(s)+' – '+f(e));
+}
+/* 하루치: 종일(ad) · 시간(timed, 분 단위) · 할일(tks) */
+function gcTgDay(k){
+  const hid=gmeta().hiddenCals||{},ad=[],timed=[];
+  const d0=new Date(k+'T00:00:00'),d1=new Date(d0);d1.setDate(d1.getDate()+1);
+  for(const c of GC.cals){if(hid[c.id])continue;
+    for(const ev of (GC.events[c.id]||[])){
+      if(ev.status==='cancelled')continue;
+      if(ev.start&&ev.start.date){if(k>=ev.start.date&&k<ev.end.date)ad.push({ev,cal:c});}
+      else if(ev.start&&ev.start.dateTime){
+        const s=new Date(ev.start.dateTime),e=new Date((ev.end&&ev.end.dateTime)||ev.start.dateTime);
+        if(e<=d0||s>=d1)continue;
+        if((e-s)>=86400000){ad.push({ev,cal:c});continue;}
+        const sm=Math.max(0,(Math.max(s,d0)-d0)/60000),em=Math.min(1440,(Math.min(e,d1)-d0)/60000);
+        timed.push({ev,cal:c,s:sm,e:Math.max(em,sm+30)});
+      }}}
+  const tks=[];
+  for(const l of GC.lists)for(const t of (GC.tasks[l.id]||[])){if(!t.due||t.deleted)continue;if(String(t.due).slice(0,10)===k)tks.push({t,list:l});}
+  return {ad,timed,tks};
+}
+/* 겹치는 일정을 나란히 배치 — 클러스터별 열 할당 */
+function gcLayoutTimed(items){
+  items.sort((a,b)=>a.s-b.s||b.e-a.e);
+  const colEnd=[];let cluster=[],clusterEnd=-1;
+  const flush=()=>{if(!cluster.length)return;const n=Math.max(...cluster.map(x=>x.col))+1;cluster.forEach(x=>x.ncol=n);cluster=[];};
+  for(const it of items){
+    if(it.s>=clusterEnd){flush();colEnd.length=0;clusterEnd=it.e;}
+    else clusterEnd=Math.max(clusterEnd,it.e);
+    let c=0;while(colEnd[c]&&colEnd[c]>it.s)c++;
+    colEnd[c]=it.e;it.col=c;cluster.push(it);
+  }
+  flush();
+}
+function gcTimeGridHTML(){
+  const n=gcRangeDays(),s=gcRangeStart(),todayK=dkey(new Date()),HH=GC_HH();
+  const days=[];for(let i=0;i<n;i++){const d=new Date(s);d.setDate(d.getDate()+i);days.push(d);}
+  const gut=isMobile()?34:46;
+  const colT='grid-template-columns:'+gut+'px repeat('+n+',minmax(0,1fr))';
+  const dayData=days.map(d=>gcTgDay(dkey(d)));
+  let head='<div class="gc-tg-head" style="'+colT+'"><div></div>';
+  for(const d of days){const k=dkey(d),dow=d.getDay();
+    head+='<div class="gc-tg-hd '+(k===todayK?'today':'')+'" data-gjump="'+k+'"><span class="dw '+(dow===0?'sun':dow===6?'sat':'')+'">'+['일','월','화','수','목','금','토'][dow]+'</span><br><span class="dd">'+d.getDate()+'</span></div>';}
+  head+='</div><div class="gc-tg-head" style="'+colT+'"><div class="gc-adlb">종일</div>';
+  for(let i=0;i<n;i++){const dd=dayData[i],k=dkey(days[i]);
+    head+='<div class="gc-tg-ad" data-gcoladd="'+k+'">'+
+      dd.ad.map(x=>{const bg=calColor(x.cal);return '<div class="gc-adev" data-gev="'+esc(x.cal.id)+'~~'+esc(x.ev.id)+'" style="background:'+bg+';color:'+txtOn(bg)+'">'+esc(x.ev.summary||'(제목 없음)')+'</div>';}).join('')+
+      dd.tks.map(x=>'<div class="gc-adtk '+(x.t.status==='completed'?'done':'')+'" data-gtk="'+esc(x.list.id)+'~~'+esc(x.t.id)+'" style="color:'+tlColor(x.list.id)+'">'+esc(x.t.title||'(제목 없음)')+'</div>').join('')+
+      '</div>';}
+  head+='</div>';
+  let gutter='<div class="gc-tg-gut">';
+  for(let h=1;h<24;h++)gutter+='<div class="gc-gh" style="top:'+(h*HH)+'px">'+h+'시</div>';
+  gutter+='</div>';
+  let cols='';const now=new Date();
+  for(let i=0;i<n;i++){const k=dkey(days[i]),dd=dayData[i];
+    gcLayoutTimed(dd.timed);
+    let evs='';
+    for(const x of dd.timed){
+      const top=x.s/60*HH,hgt=Math.max(17,(x.e-x.s)/60*HH-2);
+      const w=100/x.ncol,l=x.col*w,bg=calColor(x.cal);
+      evs+='<div class="gc-tgev" data-gev="'+esc(x.cal.id)+'~~'+esc(x.ev.id)+'" style="top:'+top.toFixed(1)+'px;height:'+hgt.toFixed(1)+'px;left:calc('+l.toFixed(2)+'% + 1px);width:calc('+w.toFixed(2)+'% - 3px);background:'+bg+';color:'+txtOn(bg)+'"><b>'+evTime(x.ev)+'</b> '+esc(x.ev.summary||'(제목 없음)')+'</div>';}
+    let nowLine='';
+    if(k===todayK)nowLine='<div class="gc-now" style="top:'+(((now.getHours()*60+now.getMinutes())/60*HH).toFixed(1))+'px"></div>';
+    cols+='<div class="gc-tg-col" data-gcol="'+k+'" style="height:'+(24*HH)+'px;background-image:linear-gradient(var(--line2) 1px,transparent 1px);background-size:100% '+HH+'px">'+evs+nowLine+'</div>';}
+  return head+'<div class="gc-tg-body" id="gcTgBody" style="'+colT+'">'+gutter+cols+'</div>';
+}
+
 /* ---------- 렌더 ---------- */
 function renderGcal(){
   const v=$('#view');
@@ -2831,22 +2957,29 @@ function renderGcal(){
   }
   if(!GC.loadedAt){v.innerHTML=`<div class="wrap"><div class="card empty"><div class="big">⏳</div>구글에서 일정을 불러오는 중...</div></div>`;gcRefresh();return;}
 
-  const {y,m}=gcMonth;const first=new Date(y,m,1);const off=first.getDay();const dim=new Date(y,m+1,0).getDate();
-  const weeks=Math.ceil((off+dim)/7);const todayK=dkey(new Date());const map=gcDayMap();
-  const MAXC=isMobile()?3:4;
-  let grid=['일','월','화','수','목','금','토'].map((w,i)=>`<div class="gc-dow ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
-  for(let i=0;i<weeks*7;i++){
-    const d=new Date(y,m,1-off+i),k=dkey(d),out=d.getMonth()!==m,dow=d.getDay();
-    const cell=map[k]||{evs:[],tks:[]};
-    const items=[
-      ...cell.evs.sort((a,b)=>evTime(a.ev).padStart(5,'0').localeCompare(evTime(b.ev).padStart(5,'0'))).map(x=>
-        `<div class="gc-ev" data-gev="${esc(x.cal.id)}~~${esc(x.ev.id)}" style="border-left-color:${calColor(x.cal)}">${evTime(x.ev)?`<b>${evTime(x.ev)}</b> `:''}${esc(x.ev.summary||'(제목 없음)')}</div>`),
-      ...cell.tks.map(x=>
-        `<div class="gc-tk ${x.t.status==='completed'?'done':''}" data-gtk="${esc(x.list.id)}~~${esc(x.t.id)}" style="border-left-color:${tlColor(x.list.id)}">${x.t.status==='completed'?'✓':'□'} ${esc(x.t.title||'(제목 없음)')}</div>`)];
-    grid+=`<div class="gc-cell ${out?'out':''} ${k===todayK?'today':''}" data-gday="${k}">
-      <span class="dn ${dow===0?'sun':dow===6?'sat':''}">${d.getDate()}</span>
-      ${items.slice(0,MAXC).join('')}${items.length>MAXC?`<span class="gc-more">+${items.length-MAXC}</span>`:''}</div>`;
-  }
+  const todayK=dkey(new Date()),view=gcCurView();
+  let body='';
+  if(view==='month'){
+    const y=gcDate.getFullYear(),m=gcDate.getMonth();
+    const first=new Date(y,m,1),off=first.getDay(),dim=new Date(y,m+1,0).getDate();
+    const weeks=Math.ceil((off+dim)/7),map=gcDayMap();
+    const MAXC=isMobile()?3:4;
+    let grid=['일','월','화','수','목','금','토'].map((w,i)=>`<div class="gc-dow ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
+    for(let i=0;i<weeks*7;i++){
+      const d=new Date(y,m,1-off+i),k=dkey(d),out=d.getMonth()!==m,dow=d.getDay();
+      const cell=map[k]||{evs:[],tks:[]};
+      const items=[
+        ...cell.evs.sort((a,b)=>evTime(a.ev).padStart(5,'0').localeCompare(evTime(b.ev).padStart(5,'0'))).map(x=>{
+          const bg=calColor(x.cal);
+          return `<div class="gc-ev" data-gev="${esc(x.cal.id)}~~${esc(x.ev.id)}" style="background:${bg};color:${txtOn(bg)}">${evTime(x.ev)?`<b>${evTime(x.ev)}</b> `:''}${esc(x.ev.summary||'(제목 없음)')}</div>`;}),
+        ...cell.tks.map(x=>
+          `<div class="gc-tk ${x.t.status==='completed'?'done':''}" data-gtk="${esc(x.list.id)}~~${esc(x.t.id)}" style="color:${tlColor(x.list.id)}">${esc(x.t.title||'(제목 없음)')}</div>`)];
+      grid+=`<div class="gc-cell ${out?'out':''} ${k===todayK?'today':''}" data-gday="${k}">
+        <span class="dn ${dow===0?'sun':dow===6?'sat':''}">${d.getDate()}</span>
+        ${items.slice(0,MAXC).join('')}${items.length>MAXC?`<span class="gc-more">+${items.length-MAXC}</span>`:''}</div>`;
+    }
+    body=`<div class="gc-grid">${grid}</div>`;
+  }else body=`<div class="gc-tg">${gcTimeGridHTML()}</div>`;
   const hid=gmeta().hiddenCals||{};
   const calRows=GC.cals.map(c=>`<div class="gc-lrow">
       <button class="gc-dot" data-gcalcolor="${esc(c.id)}" style="background:${calColor(c)}" title="색 변경"></button>
@@ -2876,40 +3009,83 @@ function renderGcal(){
     </div>`;}).join('');
 
   v.innerHTML=`<div class="wrap">
+    <div class="gc-layout">
+    <div class="gc-maincol">
     <div class="card">
       <div class="gc-head">
         <button class="gc-ibtn" id="gcPrev">‹</button>
-        <span class="gc-mtitle">${y}년 ${m+1}월</span>
+        <span class="gc-mtitle">${gcTitle()}</span>
         <button class="gc-ibtn" id="gcNext">›</button>
         <button class="btn ghost sm" id="gcToday">오늘</button>
+        <div class="gc-seg" id="gcSeg">
+          <button data-v="d3" class="${view==='d3'?'on':''}">3일</button>
+          <button data-v="week" class="${view==='week'?'on':''}">주</button>
+          <button data-v="month" class="${view==='month'?'on':''}">월</button>
+        </div>
         <span style="flex:1"></span>
         ${GC.needAuth?'<button class="btn primary sm" id="gcReauth">다시 연결</button>':''}
         <button class="gc-ibtn" id="gcReload" title="새로고침">↻</button>
         <button class="gc-ibtn" id="gcSetBtn" title="연결 설정">⚙</button>
+        <button class="gc-ibtn" id="gcSideBtn" title="할 일 열기">✓</button>
         <button class="btn primary sm" id="gcAddEv">+ 일정</button>
       </div>
       ${GC.err?`<p class="msub" style="color:var(--danger)">⚠️ ${esc(GC.err)}</p>`:''}
-      <div class="gc-grid">${grid}</div>
+      ${body}
     </div>
     <div class="card"><h3>🗓 내 캘린더<span class="meta">색·표시 변경, 추가/삭제 → 구글에 반영</span></h3>
       ${calRows||'<p class="msub">캘린더가 없습니다</p>'}
       <div class="gc-addrow"><input id="gcNewCal" placeholder="+ 새 캘린더 이름 (Enter)" autocomplete="off"><button class="btn ghost sm" id="gcNewCalBtn">추가</button></div>
     </div>
-    <div class="card"><h3>✅ Google Tasks<span class="meta">목록 색은 대시보드 전용 · 나머지는 구글에 반영</span></h3>
+    </div>
+    <aside class="gc-side" id="gcSide">
+    <div class="card">
+      <div class="gc-sidehead"><h3>✅ 할 일<span class="meta">목록 색은 대시보드 전용</span></h3><button id="gcSideClose">✕</button></div>
       ${listCards||'<p class="msub">할 일 목록이 없습니다</p>'}
       <div class="gc-addrow"><input id="gcNewList" placeholder="+ 새 목록 이름 (Enter)" autocomplete="off"><button class="btn ghost sm" id="gcNewListBtn">추가</button></div>
     </div>
+    </aside>
+    </div>
+    <div id="gcSideBk" class="gc-sidebk"></div>
   </div>`;
   gcBindView(v);
+  const tb=$('#gcTgBody');
+  if(tb){
+    if(GC._tgScroll!=null)tb.scrollTop=GC._tgScroll;
+    else{const now=new Date();const hasToday=!!v.querySelector('.gc-tg-hd.today');
+      tb.scrollTop=Math.max(0,((hasToday?now.getHours()+now.getMinutes()/60:8)-1.3)*GC_HH());}
+    tb.onscroll=()=>{GC._tgScroll=tb.scrollTop;};
+  }
+  if(GC._sideOpen){$('#gcSide').classList.add('open');$('#gcSideBk').classList.add('open');}
 }
 
 function gcBindView(v){
-  $('#gcPrev').onclick=()=>{gcMonth.m--;if(gcMonth.m<0){gcMonth.m=11;gcMonth.y--;}renderGcal();gcRefresh(true);};
-  $('#gcNext').onclick=()=>{gcMonth.m++;if(gcMonth.m>11){gcMonth.m=0;gcMonth.y++;}renderGcal();gcRefresh(true);};
-  $('#gcToday').onclick=()=>{const d=new Date();gcMonth={y:d.getFullYear(),m:d.getMonth()};renderGcal();};
+  const jump=(d)=>{gcDate=d;GC._tgScroll=null;renderGcal();gcRefresh(true);};
+  const step=dir=>{
+    if(gcCurView()==='month')jump(new Date(gcDate.getFullYear(),gcDate.getMonth()+dir,1));
+    else{const d=new Date(gcDate);d.setDate(d.getDate()+dir*(gcCurView()==='d3'?3:7));jump(d);}};
+  $('#gcPrev').onclick=()=>step(-1);
+  $('#gcNext').onclick=()=>step(1);
+  $('#gcToday').onclick=()=>{const d=new Date();d.setHours(0,0,0,0);jump(d);};
+  v.querySelectorAll('#gcSeg button').forEach(b=>b.onclick=()=>{gcView=b.dataset.v;localStorage.setItem('ab_gc_view',gcView);GC._tgScroll=null;renderGcal();});
+  /* 주/3일 헤더의 날짜 클릭 → 그 날짜 기준 3일 보기 */
+  v.querySelectorAll('[data-gjump]').forEach(el=>el.onclick=()=>{
+    gcView='d3';localStorage.setItem('ab_gc_view','d3');jump(new Date(el.dataset.gjump+'T00:00:00'));});
+  /* 시간 그리드 빈 칸 클릭 → 그 시각으로 새 일정 (30분 단위 반올림) */
+  v.querySelectorAll('[data-gcol]').forEach(el=>el.onclick=e=>{
+    if(e.target!==el)return;
+    const r=el.getBoundingClientRect();
+    const mins=Math.max(0,Math.min(23*60+30,Math.round((e.clientY-r.top)/GC_HH()*60/30)*30));
+    gcOpenEv(null,el.dataset.gcol,String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'));});
+  v.querySelectorAll('[data-gcoladd]').forEach(el=>el.onclick=e=>{if(e.target===el)gcOpenEv(null,el.dataset.gcoladd);});
+  /* 모바일: 할 일 사이드 패널 열기/닫기 */
+  const openSide=()=>{GC._sideOpen=true;$('#gcSide').classList.add('open');$('#gcSideBk').classList.add('open');};
+  const closeSide=()=>{GC._sideOpen=false;$('#gcSide').classList.remove('open');$('#gcSideBk').classList.remove('open');};
+  $('#gcSideBtn').onclick=openSide;
+  $('#gcSideClose').onclick=closeSide;
+  $('#gcSideBk').onclick=closeSide;
   $('#gcReload').onclick=()=>{gcRefresh(false);toast('새로고침 중...');};
   $('#gcSetBtn').onclick=gcOpenSet;
-  $('#gcAddEv').onclick=()=>gcOpenEv(null,dkey(new Date()));
+  $('#gcAddEv').onclick=()=>gcOpenEv(null,dkey(gcCurView()==='month'?new Date():gcDate));
   const re=$('#gcReauth');if(re)re.onclick=async()=>{try{await gAuth();gcRefresh();}catch(e){toast(e.message);}};
   v.querySelectorAll('[data-gev]').forEach(el=>el.onclick=e=>{e.stopPropagation();const [c,i]=el.dataset.gev.split('~~');gcOpenEv({calId:c,evId:i});});
   v.querySelectorAll('[data-gtk]').forEach(el=>el.onclick=e=>{e.stopPropagation();const [l,i]=el.dataset.gtk.split('~~');gcOpenTk({listId:l,taskId:i});});
@@ -2963,15 +3139,16 @@ function gcPickListColor(listId){
     const lc=Object.assign({},gmeta().listColors);lc[listId]=c;gmetaSave({listColors:lc});renderGcal();});}
 
 /* ---------- 일정 모달 ---------- */
-function gcOpenEv(ref,prefDate){
+function gcOpenEv(ref,prefDate,prefTime){
   GC._ev=ref;const isNew=!ref;
   let ev=null,calId=(GC.cals.find(c=>c.primary)||GC.cals[0]||{}).id;
   if(ref){calId=ref.calId;ev=(GC.events[ref.calId]||[]).find(e=>e.id===ref.evId);if(!ev)return toast('일정을 찾을 수 없습니다 — 새로고침하세요');}
   $('#gev_mtitle').textContent=isNew?'📅 새 일정':'📅 일정 편집';
   $('#gev_cal').innerHTML=GC.cals.filter(c=>c.accessRole==='owner'||c.accessRole==='writer').map(c=>`<option value="${esc(c.id)}" ${c.id===calId?'selected':''}>${esc(c.summary)}</option>`).join('');
-  const allday=!ev||!!(ev.start&&ev.start.date);
+  const allday=ev?!!(ev.start&&ev.start.date):!prefTime;
   $('#gev_allday').checked=allday;
-  let sd=prefDate||dkey(new Date()),st='09:00',ed=sd,et='10:00';
+  let sd=prefDate||dkey(new Date()),st=prefTime||'09:00',ed=sd,
+      et=String(Math.min(23,+st.slice(0,2)+1)).padStart(2,'0')+st.slice(2);
   if(ev){
     if(ev.start.date){sd=ev.start.date;const e=new Date(ev.end.date+'T00:00:00');e.setDate(e.getDate()-1);ed=dkey(e);}
     else{const s=new Date(ev.start.dateTime),e=new Date(ev.end.dateTime);sd=dkey(s);ed=dkey(e);
