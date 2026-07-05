@@ -2716,7 +2716,8 @@ function gmetaApplyRemote(r){const w=mergeGmeta(gmeta(),r);
 /* ---------- 인증 (GIS 토큰 클라이언트) ---------- */
 let gTokClient=null,GTOK=null;
 try{GTOK=JSON.parse(localStorage.getItem(G_TOK_KEY)||'null');}catch(e){}
-function gClientId(){return (localStorage.getItem(G_CID_KEY)||'').trim();}
+const G_CID_DEFAULT='702533473894-v6664v915a5dhfp8npeb1hngrc3h4clk.apps.googleusercontent.com'; /* 공개 식별자 — hyunseoung-ko.github.io 원본에서만 유효 */
+function gClientId(){return (localStorage.getItem(G_CID_KEY)||'').trim()||G_CID_DEFAULT;}
 function gConnected(){return !!(GTOK&&GTOK.t&&GTOK.exp>Date.now());}
 function gsiLoad(){return new Promise((res,rej)=>{if(window.google&&google.accounts&&google.accounts.oauth2)return res();
   const ex=document.getElementById('gsiScript');if(ex){ex.addEventListener('load',res);ex.addEventListener('error',()=>rej(new Error('구글 스크립트 로드 실패')));return;}
