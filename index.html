@@ -228,6 +228,46 @@ input{font-family:inherit}
 .toast.show{opacity:1;bottom:34px}
 /* sync modal */
 .modal{position:fixed;inset:0;background:rgba(15,23,42,.35);backdrop-filter:blur(3px);z-index:120;display:flex;align-items:center;justify-content:center;padding:18px}
+
+/* ---------- 일정 (Google Calendar & Tasks) ---------- */
+.gc-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.gc-mtitle{font-size:18px;font-weight:800;min-width:108px;text-align:center;letter-spacing:-.02em}
+.gc-ibtn{width:34px;height:34px;border-radius:10px;border:none;background:var(--inset);color:var(--sub2);font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.gc-ibtn:active{background:var(--line)}
+.gc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.gc-dow{text-align:center;font-size:12px;color:var(--sub);font-weight:700;padding:2px 0 6px}
+.gc-dow.sun{color:var(--danger)}.gc-dow.sat{color:var(--primary)}
+.gc-cell{background:var(--inset);border-radius:10px;min-height:96px;padding:4px 4px 6px;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;gap:2px}
+.gc-cell:hover{background:var(--line2)}
+.gc-cell.out{opacity:.42}
+.gc-cell .dn{font-size:12px;font-weight:700;color:var(--sub2);width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex:none}
+.gc-cell .dn.sun{color:var(--danger)}.gc-cell .dn.sat{color:var(--primary)}
+.gc-cell.today .dn{background:var(--primary);color:#fff}
+.gc-ev,.gc-tk{font-size:11px;line-height:1.35;border-radius:6px;padding:1px 4px 1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--card);border-left:3px solid transparent;color:var(--ink)}
+.gc-tk.done{text-decoration:line-through;opacity:.5}
+.gc-more{font-size:10px;color:var(--sub);padding-left:4px}
+.gc-lrow{display:flex;align-items:center;gap:9px;padding:8px 2px;border-bottom:1px solid var(--line2)}
+.gc-lrow:last-child{border-bottom:none}
+.gc-dot{width:14px;height:14px;border-radius:5px;flex:none;cursor:pointer;border:none;padding:0}
+.gc-lname{flex:1;min-width:0;font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gc-x{border:none;background:none;color:var(--faint);font-size:14px;padding:4px;flex:none}
+.gc-x:hover{color:var(--danger)}
+.gc-sw{width:28px;height:28px;border-radius:9px;cursor:pointer;border:2.5px solid transparent;padding:0}
+.gc-sw.on{border-color:var(--ink)}
+.gc-swwrap{display:flex;flex-wrap:wrap;gap:8px;padding:6px 0}
+.gc-chk{width:18px;height:18px;flex:none;accent-color:var(--primary)}
+.gc-trow{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--line2)}
+.gc-trow .tt{flex:1;min-width:0;font-size:14px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gc-trow.done .tt{text-decoration:line-through;color:var(--sub)}
+.gc-due{font-size:11px;color:var(--sub3);background:var(--inset);border-radius:6px;padding:1px 6px;flex:none}
+.gc-due.over{color:var(--danger);background:#FEECEE}
+.gc-addrow{display:flex;gap:8px;margin-top:8px}
+.gc-addrow input{flex:1;min-width:0}
+.gc-conn{display:flex;flex-direction:column;align-items:center;gap:12px;padding:26px 10px;text-align:center}
+html.m .gc-cell{min-height:66px;padding:2px 2px 4px;border-radius:8px}
+html.m .gc-ev,html.m .gc-tk{font-size:9px;padding:0 2px 0 3px;border-left-width:2px}
+html.m .gc-cell .dn{width:18px;height:18px;font-size:10.5px}
+html.m .gc-grid{gap:2px}
 .modal.hidden{display:none}
 .modal-card{background:#fff;border-radius:22px;padding:28px;width:100%;max-width:440px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.25);max-height:92vh;overflow:auto}
 .modal-card h3{margin:0 0 4px;font-size:18px;font-weight:800}
@@ -396,6 +436,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
     <nav class="nav" id="navPC">
       <div class="nav-label">메뉴</div>
       <a data-view="home" class="active"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7"/><path d="M5 9.5V20h14V9.5"/></svg></span> 홈</a>
+      <a data-view="gcal"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 3v4M16 3v4M4 11h16"/></svg></span> 일정</a>
       <a data-view="clients"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3.2 2.8-5 5.5-5s5.1 1.8 5.5 5"/><path d="M16 6.6a3 3 0 0 1 0 5.5"/><path d="M17.6 19c-.2-2-1-3.5-2.2-4.4"/></svg></span> 고객</a>
       <a data-view="assets"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg></span> 자산</a>
       <a data-view="strategy"><span class="ic"><svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg></span> 영업</a>
@@ -448,6 +489,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
 
   <nav id="bottomNav" aria-label="메인 메뉴">
     <a data-view="home" class="active" aria-label="홈"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11 12 4l9 7"/><path d="M5 9.5V20h14V9.5"/></svg><span class="bnl">홈</span></a>
+    <a data-view="gcal" aria-label="일정"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 3v4M16 3v4M4 11h16"/></svg><span class="bnl">일정</span></a>
     <a data-view="clients" aria-label="고객"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3.2 2.8-5 5.5-5s5.1 1.8 5.5 5"/><path d="M16 6.6a3 3 0 0 1 0 5.5"/><path d="M17.6 19c-.2-2-1-3.5-2.2-4.4"/></svg><span class="bnl">고객</span></a>
     <a data-view="assets" aria-label="자산"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m5 10V5m5 14v-7m5 7V8"/></svg><span class="bnl">자산</span></a>
     <a data-view="strategy" aria-label="영업"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V4"/><path d="M4 16l5-4 4 3 7-7"/><path d="M16 5h4v4"/></svg><span class="bnl">영업</span></a>
@@ -924,13 +966,14 @@ const CH_STYLE={'한투':['#1B64DA','#EBF2FE'],'보험':['#0F9D58','#E5F8EE']};
 function chBadges(c){return custChannels(c).map(ch=>{const s=CH_STYLE[ch]||['#4E5968','#EDEFF2'];return `<span class="tag" style="color:${s[0]};background:${s[1]};font-weight:700">${ch}</span>`;}).join('');}
 
 function setView(v){curView=v;document.querySelectorAll('[data-view]').forEach(a=>a.classList.toggle('active',a.dataset.view===v));
-  $('#mTitle').textContent={home:'홈',clients:'고객',assets:'자산',strategy:'영업',reports:'리포트',help:'사용설명서'}[v];inDetail=false;currentClientName=null;render();window.scrollTo(0,0);toggleDrawer(false);}
+  $('#mTitle').textContent={home:'홈',gcal:'일정',clients:'고객',assets:'자산',strategy:'영업',reports:'리포트',help:'사용설명서'}[v];inDetail=false;currentClientName=null;render();window.scrollTo(0,0);toggleDrawer(false);}
 function rerenderCurrent(){if(inDetail&&currentClientName&&curCustomers()[currentClientName])openClient(currentClientName);else render();}
 function toggleDrawer(open){const sb=$('#sidebar'),bd=$('#drawerBackdrop');if(!sb)return;const willOpen=open===undefined?!sb.classList.contains('open'):open;sb.classList.toggle('open',willOpen);if(bd)bd.classList.toggle('open',willOpen);}
 function bindCollapsers(scope){(scope||document).querySelectorAll('.collapser').forEach(h=>{h.onclick=()=>{const t=document.getElementById(h.dataset.target);if(!t)return;const c=t.classList.toggle('collapsed');const meta=h.querySelector('.meta');if(meta)meta.textContent=c?'▾ 펼치기':'▴ 접기';};});}
 
 function render(){killCharts();
   if(curView==='home')renderHome();
+  else if(curView==='gcal')renderGcal();
   else if(curView==='clients')renderClients();
   else if(curView==='assets')renderAssets();
   else if(curView==='strategy')renderStrategy();
@@ -2445,32 +2488,40 @@ async function syncNow(silent){
   if(!syncOn()){if(!silent)toast('동기화 설정이 필요합니다');return false;}
   if(syncing)return false;syncing=true;setSyncDot('sync');
   const cfg=syncCfg();let pass=syncPass(); // pass = 쓰기(재암호화)에 쓸 키 — 복호화 성공한 키로 갱신됨
-  const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[],deleted:{}}:{snaps:dec.snapshots||[],crm:dec.crm||[],deleted:normDel(dec.deleted)};
+  const splitRemote=dec=>Array.isArray(dec)?{snaps:dec,crm:[],deleted:{},gm:null}:{snaps:dec.snapshots||[],crm:dec.crm||[],deleted:normDel(dec.deleted),gm:dec.gmeta||null};
+  /* gmeta(일정 뷰 대시보드 전용 설정) 병합 — 한 번이라도 저장된 적 있을 때만 페이로드에 포함 */
+  const gmLocal=()=>{try{return JSON.parse(localStorage.getItem(GMETA_KEY)||'null');}catch(e){return null;}};
   // 정책(2026-07-02): DEL_FENCE 이후의 명시 삭제(삭제시각>업로드시각)만 전 기기 반영, 펜스 이전 표시는 무효·정리. 재업로드(uploadedAt=now)는 삭제를 이김.
   const applyDelPolicy=async(snaps,del)=>{pruneStaleDel(del);
     const alive=[];for(const s of snaps){if(isTombed(s,del)){await idbDel(s.date);}else{if(del[s.date])delete del[s.date];alive.push(s);}}
     return alive;};
   try{
     let remoteFile=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
-    let remote=[],remoteCrm=[],remoteDel={},sha=remoteFile?remoteFile.sha:null;
-    if(remoteFile&&remoteFile.content){try{const r=await decTry(remoteFile.content,passCandidates());const d=splitRemote(r.data);remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}catch(e){throw new Error('복호화 실패 — 기존 데이터의 동기화 암호가 필요합니다. 동기화 설정에서 이전에 쓰던 암호를 입력하세요');}}
+    let remote=[],remoteCrm=[],remoteDel={},remoteGm=null,sha=remoteFile?remoteFile.sha:null;
+    if(remoteFile&&remoteFile.content){try{const r=await decTry(remoteFile.content,passCandidates());const d=splitRemote(r.data);remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;remoteGm=d.gm;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}catch(e){throw new Error('복호화 실패 — 기존 데이터의 동기화 암호가 필요합니다. 동기화 설정에서 이전에 쓰던 암호를 입력하세요');}}
     const local=await idbAll(),localCrm=await crmAll();
     let merged=mergeSnaps(local,remote),mergedCrm=mergeCrm(localCrm,remoteCrm);
     let mergedDel=mergeDelMap(DELDATES,remoteDel);
     merged=await applyDelPolicy(merged,mergedDel);
     for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
-    const payload={snapshots:merged,crm:mergedCrm,deleted:mergedDel};
-    if(JSON.stringify(payload)!==JSON.stringify({snapshots:remote,crm:remoteCrm,deleted:remoteDel})){
+    let mergedGm=mergeGmeta(gmLocal(),remoteGm);
+    if(mergedGm){GMETA=mergedGm;localStorage.setItem(GMETA_KEY,JSON.stringify(mergedGm));}
+    const payload={snapshots:merged,crm:mergedCrm,deleted:mergedDel};if(mergedGm)payload.gmeta=mergedGm;
+    const remoteObj={snapshots:remote,crm:remoteCrm,deleted:remoteDel};if(remoteGm)remoteObj.gmeta=remoteGm;
+    if(JSON.stringify(payload)!==JSON.stringify(remoteObj)){
       try{await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON(payload,pass),sha,'sync '+new Date().toISOString());}
       catch(e){ if(e.status===409||/sha|409/.test(e.message)){ // 충돌 → 재병합 1회
         const rf=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
-        let rd={snaps:[],crm:[],deleted:{}};
+        let rd={snaps:[],crm:[],deleted:{},gm:null};
         if(rf&&rf.content){const rr=await decTry(rf.content,[...new Set([pass,...passCandidates()])]);rd=splitRemote(rr.data);pass=rr.pass;}
         merged=mergeSnaps(merged,rd.snaps);mergedCrm=mergeCrm(mergedCrm,rd.crm);
         mergedDel=mergeDelMap(mergedDel,rd.deleted);
         merged=await applyDelPolicy(merged,mergedDel);
         for(const s of merged)await idbPut(s);for(const c of mergedCrm)await crmPut(c);
-        await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON({snapshots:merged,crm:mergedCrm,deleted:mergedDel},pass),rf?rf.sha:null,'sync(merge) '+new Date().toISOString());
+        mergedGm=mergeGmeta(mergedGm,rd.gm);
+        if(mergedGm){GMETA=mergedGm;localStorage.setItem(GMETA_KEY,JSON.stringify(mergedGm));}
+        const payload2={snapshots:merged,crm:mergedCrm,deleted:mergedDel};if(mergedGm)payload2.gmeta=mergedGm;
+        await ghPut(cfg.repo,SYNC_PATH,cfg.token,await encJSON(payload2,pass),rf?rf.sha:null,'sync(merge) '+new Date().toISOString());
       } else throw e; }
     }
     DELDATES=mergedDel;await metaPut('deletedDates',DELDATES);
@@ -2599,7 +2650,7 @@ function enhanceNavA11y(){
     a.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();a.click();}});
   });
 }
-const MODAL_IDS=['repModal','uploadModal','syncModal','logModal','crmModal'];
+const MODAL_IDS=['repModal','uploadModal','syncModal','logModal','crmModal','gcEvModal','gcTaskModal','gcDayModal','gcColorModal','gcSetModal'];
 function openModalEl(){return MODAL_IDS.map(id=>document.getElementById(id)).find(m=>m&&!m.classList.contains('hidden'))||null;}
 function bindGlobal(){
   enhanceNavA11y();
@@ -2637,6 +2688,438 @@ function bindGlobal(){
     catch(err){toast('복원 실패: 파일 형식 오류');}};
   $('#btnWipe').onclick=async()=>{if(confirm('모든 스냅샷 + CRM(직접입력 영업정보)을 삭제합니다. 되돌릴 수 없습니다. (백업 권장)\n계속할까요?')){await idbClear();await new Promise(res=>{const t=db.transaction('crm','readwrite').objectStore('crm').clear();t.onsuccess=()=>res();});await metaClear();DELDATES={};toast('전체 삭제됨');reload();}};
 }
+
+/* =========================================================
+   일정 — Google Calendar & Tasks 양방향 연동
+   브라우저 ↔ 구글 직통(GIS 토큰, 서버 없음). 대시보드 수정 → 즉시 API 반영,
+   구글 쪽 수정 → 30초 폴링 + 화면 복귀 시 즉시 새로고침으로 반영.
+   대시보드 전용 데이터(gmeta: Tasks 목록 색·캘린더 숨김)는 구글에 없는 기능이라
+   localStorage + store.enc(gmeta 필드)로만 기기 간 동기화된다.
+   ========================================================= */
+const G_CID_KEY='ab_g_cid', G_TOK_KEY='ab_g_tok', GMETA_KEY='ab_gmeta';
+const G_SCOPES='https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks';
+const GC_API='https://www.googleapis.com/calendar/v3', GT_API='https://tasks.googleapis.com/tasks/v1';
+/* Tasks 목록용 색 팔레트 (구글 Tasks에는 색 개념이 없음 → 대시보드 전용) */
+const GC_TLCOLORS=['#3182F6','#15B370','#F04452','#F7B23B','#8B5CF6','#E0640F','#0F9D58','#DB2777','#0EA5E9','#64748B','#A16207','#191F28'];
+
+/* ---------- gmeta (대시보드 전용 메타 · updatedAt 최신 승리로 병합) ---------- */
+let GMETA=null;
+function gmeta(){if(!GMETA){try{GMETA=JSON.parse(localStorage.getItem(GMETA_KEY)||'null');}catch(e){GMETA=null;}
+  if(!GMETA)GMETA={v:1,updatedAt:'',listColors:{},hiddenCals:{}};}return GMETA;}
+function gmetaSave(patch){const m=gmeta();Object.assign(m,patch);m.updatedAt=new Date().toISOString();
+  localStorage.setItem(GMETA_KEY,JSON.stringify(m));
+  if(syncOn()){clearTimeout(gmetaSave._t);gmetaSave._t=setTimeout(()=>syncNow(true),1500);}}
+function mergeGmeta(a,b){if(!a)return b||null;if(!b)return a;return ((a.updatedAt||'')>=(b.updatedAt||''))?a:b;}
+function gmetaApplyRemote(r){const w=mergeGmeta(gmeta(),r);
+  if(w&&w!==GMETA){GMETA=w;localStorage.setItem(GMETA_KEY,JSON.stringify(w));}return gmeta();}
+
+/* ---------- 인증 (GIS 토큰 클라이언트) ---------- */
+let gTokClient=null,GTOK=null;
+try{GTOK=JSON.parse(localStorage.getItem(G_TOK_KEY)||'null');}catch(e){}
+function gClientId(){return (localStorage.getItem(G_CID_KEY)||'').trim();}
+function gConnected(){return !!(GTOK&&GTOK.t&&GTOK.exp>Date.now());}
+function gsiLoad(){return new Promise((res,rej)=>{if(window.google&&google.accounts&&google.accounts.oauth2)return res();
+  const ex=document.getElementById('gsiScript');if(ex){ex.addEventListener('load',res);ex.addEventListener('error',()=>rej(new Error('구글 스크립트 로드 실패')));return;}
+  const s=document.createElement('script');s.id='gsiScript';s.src='https://accounts.google.com/gsi/client';
+  s.onload=()=>res();s.onerror=()=>rej(new Error('구글 스크립트 로드 실패 — 인터넷 연결 확인'));document.head.appendChild(s);});}
+function gAuth(){return new Promise((res,rej)=>{gsiLoad().then(()=>{
+  const cid=gClientId();if(!cid)return rej(new Error('클라이언트 ID가 설정되지 않았습니다'));
+  if(!gTokClient||gTokClient._cid!==cid){
+    gTokClient=google.accounts.oauth2.initTokenClient({client_id:cid,scope:G_SCOPES,callback:()=>{}});gTokClient._cid=cid;}
+  gTokClient.callback=r=>{
+    if(r&&r.access_token){GTOK={t:r.access_token,exp:Date.now()+((+r.expires_in||3600)-90)*1000};
+      localStorage.setItem(G_TOK_KEY,JSON.stringify(GTOK));GC.needAuth=false;res(GTOK);}
+    else rej(new Error((r&&r.error)||'인증이 취소되었습니다'));};
+  gTokClient.error_callback=e=>rej(new Error('인증 실패('+((e&&e.type)||'팝업 차단?')+')'));
+  try{gTokClient.requestAccessToken({prompt:''});}catch(e){rej(e);}
+}).catch(rej);});}
+
+async function gFetch(url,opt){
+  opt=opt||{};
+  if(!gConnected()){try{await gAuth();}catch(e){GC.needAuth=true;throw new Error('구글 연결 만료 — [다시 연결]을 누르세요');}}
+  const r=await fetch(url,{method:opt.method||'GET',
+    headers:Object.assign({Authorization:'Bearer '+GTOK.t},opt.body!==undefined?{'Content-Type':'application/json'}:{}),
+    body:opt.body!==undefined?JSON.stringify(opt.body):undefined});
+  if(r.status===401&&!opt._retried){GTOK=null;localStorage.removeItem(G_TOK_KEY);
+    return gFetch(url,Object.assign({},opt,{_retried:true}));}
+  if(!r.ok){let m='';try{m=(await r.json()).error.message||'';}catch(e){}
+    throw new Error('Google API 오류('+r.status+')'+(m?' '+m:''));}
+  const txt=await r.text();return txt?JSON.parse(txt):null;}
+
+/* ---------- 데이터 ---------- */
+let GC={cals:[],palette:null,lists:[],tasks:{},events:{},loadedAt:0,err:null,needAuth:false,_showDone:{},_ev:null,_tk:null,_colorCb:null};
+let gcMonth=(()=>{const d=new Date();return{y:d.getFullYear(),m:d.getMonth()};})();
+let gcBusy=false;
+async function gcRefresh(silent){
+  if(!gClientId()||gcBusy)return;gcBusy=true;
+  try{
+    if(!GC.palette){try{GC.palette=((await gFetch(GC_API+'/colors'))||{}).calendar||{};}catch(e){GC.palette={};}}
+    const [cl,tl]=await Promise.all([
+      gFetch(GC_API+'/users/me/calendarList?maxResults=250'),
+      gFetch(GT_API+'/users/@me/lists?maxResults=100')]);
+    GC.cals=(cl.items||[]).sort((a,b)=>((b.primary?1:0)-(a.primary?1:0))||String(a.summary||'').localeCompare(String(b.summary||''),'ko'));
+    GC.lists=tl.items||[];
+    const t0=new Date(gcMonth.y,gcMonth.m-1,1).toISOString(),t1=new Date(gcMonth.y,gcMonth.m+2,1).toISOString();
+    const hid=gmeta().hiddenCals||{},evs={},tks={};
+    await Promise.all([
+      ...GC.cals.filter(c=>!hid[c.id]).map(async c=>{
+        try{const r=await gFetch(GC_API+'/calendars/'+encodeURIComponent(c.id)+'/events?singleEvents=true&orderBy=startTime&maxResults=2500&timeMin='+encodeURIComponent(t0)+'&timeMax='+encodeURIComponent(t1));
+          evs[c.id]=r.items||[];}catch(e){evs[c.id]=[];}}),
+      ...GC.lists.map(async l=>{
+        try{const r=await gFetch(GT_API+'/lists/'+encodeURIComponent(l.id)+'/tasks?showCompleted=true&showHidden=true&maxResults=200');
+          tks[l.id]=r.items||[];}catch(e){tks[l.id]=[];}})]);
+    GC.events=evs;GC.tasks=tks;GC.loadedAt=Date.now();GC.err=null;
+  }catch(e){GC.err=e.message||'불러오기 실패';if(!silent)toast(GC.err);}
+  gcBusy=false;
+  if(curView==='gcal')renderGcal();
+}
+/* 구글 → 대시보드 반영: 열려 있는 동안 30초 폴링 + 화면 복귀 시 즉시 */
+setInterval(()=>{if(curView==='gcal'&&gClientId()&&gConnected()&&document.visibilityState==='visible'&&Date.now()-GC.loadedAt>25000)gcRefresh(true);},30000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&curView==='gcal'&&gClientId()&&gConnected())gcRefresh(true);});
+
+/* ---------- 유틸 ---------- */
+function dkey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function rfc3339(dateStr,timeStr){const dt=new Date(dateStr+'T'+timeStr);const off=-dt.getTimezoneOffset();
+  const p=n=>String(Math.abs(n)).padStart(2,'0');return dateStr+'T'+timeStr+':00'+(off>=0?'+':'-')+p(Math.trunc(off/60))+':'+p(off%60);}
+function evTime(ev){if(!(ev.start&&ev.start.dateTime))return '';const d=new Date(ev.start.dateTime);
+  return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');}
+function tlColor(id){const m=gmeta().listColors||{};if(m[id])return m[id];
+  const i=Math.max(0,GC.lists.findIndex(l=>l.id===id));return GC_TLCOLORS[i%GC_TLCOLORS.length];}
+function calColor(c){return (c&&c.backgroundColor)||'#3182F6';}
+
+/* 날짜키 → 그날의 일정·할일 */
+function gcDayMap(){
+  const map={},add=(k,kind,item)=>{(map[k]=map[k]||{evs:[],tks:[]})[kind].push(item);};
+  const hid=gmeta().hiddenCals||{};
+  for(const c of GC.cals){if(hid[c.id])continue;
+    for(const ev of (GC.events[c.id]||[])){
+      if(ev.status==='cancelled')continue;let s,e;
+      if(ev.start&&ev.start.date){s=new Date(ev.start.date+'T00:00:00');e=new Date(ev.end.date+'T00:00:00');e.setDate(e.getDate()-1);}
+      else if(ev.start&&ev.start.dateTime){s=new Date(ev.start.dateTime);e=new Date((ev.end&&ev.end.dateTime)||ev.start.dateTime);
+        if(e>s&&e.getHours()===0&&e.getMinutes()===0)e=new Date(e.getTime()-1);}
+      else continue;
+      if(e<s)e=s;
+      for(let d=new Date(s.getFullYear(),s.getMonth(),s.getDate()),n=0;d<=e&&n<62;d.setDate(d.getDate()+1),n++)add(dkey(d),'evs',{ev,cal:c});}}
+  for(const l of GC.lists)for(const t of (GC.tasks[l.id]||[])){if(!t.due||t.deleted)continue;add(String(t.due).slice(0,10),'tks',{t,list:l});}
+  return map;
+}
+
+/* ---------- 렌더 ---------- */
+function renderGcal(){
+  const v=$('#view');
+  if(!gClientId()){
+    v.innerHTML=`<div class="wrap"><div class="card"><h3>📅 일정 — Google 연동 설정</h3>
+      <p class="msub">구글 캘린더·Tasks와 양방향으로 연결합니다. 최초 1회, Google Cloud에서 발급한 <b>OAuth 클라이언트 ID</b>가 필요합니다.</p>
+      <label>OAuth 클라이언트 ID</label>
+      <input id="gcCid" placeholder="xxxxx.apps.googleusercontent.com" autocomplete="off">
+      <div class="modal-btns"><button class="btn primary sm" id="gcCidSave">저장하고 연결</button></div></div></div>`;
+    $('#gcCidSave').onclick=async()=>{const cid=$('#gcCid').value.trim();if(!cid)return toast('클라이언트 ID를 입력하세요');
+      localStorage.setItem(G_CID_KEY,cid);toast('저장됨 — 구글 로그인 창이 뜹니다');
+      try{await gAuth();await gcRefresh();}catch(e){toast(e.message);renderGcal();}};
+    return;
+  }
+  if((!gConnected()||GC.needAuth)&&!GC.loadedAt){
+    v.innerHTML=`<div class="wrap"><div class="card"><div class="gc-conn">
+      <div style="font-size:38px">📅</div><b style="font-size:17px">Google 캘린더 · Tasks 연결</b>
+      <p class="msub" style="margin:0">버튼을 누르면 구글 로그인 팝업이 열립니다. 캘린더·할 일이 이 대시보드와 양방향으로 동기화됩니다.</p>
+      <button class="btn primary" id="gcConnBtn">Google 계정 연결</button>
+      <button class="btn ghost sm" id="gcSetBtn2">연결 설정</button></div></div></div>`;
+    $('#gcConnBtn').onclick=async()=>{try{$('#gcConnBtn').textContent='연결 중...';await gAuth();await gcRefresh();}catch(e){toast(e.message);renderGcal();}};
+    $('#gcSetBtn2').onclick=gcOpenSet;
+    return;
+  }
+  if(!GC.loadedAt){v.innerHTML=`<div class="wrap"><div class="card empty"><div class="big">⏳</div>구글에서 일정을 불러오는 중...</div></div>`;gcRefresh();return;}
+
+  const {y,m}=gcMonth;const first=new Date(y,m,1);const off=first.getDay();const dim=new Date(y,m+1,0).getDate();
+  const weeks=Math.ceil((off+dim)/7);const todayK=dkey(new Date());const map=gcDayMap();
+  const MAXC=isMobile()?3:4;
+  let grid=['일','월','화','수','목','금','토'].map((w,i)=>`<div class="gc-dow ${i===0?'sun':i===6?'sat':''}">${w}</div>`).join('');
+  for(let i=0;i<weeks*7;i++){
+    const d=new Date(y,m,1-off+i),k=dkey(d),out=d.getMonth()!==m,dow=d.getDay();
+    const cell=map[k]||{evs:[],tks:[]};
+    const items=[
+      ...cell.evs.sort((a,b)=>evTime(a.ev).padStart(5,'0').localeCompare(evTime(b.ev).padStart(5,'0'))).map(x=>
+        `<div class="gc-ev" data-gev="${esc(x.cal.id)}~~${esc(x.ev.id)}" style="border-left-color:${calColor(x.cal)}">${evTime(x.ev)?`<b>${evTime(x.ev)}</b> `:''}${esc(x.ev.summary||'(제목 없음)')}</div>`),
+      ...cell.tks.map(x=>
+        `<div class="gc-tk ${x.t.status==='completed'?'done':''}" data-gtk="${esc(x.list.id)}~~${esc(x.t.id)}" style="border-left-color:${tlColor(x.list.id)}">${x.t.status==='completed'?'✓':'□'} ${esc(x.t.title||'(제목 없음)')}</div>`)];
+    grid+=`<div class="gc-cell ${out?'out':''} ${k===todayK?'today':''}" data-gday="${k}">
+      <span class="dn ${dow===0?'sun':dow===6?'sat':''}">${d.getDate()}</span>
+      ${items.slice(0,MAXC).join('')}${items.length>MAXC?`<span class="gc-more">+${items.length-MAXC}</span>`:''}</div>`;
+  }
+  const hid=gmeta().hiddenCals||{};
+  const calRows=GC.cals.map(c=>`<div class="gc-lrow">
+      <button class="gc-dot" data-gcalcolor="${esc(c.id)}" style="background:${calColor(c)}" title="색 변경"></button>
+      <span class="gc-lname">${esc(c.summary||'')}${c.primary?' <span class="tag" style="color:var(--sub);background:var(--inset)">기본</span>':''}</span>
+      <input type="checkbox" class="gc-chk" data-gcalvis="${esc(c.id)}" ${hid[c.id]?'':'checked'} title="달력에 표시">
+      ${c.primary?'':`<button class="gc-x" data-gcaldel="${esc(c.id)}" data-role="${esc(c.accessRole||'')}" title="삭제">🗑</button>`}
+    </div>`).join('');
+  const listCards=GC.lists.map(l=>{
+    const ts=(GC.tasks[l.id]||[]).filter(t=>!t.deleted&&(t.title||t.notes));
+    const open=ts.filter(t=>t.status!=='completed'),done=ts.filter(t=>t.status==='completed');
+    const row=t=>`<div class="gc-trow ${t.status==='completed'?'done':''}">
+        <input type="checkbox" class="gc-chk" data-gtdone="${esc(l.id)}~~${esc(t.id)}" ${t.status==='completed'?'checked':''}>
+        <span class="tt" data-gtedit="${esc(l.id)}~~${esc(t.id)}">${esc(t.title||'(제목 없음)')}</span>
+        ${t.due?`<span class="gc-due ${t.status!=='completed'&&String(t.due).slice(0,10)<todayK?'over':''}">${String(t.due).slice(5,10).replace('-','/')}</span>`:''}
+      </div>`;
+    return `<div style="margin-bottom:16px">
+      <div class="gc-lrow" style="border-bottom:2px solid var(--line)">
+        <button class="gc-dot" data-gtlcolor="${esc(l.id)}" style="background:${tlColor(l.id)}" title="색 변경"></button>
+        <span class="gc-lname" data-gtlren="${esc(l.id)}" style="cursor:pointer" title="이름 변경">${esc(l.title||'')}</span>
+        <span class="meta">${open.length}개</span>
+        <button class="gc-x" data-gtldel="${esc(l.id)}" title="목록 삭제">🗑</button>
+      </div>
+      ${open.map(row).join('')||'<p class="msub" style="margin:8px 0">할 일이 없습니다</p>'}
+      ${done.length?`<div class="gc-trow" style="cursor:pointer;color:var(--sub);font-size:13px;border-bottom:none" data-gtshowdone="${esc(l.id)}">완료 ${done.length}개 ${GC._showDone[l.id]?'접기 ▴':'보기 ▾'}</div>`:''}
+      ${GC._showDone[l.id]?done.map(row).join(''):''}
+      <div class="gc-addrow"><input data-gtadd="${esc(l.id)}" placeholder="+ 할 일 추가 (Enter)" autocomplete="off"><button class="btn ghost sm" data-gtaddbtn="${esc(l.id)}">추가</button></div>
+    </div>`;}).join('');
+
+  v.innerHTML=`<div class="wrap">
+    <div class="card">
+      <div class="gc-head">
+        <button class="gc-ibtn" id="gcPrev">‹</button>
+        <span class="gc-mtitle">${y}년 ${m+1}월</span>
+        <button class="gc-ibtn" id="gcNext">›</button>
+        <button class="btn ghost sm" id="gcToday">오늘</button>
+        <span style="flex:1"></span>
+        ${GC.needAuth?'<button class="btn primary sm" id="gcReauth">다시 연결</button>':''}
+        <button class="gc-ibtn" id="gcReload" title="새로고침">↻</button>
+        <button class="gc-ibtn" id="gcSetBtn" title="연결 설정">⚙</button>
+        <button class="btn primary sm" id="gcAddEv">+ 일정</button>
+      </div>
+      ${GC.err?`<p class="msub" style="color:var(--danger)">⚠️ ${esc(GC.err)}</p>`:''}
+      <div class="gc-grid">${grid}</div>
+    </div>
+    <div class="card"><h3>🗓 내 캘린더<span class="meta">색·표시 변경, 추가/삭제 → 구글에 반영</span></h3>
+      ${calRows||'<p class="msub">캘린더가 없습니다</p>'}
+      <div class="gc-addrow"><input id="gcNewCal" placeholder="+ 새 캘린더 이름 (Enter)" autocomplete="off"><button class="btn ghost sm" id="gcNewCalBtn">추가</button></div>
+    </div>
+    <div class="card"><h3>✅ Google Tasks<span class="meta">목록 색은 대시보드 전용 · 나머지는 구글에 반영</span></h3>
+      ${listCards||'<p class="msub">할 일 목록이 없습니다</p>'}
+      <div class="gc-addrow"><input id="gcNewList" placeholder="+ 새 목록 이름 (Enter)" autocomplete="off"><button class="btn ghost sm" id="gcNewListBtn">추가</button></div>
+    </div>
+  </div>`;
+  gcBindView(v);
+}
+
+function gcBindView(v){
+  $('#gcPrev').onclick=()=>{gcMonth.m--;if(gcMonth.m<0){gcMonth.m=11;gcMonth.y--;}renderGcal();gcRefresh(true);};
+  $('#gcNext').onclick=()=>{gcMonth.m++;if(gcMonth.m>11){gcMonth.m=0;gcMonth.y++;}renderGcal();gcRefresh(true);};
+  $('#gcToday').onclick=()=>{const d=new Date();gcMonth={y:d.getFullYear(),m:d.getMonth()};renderGcal();};
+  $('#gcReload').onclick=()=>{gcRefresh(false);toast('새로고침 중...');};
+  $('#gcSetBtn').onclick=gcOpenSet;
+  $('#gcAddEv').onclick=()=>gcOpenEv(null,dkey(new Date()));
+  const re=$('#gcReauth');if(re)re.onclick=async()=>{try{await gAuth();gcRefresh();}catch(e){toast(e.message);}};
+  v.querySelectorAll('[data-gev]').forEach(el=>el.onclick=e=>{e.stopPropagation();const [c,i]=el.dataset.gev.split('~~');gcOpenEv({calId:c,evId:i});});
+  v.querySelectorAll('[data-gtk]').forEach(el=>el.onclick=e=>{e.stopPropagation();const [l,i]=el.dataset.gtk.split('~~');gcOpenTk({listId:l,taskId:i});});
+  v.querySelectorAll('[data-gday]').forEach(el=>el.onclick=()=>gcOpenDay(el.dataset.gday));
+  v.querySelectorAll('[data-gcalvis]').forEach(el=>el.onclick=e=>{e.stopPropagation();const hid=Object.assign({},gmeta().hiddenCals);
+    if(el.checked)delete hid[el.dataset.gcalvis];else hid[el.dataset.gcalvis]=true;gmetaSave({hiddenCals:hid});gcRefresh(true);});
+  v.querySelectorAll('[data-gcalcolor]').forEach(el=>el.onclick=()=>gcPickCalColor(el.dataset.gcalcolor));
+  v.querySelectorAll('[data-gcaldel]').forEach(el=>el.onclick=async()=>{const id=el.dataset.gcaldel;const c=GC.cals.find(x=>x.id===id);
+    if(!confirm(`캘린더 "${(c&&c.summary)||id}"를 삭제할까요?\n구글 캘린더에서도 삭제되며 되돌릴 수 없습니다.`))return;
+    try{if(el.dataset.role==='owner')await gFetch(GC_API+'/calendars/'+encodeURIComponent(id),{method:'DELETE'});
+      else await gFetch(GC_API+'/users/me/calendarList/'+encodeURIComponent(id),{method:'DELETE'});
+      toast('삭제됨');gcRefresh(true);}catch(e){toast(e.message);}});
+  const addCal=async()=>{const nm=$('#gcNewCal').value.trim();if(!nm)return;
+    try{await gFetch(GC_API+'/calendars',{method:'POST',body:{summary:nm}});$('#gcNewCal').value='';toast('캘린더 추가됨');gcRefresh(true);}catch(e){toast(e.message);}};
+  $('#gcNewCalBtn').onclick=addCal;$('#gcNewCal').onkeydown=e=>{if(e.key==='Enter')addCal();};
+  v.querySelectorAll('[data-gtdone]').forEach(el=>el.onclick=async e=>{e.stopPropagation();const [l,i]=el.dataset.gtdone.split('~~');
+    try{await gFetch(GT_API+'/lists/'+encodeURIComponent(l)+'/tasks/'+encodeURIComponent(i),{method:'PATCH',body:{status:el.checked?'completed':'needsAction'}});gcRefresh(true);}catch(e2){toast(e2.message);gcRefresh(true);}});
+  v.querySelectorAll('[data-gtedit]').forEach(el=>el.onclick=()=>{const [l,i]=el.dataset.gtedit.split('~~');gcOpenTk({listId:l,taskId:i});});
+  v.querySelectorAll('[data-gtshowdone]').forEach(el=>el.onclick=()=>{GC._showDone[el.dataset.gtshowdone]=!GC._showDone[el.dataset.gtshowdone];renderGcal();});
+  v.querySelectorAll('[data-gtlcolor]').forEach(el=>el.onclick=()=>gcPickListColor(el.dataset.gtlcolor));
+  v.querySelectorAll('[data-gtlren]').forEach(el=>el.onclick=async()=>{const id=el.dataset.gtlren;const l=GC.lists.find(x=>x.id===id);
+    const nm=prompt('목록 이름',(l&&l.title)||'');if(!nm||!nm.trim())return;
+    try{await gFetch(GT_API+'/users/@me/lists/'+encodeURIComponent(id),{method:'PATCH',body:{title:nm.trim()}});gcRefresh(true);}catch(e){toast(e.message);}});
+  v.querySelectorAll('[data-gtldel]').forEach(el=>el.onclick=async()=>{const id=el.dataset.gtldel;const l=GC.lists.find(x=>x.id===id);
+    if(!confirm(`할 일 목록 "${(l&&l.title)||''}"과 그 안의 할 일을 모두 삭제할까요?\n구글 Tasks에서도 삭제되며 되돌릴 수 없습니다.`))return;
+    try{await gFetch(GT_API+'/users/@me/lists/'+encodeURIComponent(id),{method:'DELETE'});toast('목록 삭제됨');gcRefresh(true);}catch(e){toast(e.message);}});
+  v.querySelectorAll('[data-gtadd]').forEach(el=>el.onkeydown=e=>{if(e.key==='Enter')gcQuickAdd(el.dataset.gtadd,el);});
+  v.querySelectorAll('[data-gtaddbtn]').forEach(el=>el.onclick=()=>{const inp=v.querySelector(`[data-gtadd="${CSS.escape(el.dataset.gtaddbtn)}"]`);gcQuickAdd(el.dataset.gtaddbtn,inp);});
+  const addList=async()=>{const nm=$('#gcNewList').value.trim();if(!nm)return;
+    try{const l=await gFetch(GT_API+'/users/@me/lists',{method:'POST',body:{title:nm}});$('#gcNewList').value='';
+      const lc=Object.assign({},gmeta().listColors);lc[l.id]=GC_TLCOLORS[GC.lists.length%GC_TLCOLORS.length];gmetaSave({listColors:lc});
+      toast('목록 추가됨');gcRefresh(true);}catch(e){toast(e.message);}};
+  $('#gcNewListBtn').onclick=addList;$('#gcNewList').onkeydown=e=>{if(e.key==='Enter')addList();};
+}
+async function gcQuickAdd(listId,inp){const t=(inp&&inp.value||'').trim();if(!t)return;
+  try{await gFetch(GT_API+'/lists/'+encodeURIComponent(listId)+'/tasks',{method:'POST',body:{title:t}});inp.value='';gcRefresh(true);}catch(e){toast(e.message);}}
+
+/* ---------- 색 선택 ---------- */
+function gcSwatches(list,cur){return `<div class="gc-swwrap">${list.map(s=>`<button class="gc-sw ${s.v===cur?'on':''}" data-gsw="${esc(s.v)}" style="background:${s.bg}"></button>`).join('')}</div>`;}
+function gcOpenColor(title,swatches,cur,cb){GC._colorCb=cb;
+  $('#gcc_title').textContent=title;$('#gcc_body').innerHTML=gcSwatches(swatches,cur);
+  $('#gcColorModal').classList.remove('hidden');
+  document.querySelectorAll('#gcc_body [data-gsw]').forEach(el=>el.onclick=()=>{$('#gcColorModal').classList.add('hidden');const cb2=GC._colorCb;GC._colorCb=null;if(cb2)cb2(el.dataset.gsw);});}
+function gcPickCalColor(calId){const c=GC.cals.find(x=>x.id===calId);if(!c)return;
+  const pal=Object.entries(GC.palette||{}).map(([id,v])=>({v:id,bg:v.background}));
+  if(!pal.length)return toast('색 팔레트를 불러오지 못했습니다');
+  gcOpenColor('캘린더 색 — 구글에 반영됩니다',pal,c.colorId,async id=>{
+    try{await gFetch(GC_API+'/users/me/calendarList/'+encodeURIComponent(calId),{method:'PATCH',body:{colorId:id}});gcRefresh(true);}catch(e){toast(e.message);}});}
+function gcPickListColor(listId){
+  gcOpenColor('목록 색 — 대시보드 전용(내 기기 간 동기화)',GC_TLCOLORS.map(c=>({v:c,bg:c})),tlColor(listId),c=>{
+    const lc=Object.assign({},gmeta().listColors);lc[listId]=c;gmetaSave({listColors:lc});renderGcal();});}
+
+/* ---------- 일정 모달 ---------- */
+function gcOpenEv(ref,prefDate){
+  GC._ev=ref;const isNew=!ref;
+  let ev=null,calId=(GC.cals.find(c=>c.primary)||GC.cals[0]||{}).id;
+  if(ref){calId=ref.calId;ev=(GC.events[ref.calId]||[]).find(e=>e.id===ref.evId);if(!ev)return toast('일정을 찾을 수 없습니다 — 새로고침하세요');}
+  $('#gev_mtitle').textContent=isNew?'📅 새 일정':'📅 일정 편집';
+  $('#gev_cal').innerHTML=GC.cals.filter(c=>c.accessRole==='owner'||c.accessRole==='writer').map(c=>`<option value="${esc(c.id)}" ${c.id===calId?'selected':''}>${esc(c.summary)}</option>`).join('');
+  const allday=!ev||!!(ev.start&&ev.start.date);
+  $('#gev_allday').checked=allday;
+  let sd=prefDate||dkey(new Date()),st='09:00',ed=sd,et='10:00';
+  if(ev){
+    if(ev.start.date){sd=ev.start.date;const e=new Date(ev.end.date+'T00:00:00');e.setDate(e.getDate()-1);ed=dkey(e);}
+    else{const s=new Date(ev.start.dateTime),e=new Date(ev.end.dateTime);sd=dkey(s);ed=dkey(e);
+      st=String(s.getHours()).padStart(2,'0')+':'+String(s.getMinutes()).padStart(2,'0');
+      et=String(e.getHours()).padStart(2,'0')+':'+String(e.getMinutes()).padStart(2,'0');}}
+  $('#gev_title').value=ev?(ev.summary||''):'';$('#gev_memo').value=ev?(ev.description||''):'';
+  $('#gev_sd').value=sd;$('#gev_st').value=st;$('#gev_ed').value=ed;$('#gev_et').value=et;
+  gevAllday();
+  $('#gev_del').classList.toggle('hidden',isNew);
+  $('#gcEvModal').classList.remove('hidden');
+}
+function gevAllday(){const a=$('#gev_allday').checked;$('#gev_st').style.display=a?'none':'';$('#gev_et').style.display=a?'none':'';}
+async function gcSaveEv(){
+  const calId=$('#gev_cal').value,title=$('#gev_title').value.trim();
+  const sd=$('#gev_sd').value,ed=$('#gev_ed').value||sd,allday=$('#gev_allday').checked;
+  if(!title)return toast('제목을 입력하세요');if(!sd)return toast('시작일을 선택하세요');
+  if(ed<sd)return toast('종료일이 시작일보다 빠릅니다');
+  let start,end;
+  if(allday){const e=new Date(ed+'T00:00:00');e.setDate(e.getDate()+1);start={date:sd};end={date:dkey(e)};}
+  else{const st=$('#gev_st').value||'09:00';let et=$('#gev_et').value||'';
+    if(!et||(ed===sd&&et<=st))et=String(Math.min(23,+st.slice(0,2)+1)).padStart(2,'0')+st.slice(2);
+    start={dateTime:rfc3339(sd,st)};end={dateTime:rfc3339(ed,et)};}
+  const body={summary:title,description:$('#gev_memo').value,start,end};
+  try{
+    if(GC._ev){let {calId:oc,evId}=GC._ev;
+      if(oc!==calId){const mv=await gFetch(GC_API+'/calendars/'+encodeURIComponent(oc)+'/events/'+encodeURIComponent(evId)+'/move?destination='+encodeURIComponent(calId),{method:'POST'});evId=mv.id;}
+      await gFetch(GC_API+'/calendars/'+encodeURIComponent(calId)+'/events/'+encodeURIComponent(evId),{method:'PATCH',body});}
+    else await gFetch(GC_API+'/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',body});
+    $('#gcEvModal').classList.add('hidden');toast('구글 캘린더에 저장됨');gcRefresh(true);
+  }catch(e){toast(e.message);}
+}
+async function gcDelEv(){if(!GC._ev)return;
+  if(!confirm('이 일정을 삭제할까요? 구글 캘린더에서도 삭제됩니다.'))return;
+  try{await gFetch(GC_API+'/calendars/'+encodeURIComponent(GC._ev.calId)+'/events/'+encodeURIComponent(GC._ev.evId),{method:'DELETE'});
+    $('#gcEvModal').classList.add('hidden');toast('삭제됨');gcRefresh(true);}catch(e){toast(e.message);}}
+
+/* ---------- 할 일 모달 ---------- */
+function gcOpenTk(ref,prefDate){
+  GC._tk=ref;const isNew=!ref;
+  let t=null,listId=(GC.lists[0]||{}).id;
+  if(ref){listId=ref.listId;t=(GC.tasks[ref.listId]||[]).find(x=>x.id===ref.taskId);if(!t)return toast('할 일을 찾을 수 없습니다 — 새로고침하세요');}
+  $('#gtk_mtitle').textContent=isNew?'✅ 새 할 일':'✅ 할 일 편집';
+  $('#gtk_list').innerHTML=GC.lists.map(l=>`<option value="${esc(l.id)}" ${l.id===listId?'selected':''}>${esc(l.title)}</option>`).join('');
+  $('#gtk_list').disabled=!isNew; /* Tasks API는 목록 간 이동 미지원 */
+  $('#gtk_title').value=t?(t.title||''):'';$('#gtk_memo').value=t?(t.notes||''):'';
+  $('#gtk_due').value=t&&t.due?String(t.due).slice(0,10):(prefDate||'');
+  $('#gtk_done').checked=!!(t&&t.status==='completed');$('#gtk_done').parentElement.style.display=isNew?'none':'';
+  $('#gtk_del').classList.toggle('hidden',isNew);
+  $('#gcTaskModal').classList.remove('hidden');
+}
+async function gcSaveTk(){
+  const listId=$('#gtk_list').value,title=$('#gtk_title').value.trim();
+  if(!listId)return toast('할 일 목록이 없습니다 — 목록을 먼저 만드세요');
+  if(!title)return toast('제목을 입력하세요');
+  const due=$('#gtk_due').value;
+  const body={title,notes:$('#gtk_memo').value,due:due?due+'T00:00:00.000Z':null};
+  try{
+    if(GC._tk){body.status=$('#gtk_done').checked?'completed':'needsAction';
+      await gFetch(GT_API+'/lists/'+encodeURIComponent(GC._tk.listId)+'/tasks/'+encodeURIComponent(GC._tk.taskId),{method:'PATCH',body});}
+    else await gFetch(GT_API+'/lists/'+encodeURIComponent(listId)+'/tasks',{method:'POST',body});
+    $('#gcTaskModal').classList.add('hidden');toast('Google Tasks에 저장됨');gcRefresh(true);
+  }catch(e){toast(e.message);}
+}
+async function gcDelTk(){if(!GC._tk)return;
+  if(!confirm('이 할 일을 삭제할까요? Google Tasks에서도 삭제됩니다.'))return;
+  try{await gFetch(GT_API+'/lists/'+encodeURIComponent(GC._tk.listId)+'/tasks/'+encodeURIComponent(GC._tk.taskId),{method:'DELETE'});
+    $('#gcTaskModal').classList.add('hidden');toast('삭제됨');gcRefresh(true);}catch(e){toast(e.message);}}
+
+/* ---------- 하루 상세 ---------- */
+function gcOpenDay(k){
+  const map=gcDayMap(),cell=map[k]||{evs:[],tks:[]};
+  const [yy,mm,dd]=k.split('-');
+  $('#gcd_title').textContent=`${+mm}월 ${+dd}일 (${['일','월','화','수','목','금','토'][new Date(k+'T00:00:00').getDay()]})`;
+  $('#gcd_body').innerHTML=
+    (cell.evs.map(x=>`<div class="gc-lrow" style="cursor:pointer" data-gdev="${esc(x.cal.id)}~~${esc(x.ev.id)}">
+        <span class="gc-dot" style="background:${calColor(x.cal)}"></span>
+        <span class="gc-lname">${esc(x.ev.summary||'(제목 없음)')}</span>
+        <span class="meta">${evTime(x.ev)||'종일'}</span></div>`).join(''))+
+    (cell.tks.map(x=>`<div class="gc-lrow" style="cursor:pointer" data-gdtk="${esc(x.list.id)}~~${esc(x.t.id)}">
+        <span class="gc-dot" style="background:${tlColor(x.list.id)}"></span>
+        <span class="gc-lname" style="${x.t.status==='completed'?'text-decoration:line-through;color:var(--sub)':''}">${esc(x.t.title||'(제목 없음)')}</span>
+        <span class="meta">할 일</span></div>`).join(''))||
+    '<p class="msub">이 날짜에 일정·할 일이 없습니다</p>';
+  $('#gcd_addev').onclick=()=>{$('#gcDayModal').classList.add('hidden');gcOpenEv(null,k);};
+  $('#gcd_addtk').onclick=()=>{$('#gcDayModal').classList.add('hidden');gcOpenTk(null,k);};
+  document.querySelectorAll('#gcd_body [data-gdev]').forEach(el=>el.onclick=()=>{$('#gcDayModal').classList.add('hidden');const [c,i]=el.dataset.gdev.split('~~');gcOpenEv({calId:c,evId:i});});
+  document.querySelectorAll('#gcd_body [data-gdtk]').forEach(el=>el.onclick=()=>{$('#gcDayModal').classList.add('hidden');const [l,i]=el.dataset.gdtk.split('~~');gcOpenTk({listId:l,taskId:i});});
+  $('#gcDayModal').classList.remove('hidden');
+}
+
+/* ---------- 연결 설정 ---------- */
+function gcOpenSet(){
+  $('#gcs_cid').value=gClientId();
+  $('#gcs_stat').textContent=gConnected()?'✅ 연결됨':'연결 안 됨 (만료/미연결)';
+  $('#gcSetModal').classList.remove('hidden');
+}
+async function gcDisconnect(){
+  try{if(GTOK&&GTOK.t&&window.google&&google.accounts)google.accounts.oauth2.revoke(GTOK.t,()=>{});}catch(e){}
+  GTOK=null;localStorage.removeItem(G_TOK_KEY);GC={cals:[],palette:GC.palette,lists:[],tasks:{},events:{},loadedAt:0,err:null,needAuth:false,_showDone:{},_ev:null,_tk:null,_colorCb:null};
+  $('#gcSetModal').classList.add('hidden');toast('구글 연결 해제됨');if(curView==='gcal')renderGcal();
+}
+
+/* ---------- 모달 DOM + 정적 바인딩 ---------- */
+document.body.insertAdjacentHTML('beforeend',`
+<div id="gcEvModal" class="modal hidden"><div class="modal-card">
+  <button class="modal-x" data-gcx="gcEvModal">✕</button><h3 id="gev_mtitle">📅 일정</h3>
+  <label>캘린더</label><select id="gev_cal"></select>
+  <label>제목 *</label><input id="gev_title" autocomplete="off">
+  <div class="cfchk" style="margin-top:10px"><label><input type="checkbox" id="gev_allday">종일</label></div>
+  <div class="cf2"><div><label>시작</label><input type="date" id="gev_sd"></div><div><label style="visibility:hidden">시간</label><input type="time" id="gev_st"></div></div>
+  <div class="cf2"><div><label>종료</label><input type="date" id="gev_ed"></div><div><label style="visibility:hidden">시간</label><input type="time" id="gev_et"></div></div>
+  <label>메모</label><textarea id="gev_memo" rows="3" style="width:100%"></textarea>
+  <div class="modal-btns"><button class="btn ghost sm" id="gev_del" style="color:var(--danger)">삭제</button><button class="btn primary sm" id="gev_save">저장</button></div>
+</div></div>
+<div id="gcTaskModal" class="modal hidden"><div class="modal-card">
+  <button class="modal-x" data-gcx="gcTaskModal">✕</button><h3 id="gtk_mtitle">✅ 할 일</h3>
+  <label>목록</label><select id="gtk_list"></select>
+  <label>제목 *</label><input id="gtk_title" autocomplete="off">
+  <label>날짜 <span style="font-weight:500;color:var(--sub)">· 선택</span></label><input type="date" id="gtk_due">
+  <label>메모</label><textarea id="gtk_memo" rows="3" style="width:100%"></textarea>
+  <div class="cfchk" style="margin-top:10px"><label><input type="checkbox" id="gtk_done">완료</label></div>
+  <div class="modal-btns"><button class="btn ghost sm" id="gtk_del" style="color:var(--danger)">삭제</button><button class="btn primary sm" id="gtk_save">저장</button></div>
+</div></div>
+<div id="gcDayModal" class="modal hidden"><div class="modal-card">
+  <button class="modal-x" data-gcx="gcDayModal">✕</button><h3 id="gcd_title"></h3>
+  <div id="gcd_body"></div>
+  <div class="modal-btns"><button class="btn ghost sm" id="gcd_addev">+ 일정</button><button class="btn ghost sm" id="gcd_addtk">+ 할 일</button></div>
+</div></div>
+<div id="gcColorModal" class="modal hidden"><div class="modal-card">
+  <button class="modal-x" data-gcx="gcColorModal">✕</button><h3 id="gcc_title">색 선택</h3><div id="gcc_body"></div>
+</div></div>
+<div id="gcSetModal" class="modal hidden"><div class="modal-card">
+  <button class="modal-x" data-gcx="gcSetModal">✕</button><h3>⚙ Google 연결 설정</h3>
+  <p class="msub">브라우저에서 구글로 직접 연결합니다(서버 없음). 토큰은 이 기기에만 저장되고 1시간마다 자동 갱신됩니다.</p>
+  <label>OAuth 클라이언트 ID</label><input id="gcs_cid" autocomplete="off">
+  <div id="gcs_stat" class="systat"></div>
+  <div class="modal-btns"><button class="btn ghost sm" id="gcs_off">연결 해제</button><button class="btn primary sm" id="gcs_save">저장 &amp; 다시 연결</button></div>
+</div></div>`);
+document.querySelectorAll('[data-gcx]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.gcx).classList.add('hidden'));
+['gcEvModal','gcTaskModal','gcDayModal','gcColorModal','gcSetModal'].forEach(id=>{const m=document.getElementById(id);
+  m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');});});
+$('#gev_allday').onchange=gevAllday;
+$('#gev_save').onclick=gcSaveEv;$('#gev_del').onclick=gcDelEv;
+$('#gtk_save').onclick=gcSaveTk;$('#gtk_del').onclick=gcDelTk;
+$('#gcs_save').onclick=async()=>{const cid=$('#gcs_cid').value.trim();if(!cid)return toast('클라이언트 ID를 입력하세요');
+  localStorage.setItem(G_CID_KEY,cid);GTOK=null;localStorage.removeItem(G_TOK_KEY);gTokClient=null;
+  $('#gcSetModal').classList.add('hidden');
+  try{await gAuth();toast('연결됨');gcRefresh();}catch(e){toast(e.message);if(curView==='gcal')renderGcal();}};
+$('#gcs_off').onclick=gcDisconnect;
 
 /* =========================================================
    misc helpers / boot
