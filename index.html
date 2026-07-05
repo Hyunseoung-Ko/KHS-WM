@@ -2422,7 +2422,16 @@ async function decJSON(str,pass){const o=JSON.parse(str);const key=await deriveK
 const GH_API='https://api.github.com';
 async function ghGet(repo,path,token){const r=await fetch(`${GH_API}/repos/${repo}/contents/${encodeURIComponent(path)}`,{headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'}});
   if(r.status===404)return null;if(!r.ok)throw new Error('GitHub 읽기 실패('+r.status+')');const d=await r.json();
-  return {content:atob((d.content||'').replace(/\s/g,'')),sha:d.sha};}
+  let content=atob((d.content||'').replace(/\s/g,''));
+  // 1MB 초과 파일은 contents API가 content를 빈 값으로 반환(encoding:none) → blob API로 재요청.
+  // 빈 content를 "원격 없음"으로 오인하면 병합 없이 로컬로 덮어써 다른 기기 데이터가 유실된다.
+  if(!content&&d.sha&&d.size>0){
+    const rb=await fetch(`${GH_API}/repos/${repo}/git/blobs/${d.sha}`,{headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'}});
+    if(!rb.ok)throw new Error('GitHub 읽기 실패(blob '+rb.status+')');
+    const db=await rb.json();content=atob((db.content||'').replace(/\s/g,''));
+    if(!content)throw new Error('GitHub 읽기 실패(빈 blob)');
+  }
+  return {content,sha:d.sha};}
 async function ghPut(repo,path,token,contentStr,sha,msg){const body={message:msg,content:btoa(contentStr)};if(sha)body.sha=sha;
   const r=await fetch(`${GH_API}/repos/${repo}/contents/${encodeURIComponent(path)}`,{method:'PUT',headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok){const e=await r.json().catch(()=>({}));const er=new Error('GitHub 저장 실패('+r.status+') '+(e.message||''));er.status=r.status;throw er;}
