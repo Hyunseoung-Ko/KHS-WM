@@ -487,6 +487,19 @@ html.m .seg{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;sc
 html.m .seg::-webkit-scrollbar{display:none}
 html.m .seg button{flex:0 0 auto;padding:10px 12px}
 @media(max-width:380px){html.m .grid3{grid-template-columns:1fr 1fr}}
+
+/* ---------- 캘린더 단독 창(?cal=1) — 박스 없이 전체화면, 창 크기에 유동 ---------- */
+html.cal #sidebar,html.cal #bottomNav,html.cal .topbar,html.cal #drawerBackdrop{display:none!important}
+html.cal #main{margin-left:0;padding:0}
+html.cal .gc-wrap{max-width:none;padding:0;height:100vh;height:100dvh;display:flex;flex-direction:column}
+html.cal .gc-card{flex:1;min-height:0;display:flex;flex-direction:column;border-radius:0;box-shadow:none;margin:0}
+html.cal .gc-shell{flex:1;min-height:0}
+html.cal .gc-left,html.cal .gc-right{overflow-y:auto}
+html.cal .gc-center{display:flex;flex-direction:column;overflow-y:auto;min-width:0}
+html.cal .gc-tg{flex:1;min-height:0;display:flex;flex-direction:column;border-left:none;border-right:none;border-radius:0}
+html.cal .gc-tg-body{flex:1;max-height:none}
+html.cal .gc-mv{flex:1;display:flex;flex-direction:column;min-height:0}
+html.cal .gc-mv .gc-mrow{flex:1}
 </style>
 </head>
 <body>
@@ -996,7 +1009,18 @@ function pruneStaleDel(del){for(const d in del){if(del[d]<DEL_FENCE)delete del[d
 /* 이 스냅샷이 tombstone으로 삭제돼야 하는가? (펜스 이후 삭제 && 삭제시각 > 업로드시각) */
 function isTombed(snap,del){const at=del&&del[snap.date];return !!(at&&at>=DEL_FENCE&&at>(snap.uploadedAt||''));}
 let pendingFiles=[];    // selected for upload
-let curView='home';
+/* ---------- 캘린더 단독 창 모드 (?cal=1 · 별도 창/바탕화면·홈화면 바로가기용) ----------
+   사이드바·하단탭 없이 일정 뷰만 전체화면으로. v 파라미터(day|d3|week|month)로 시작 보기 지정 */
+const CAL_ONLY=new URLSearchParams(location.search).get('cal')==='1';
+const CAL_V=(()=>{const v=new URLSearchParams(location.search).get('v');return ['day','d3','week','month'].includes(v)?v:'';})();
+if(CAL_ONLY){
+  document.documentElement.classList.add('cal');
+  document.title='일정 캘린더';
+  [['manifest','calendar.webmanifest'],['icon','icon-cal-192.png'],['apple-touch-icon','icon-cal-192.png']].forEach(([rel,href])=>{
+    const l=document.createElement('link');l.rel=rel;l.href=href;document.head.appendChild(l);});
+  const mm=document.createElement('meta');mm.name='apple-mobile-web-app-capable';mm.content='yes';document.head.appendChild(mm);
+}
+let curView=CAL_ONLY?'gcal':'home';
 let inDetail=false;
 let currentClientName=null;
 let charts={};
@@ -1075,11 +1099,23 @@ function homeContactCard(){
 }
 function goStrategyContact(){stratTab='contact';setView('strategy');}
 window.goStrategyContact=goStrategyContact;
+/* 홈 우측 상단 일정 버튼 → 캘린더를 별도 창(?cal=1)으로. PC=팝업 창, 모바일=새 탭 */
+function openCalWin(){
+  const u='?cal=1';
+  if(isMobile()){window.open(u,'khswmCal');return;}
+  const sw=screen.availWidth||1400,sh=screen.availHeight||900;
+  const w=Math.min(1480,sw-60),h=Math.min(960,sh-60);
+  window.open(u,'khswmCal','popup=1,width='+w+',height='+h+',left='+Math.max(0,Math.round((sw-w)/2))+',top='+Math.max(0,Math.round((sh-h)/2)));
+}
+window.openCalWin=openCalWin;
 function renderHome(){
   const snap=latest();
   const v=$('#view');
   const prev=SNAPS.length>1?SNAPS[SNAPS.length-2]:null;
-  let html=`<div class="wrap"><h1 class="page-title">홈</h1><p class="page-sub">한투 자산 + 보험 고객 통합 대시보드 · 데이터는 이 기기에만 저장됩니다</p>`;
+  let html=`<div class="wrap"><div style="display:flex;align-items:flex-start;gap:12px">
+    <div style="flex:1;min-width:0"><h1 class="page-title">홈</h1><p class="page-sub">한투 자산 + 보험 고객 통합 대시보드 · 데이터는 이 기기에만 저장됩니다</p></div>
+    <button class="btn primary sm" onclick="openCalWin()" title="일정을 별도 창으로 열기" style="flex:none;margin-top:3px">📅 일정 ↗</button>
+  </div>`;
 
   if(!snap){html+=`<div class="card empty"><div class="big">📥</div><b>아직 한투 자산 데이터가 없습니다</b>
     <p style="margin:10px 0 16px;color:var(--sub);font-size:13.5px;line-height:1.6">왼쪽 <b style="color:var(--ink)">도구 → 한투자산 업로드</b>로 엑셀을 올리거나,<br>PC에서 쓰던 데이터는 <b style="color:var(--ink)">백업 파일(JSON)</b>을 불러오세요.<br><span style="font-size:12.5px">※ 동기화를 켜면 다른 기기 데이터가 합쳐집니다</span></p>
@@ -2373,7 +2409,8 @@ function renderHelp(){
 
     <div class="card"><h3>🧭 화면별 기능</h3>
       <ul>
-        <li><b style="color:var(--ink)">홈</b> — 총자산·원금·손익·관리고객 요약(KPI 4종), 자산구분 도넛, 전체 추이, <b style="color:var(--ink)">오늘 연락할 고객</b> 카드(클릭 → 영업)</li>
+        <li><b style="color:var(--ink)">홈</b> — 총자산·원금·손익·관리고객 요약(KPI 4종), 자산구분 도넛, 전체 추이, <b style="color:var(--ink)">오늘 연락할 고객</b> 카드(클릭 → 영업). 우측 상단 <code>📅 일정 ↗</code>은 캘린더를 별도 창으로 엶</li>
+        <li><b style="color:var(--ink)">일정</b> — 구글 캘린더·Tasks 양방향 연동. <b style="color:var(--ink)">일·3일·주·월 보기</b> + <code>✓ Tasks</code> 패널 + 좌측 내 캘린더 사이드바. 주소에 <code>?cal=1</code>을 붙이면 <b style="color:var(--ink)">전체화면 단독 창</b>(바탕화면·휴대폰 홈화면 바로가기용, <code>&amp;v=month</code>로 시작 보기 지정)</li>
         <li><b style="color:var(--ink)">고객</b> — 이름·등록일·자산·수익률 정렬 + 검색. <code>+ 신규 고객</code>으로 자산 없는 잠재고객도 직접 추가</li>
         <li><b style="color:var(--ink)">고객상세</b> — <b style="color:var(--ink)">영업·CRM 정보</b> <code>✏️편집</code>, <b style="color:var(--ink)">운용상품 보유(실계좌 자동연결: ✓계좌 확인 · 색채움=잔고 · 테두리만=0원)</b>, 원금·총액·수익률 추이, 자산구성, 은퇴 시뮬레이션, 보유상품(계좌별 접기/펼침, 0원 계좌 포함)</li>
         <li><b style="color:var(--ink)">자산</b> — 전체 자산 추이 + <b style="color:var(--ink)">영업점별·PB별 자산 분포</b> + <b style="color:var(--ink)">계좌별 고객 / 날짜별 스냅샷 좌우 탭</b>. 계좌별 고객은 유형(주식·CMA·연금저축·IRP·DC) 탭 + <b style="color:var(--ink)">고객 검색</b>, 스냅샷은 <b style="color:var(--ink)">🗑 버튼</b>으로 삭제</li>
@@ -2831,8 +2868,9 @@ async function gFetch(url,opt){
 let GC={cals:[],palette:null,lists:[],tasks:{},events:{},loadedAt:0,err:null,needAuth:false,_showDone:{},_ev:null,_tk:null,_colorCb:null};
 let gcDate=(()=>{const d=new Date();d.setHours(0,0,0,0);return d;})();
 let gcView=localStorage.getItem('ab_gc_view')||'';
+if(CAL_V)gcView=CAL_V;   /* 바로가기 URL(?cal=1&v=month 등)이 지정한 보기 우선 */
 let gcMini=null;   /* 미니 달력이 보여주는 달(메인 날짜와 별도 탐색 가능) */
-function gcCurView(){let v=gcView||(isMobile()?'day':'week');if(v==='d3')v='day';return v;}
+function gcCurView(){const v=gcView||(isMobile()?'day':'week');return ['day','d3','week','month'].includes(v)?v:'week';}
 let gcBusy=false;
 async function gcRefresh(silent){
   if(!gClientId()||gcBusy)return;gcBusy=true;
@@ -2876,7 +2914,7 @@ function calColor(c){return (c&&c.backgroundColor)||'#3182F6';}
 const GC_HH=()=>isMobile()?44:48;   /* 1시간 높이(px) */
 function txtOn(hex){try{const h=String(hex).replace('#','');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
   return (r*299+g*587+b*114)/1000>150?'rgba(0,0,0,.78)':'#fff';}catch(e){return '#fff';}}
-function gcRangeDays(){return gcCurView()==='day'?1:7;}
+function gcRangeDays(){return {day:1,d3:3}[gcCurView()]||7;}
 function gcRangeStart(){const d=new Date(gcDate);d.setHours(0,0,0,0);if(gcCurView()==='week')d.setDate(d.getDate()-d.getDay());return d;}
 function gcTitle(){
   const y=gcDate.getFullYear(),m=gcDate.getMonth();
@@ -3138,7 +3176,7 @@ function renderGcal(){
   const center=view==='month'?gcMonthHTML():`<div class="gc-tg">${gcTimeGridHTML()}</div>`;
   const leftCls=mob?(GC._leftOpen?'openm':''):(GC._leftOpen?'':'closed');
   const rightCls=mob?(GC._sideOpen?'openm':''):(GC._sideOpen?'':'closed');
-  v.innerHTML=`<div class="wrap">
+  v.innerHTML=`<div class="wrap gc-wrap">
    <div class="card gc-card">
     <div class="gc-topbar">
       <button class="gc-ibtn" id="gcLeftBtn" title="내 캘린더">☰</button>
@@ -3150,6 +3188,7 @@ function renderGcal(){
       <span style="flex:1 1 12px;min-width:4px"></span>
       <div class="gc-seg" id="gcSeg">
         <button data-v="day" class="${view==='day'?'on':''}">일</button>
+        <button data-v="d3" class="${view==='d3'?'on':''}">3일</button>
         <button data-v="week" class="${view==='week'?'on':''}">주</button>
         <button data-v="month" class="${view==='month'?'on':''}">월</button>
       </div>
@@ -3157,7 +3196,7 @@ function renderGcal(){
       <button class="gc-ibtn" id="gcReload" title="새로고침">↻</button>
       <button class="gc-ibtn" id="gcSetBtn" title="연결 설정">⚙</button>
       <button class="btn primary sm" id="gcAddEv">+ 일정</button>
-      <button class="gc-ibtn ${GC._sideOpen?'on':''}" id="gcSideBtn" title="Tasks 열기/닫기">✓</button>
+      <button class="btn ${GC._sideOpen?'primary':'ghost'} sm" id="gcSideBtn" title="Tasks 열기/닫기">✓ Tasks</button>
     </div>
     ${GC.err?`<p class="msub" style="color:var(--danger);padding:6px 14px;margin:0">⚠️ ${esc(GC.err)}</p>`:''}
     <div class="gc-shell">
@@ -3183,7 +3222,7 @@ function gcBindView(v){
   const jump=(d)=>{gcDate=d;gcMini=null;GC._tgScroll=null;renderGcal();gcRefresh(true);};
   const step=dir=>{
     if(gcCurView()==='month')jump(new Date(gcDate.getFullYear(),gcDate.getMonth()+dir,1));
-    else{const d=new Date(gcDate);d.setDate(d.getDate()+dir*(gcCurView()==='day'?1:7));jump(d);}};
+    else{const d=new Date(gcDate);d.setDate(d.getDate()+dir*gcRangeDays());jump(d);}};
   const goDay=k=>{gcView='day';localStorage.setItem('ab_gc_view','day');jump(new Date(k+'T00:00:00'));};
   $('#gcPrev').onclick=()=>step(-1);
   $('#gcNext').onclick=()=>step(1);
@@ -3521,9 +3560,14 @@ function resetIdle(){clearTimeout(idleTimer);const m=autolockMins();
 /* 모바일 레이아웃 판정 — JS 클래스(html.m)로 제어해 iOS 회전 후 데스크톱 잔류 버그 방지 */
 /* 터치기기(coarse pointer)는 가로·세로 무관하게 항상 모바일 레이아웃 → 회전 시 데스크톱 전환 자체가 발생 안 함 */
 function applyMobileClass(){const coarse=window.matchMedia('(pointer:coarse)').matches;document.documentElement.classList.toggle('m', coarse || window.innerWidth<=880);}
-let _rzT,_pendingRotate=false;
+let _rzT,_pendingRotate=false,_wasM=null;
 function onViewportChange(){clearTimeout(_rzT);_rzT=setTimeout(()=>{applyMobileClass();
   if(_pendingRotate){_pendingRotate=false;hardResetViewport();if(!$('#app').classList.contains('hidden'))rerenderCurrent();}
+  /* 창 크기 변경으로 모바일↔데스크톱 레이아웃 경계를 넘으면 즉시 재렌더 — 별도 창 캘린더 유동 대응 */
+  else if(_wasM!==null&&isMobile()!==_wasM&&!$('#app').classList.contains('hidden')){
+    GC._leftOpen=!isMobile();GC._sideOpen=false;   /* 캘린더 패널: 모바일=닫힘 · PC=내 캘린더 열림 */
+    rerenderCurrent();}
+  _wasM=isMobile();
   Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},70);}
 window.addEventListener('resize',onViewportChange);
 if(window.visualViewport)window.visualViewport.addEventListener('resize',onViewportChange);
@@ -3541,7 +3585,7 @@ window.addEventListener('orientationchange',()=>{
   setTimeout(()=>afterRotate(true),120);   // 빠른 1차
   setTimeout(()=>{afterRotate(true);_pendingRotate=false;},420);  // 보정(이벤트 누락 대비)
 });
-applyMobileClass();
+applyMobileClass();_wasM=isMobile();
 
 /* 스크롤 내리면 하단탭 숨김, 올리면 다시 표시 */
 let _lastY=0;
@@ -3553,6 +3597,7 @@ function goBack(){
   const open=openModalEl();
   if(open){open.classList.add('hidden');return;}
   if($('#sidebar').classList.contains('open')){toggleDrawer(false);return;}
+  if(CAL_ONLY)return;   /* 캘린더 단독 창에선 다른 뷰로 이동 불가 */
   if(inDetail){setView('clients');return;}
   if(curView!=='home')setView('home');
 }
