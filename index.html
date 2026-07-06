@@ -641,7 +641,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
     </div>
     <div class="cf2">
       <div><label>투자성향 <span style="font-weight:500;color:var(--sub)">· 한투</span></label><select id="cf_risk"><option value="">-</option><option>안정형</option><option>안정추구형</option><option>위험중립형</option><option>적극투자형</option><option>공격투자형</option></select></div>
-      <div><label>최근접촉일 <span style="font-weight:500;color:var(--sub)">· 분기 연락 기준</span></label><input id="cf_contact" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off"></div>
+      <div><label>최근접촉일 <span style="font-weight:500;color:var(--sub)">· 연락 주기 기준</span></label><input id="cf_contact" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off"></div>
     </div>
     <label>운용상품 보유 <span style="font-weight:500;color:var(--sub)">· 자산자료 자동연결</span></label>
     <div class="pstat" id="cf_prodStatus"></div>
@@ -667,7 +667,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <button data-lt="date">📅 지난 연락일</button>
     </div>
     <div id="lgPassPane">
-      <p class="msub" style="margin:0 0 10px">이번 분기 연락을 건너뜁니다. 사유는 접촉 이력에 남아 다음 연락 때 함께 표시됩니다.</p>
+      <p class="msub" style="margin:0 0 10px">이번 주기 연락을 건너뜁니다. 사유는 접촉 이력에 남아 다음 연락 때 함께 표시됩니다.</p>
       <div class="rchips" id="lgReasons">
         <button class="rchip" data-r="다른 고객 가족">다른 고객 가족</button>
         <button class="rchip" data-r="논의할 내용 없음">논의할 내용 없음</button>
@@ -679,7 +679,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <textarea id="lgMemo" rows="2" placeholder="추가 메모"></textarea>
     </div>
     <div id="lgDatePane" style="display:none">
-      <p class="msub" style="margin:0 0 10px">이미 연락했지만 기록하지 못한 경우, 실제 연락일을 입력하세요. <b>최근 3개월 이내</b>면 이번 분기 완료로 처리되어 다음 일정으로 넘어갑니다.</p>
+      <p class="msub" style="margin:0 0 10px">이미 연락했지만 기록하지 못한 경우, 실제 연락일을 입력하세요. 연락 주기 이내(<b>한투 3개월 · 보험 6개월</b>)면 이번 주기 완료로 처리되어 다음 일정으로 넘어갑니다.</p>
       <label>연락일</label>
       <input id="lgDate" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off">
     </div>
@@ -1065,7 +1065,7 @@ function homeContactCard(){
   const due=unifiedDue();
   const over=due.filter(c=>c._st==='overdue').length,tod=due.filter(c=>c._st==='today').length,up=due.filter(c=>c._st==='upcoming').length,done=due.filter(c=>c._st==='done').length;
   return `<div class="card" style="cursor:pointer" onclick="goStrategyContact()">
-    <h3>📞 오늘 연락할 고객<span class="meta">한투+보험 통합 · 분기 1회 · 클릭 → 영업 ›</span></h3>
+    <h3>📞 오늘 연락할 고객<span class="meta">한투 분기 · 보험 반기 · 클릭 → 영업 ›</span></h3>
     <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;padding:6px 2px 2px">
       <div><span style="font-size:28px;font-weight:800;color:var(--danger)">${over}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
       <div><span style="font-size:28px;font-weight:800;color:var(--warn-d)">${tod}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
@@ -1712,8 +1712,8 @@ function renderStrategy(){
     const overN=over.length, todayN=tod.length;
     const dueList=[...over,...tod];
     desc=started
-      ? `2026-07 시작 · 분기(3개월) 1회 · 영업일 분산 · 한투+보험 균형 배분 · 이번 달 도래 ${items.length}명 · 위에서부터 통화 후 [✓연락완료]`
-      : `영업 진행은 2026-07부터 시작됩니다 · 7월이 되면 한투+보험 고객이 분기별·영업일 기준으로 자동 배분됩니다`;
+      ? `2026-07 시작 · 한투 분기(3개월)·보험 반기(6개월) 1회 · 영업일 분산 · 한투+보험 균형 배분 · 이번 달 도래 ${items.length}명 · 위에서부터 통화 후 [✓연락완료]`
+      : `영업 진행은 2026-07부터 시작됩니다 · 7월이 되면 한투(분기)+보험(반기) 고객이 영업일 기준으로 자동 배분됩니다`;
     const md=c=>`${TM}/${c._day}`;
     const statusTag=c=>c._st==='overdue'?`<span class="tag" style="background:#FDECEE;color:#E0344B">${md(c)} 지남</span>`
       :c._st==='today'?`<span class="tag" style="background:#FCF3E0;color:#C98A0B">오늘 연락</span>`
@@ -1871,21 +1871,24 @@ function insBizDaysOfMonth(y,m){const out=[],last=new Date(y,m,0).getDate();for(
 function insHistory(c){return((c.crm&&c.crm.history)||[]).slice().sort();}
 function insLastContact(c){const h=insHistory(c);return h.length?h[h.length-1]:null;}
 
-/* ===== 통합 연락 스케줄 (한투+보험 · 고객 기준 · 분기 1회) =====
+/* ===== 통합 연락 스케줄 (한투+보험 · 고객 기준 · 채널별 주기) =====
    - 2026-07부터 시작(그 전엔 대상 없음)
-   - 분기(3개월) 1회: 고객을 채널별로 3개 슬롯에 균등 배분 → 매월 한 슬롯만 도래(분기마다 재등장)
+   - 한투=분기(3개월) 1회 · 보험=반기(6개월) 1회(카톡 정보 발송이 별도라 전화는 여유있게)
+   - 고객을 채널별 주기 슬롯에 균등 배분 → 매월 한 슬롯만 도래(주기마다 재등장)
    - 한투·보험을 번갈아 영업일에 고르게 배치
    - 완료는 history/lastContact 공용 */
 const PROGRAM_START='2026-07-01';
-/* 달력 월의 분기 슬롯(0/1/2) — 2026-07을 0으로 기준 */
-function monthSlot(y,m){const idx=(y-2026)*12+(m-1)-6;return ((idx%3)+3)%3;}
-/* 고객별 분기 슬롯 — 채널(한투/보험)별로 3슬롯에 균등 배분(이름순·안정) */
+const CYCLE_KIS=3,CYCLE_INS=6;   // 연락 주기(개월) — 한투 분기 · 보험 반기
+/* 달력 월의 주기 슬롯(0~cyc-1) — 2026-07을 0으로 기준 */
+function monthSlot(y,m,cyc){const idx=(y-2026)*12+(m-1)-6;return ((idx%cyc)+cyc)%cyc;}
+/* 고객별 주기 슬롯 — 채널(한투/보험)별로 각 주기 슬롯에 균등 배분(이름순·안정) */
 function customerSlots(){
   const all=Object.values(curCustomers()).filter(c=>c.crm);
   const grp={kis:[],ins:[]};
   all.forEach(c=>{(hasChannel(c,'한투')?grp.kis:grp.ins).push(c);});
   const map={};
-  ['kis','ins'].forEach(g=>{grp[g].sort((a,b)=>a.name.localeCompare(b.name,'ko'));grp[g].forEach((c,i)=>{map[c.name]=i%3;});});
+  grp.kis.sort((a,b)=>a.name.localeCompare(b.name,'ko')).forEach((c,i)=>{map[c.name]=i%CYCLE_KIS;});
+  grp.ins.sort((a,b)=>a.name.localeCompare(b.name,'ko')).forEach((c,i)=>{map[c.name]=i%CYCLE_INS;});
   return map;
 }
 function unifiedLastContact(c){const a=insLastContact(c)||'',b=(c.crm&&c.crm.lastContact)||'';return a>b?a:b;}
@@ -1894,18 +1897,18 @@ function unifiedDue(){
   const TODAY=insIso(NOW);
   if(TODAY<PROGRAM_START)return [];   // 영업 진행은 2026-07부터
   const TY=NOW.getFullYear(),TM=NOW.getMonth()+1,monthFirst=`${TY}-${insPad(TM)}-01`;
-  const slot=customerSlots(),curSlot=monthSlot(TY,TM);
+  const slot=customerSlots(),slotK=monthSlot(TY,TM,CYCLE_KIS),slotI=monthSlot(TY,TM,CYCLE_INS);
   const all=Object.values(curCustomers()).filter(c=>c.crm);
-  const due=all.filter(c=>slot[c.name]===curSlot);
-  // 한투/보험 번갈아 → 영업일에 두 채널 고르게
-  const kis=due.filter(c=>hasChannel(c,'한투')).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
-  const ins=due.filter(c=>!hasChannel(c,'한투')).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  // 한투/보험 번갈아 → 영업일에 두 채널 고르게 (채널별 주기 슬롯으로 도래 판정)
+  const kis=all.filter(c=>hasChannel(c,'한투')&&slot[c.name]===slotK).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const ins=all.filter(c=>!hasChannel(c,'한투')&&slot[c.name]===slotI).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   const ordered=[];for(let i=0;i<Math.max(kis.length,ins.length);i++){if(i<kis.length)ordered.push(kis[i]);if(i<ins.length)ordered.push(ins[i]);}
   const bd=insBizDaysOfMonth(TY,TM),N=ordered.length;
-  const cycleFrom=addMonths(TODAY,-3);   // 최근 3개월 이내 접촉/패스 = 이번 분기 처리 완료
+  const cycleFromK=addMonths(TODAY,-CYCLE_KIS),cycleFromI=addMonths(TODAY,-CYCLE_INS);   // 주기 내 접촉/패스 = 이번 주기 처리 완료
   ordered.forEach((c,i)=>{
     const di=N<=1?0:Math.min(bd.length-1,Math.floor(i*bd.length/N));
     c._day=bd[di];c._dateIso=insIso(new Date(TY,TM-1,c._day));
+    const cycleFrom=hasChannel(c,'한투')?cycleFromK:cycleFromI;
     const lc=unifiedLastContact(c);
     const contactedRecently=!!(lc&&lc>=cycleFrom);
     const passedRecently=((c.crm.passes||[]).some(p=>p.date>=cycleFrom));
@@ -1929,7 +1932,7 @@ async function contactPass(name,reason){
   const cr=CRM[name];if(!cr)return;const t=todayStr();
   cr.passes=cr.passes||[];cr.passes.push({date:t,reason:reason||''});
   cr.updatedAt=new Date().toISOString();
-  await crmPut(cr);CRM[name]=cr;toast(name+' · 이번 분기 패스');
+  await crmPut(cr);CRM[name]=cr;toast(name+' · 이번 주기 패스');
   if(syncOn())syncNow(true);render();
 }
 window.contactPass=contactPass;
@@ -2346,7 +2349,7 @@ function renderHelp(){
     <div class="card tip"><h3>🔗 통합 대시보드 (한투 + 보험)</h3>
       <ul>
         <li><b>고객</b> — 한투·보험 고객을 한 화면에서. 채널 칩(전체/한투/보험/양쪽)으로 필터. 양쪽 고객은 배지 2개.</li>
-        <li><b>홈 · 오늘 연락</b> — 한투·보험을 통합한 분기(3개월) 연락 스케줄(2026-07 시작). 보험은 고객 상세에서 채널 '보험'을 체크하면 통합 스케줄에 자동 배정(이름순 분기 슬롯·영업일 분산)되고 연락이력이 반영됩니다.</li>
+        <li><b>홈 · 오늘 연락</b> — 한투·보험을 통합한 연락 스케줄(2026-07 시작). 주기는 한투 분기(3개월)·보험 반기(6개월) — 보험은 카톡 정보 발송이 별도라 전화 주기를 여유있게 둡니다. 보험은 고객 상세에서 채널 '보험'을 체크하면 통합 스케줄에 자동 배정(이름순 주기 슬롯·영업일 분산)되고 연락이력이 반영됩니다.</li>
         <li><b>리포트</b> — 보장분석/제안/가이드 HTML을 toss-reports에 배포·공유링크 생성. 목록에서 <b>항목을 누르면 바로 열림</b>. 고객 연결은 <b>고객 상세</b>에서 합니다.</li>
         <li><b>최초 1회</b> — 설정·백업의 <b>📥 보험 고객 가져오기</b>로 기존 보험 고객을 통합 CRM으로 이전(이름 기준 한투와 병합).</li>
         <li><b>저장·동기화</b> — 모든 고객정보는 E2EE 암호화로 데이터 repo에 동기화(보험 포함). 리포트/보험가져오기는 toss-reports 토큰 사용.</li>
@@ -2374,7 +2377,7 @@ function renderHelp(){
         <li><b style="color:var(--ink)">고객</b> — 이름·등록일·자산·수익률 정렬 + 검색. <code>+ 신규 고객</code>으로 자산 없는 잠재고객도 직접 추가</li>
         <li><b style="color:var(--ink)">고객상세</b> — <b style="color:var(--ink)">영업·CRM 정보</b> <code>✏️편집</code>, <b style="color:var(--ink)">운용상품 보유(실계좌 자동연결: ✓계좌 확인 · 색채움=잔고 · 테두리만=0원)</b>, 원금·총액·수익률 추이, 자산구성, 은퇴 시뮬레이션, 보유상품(계좌별 접기/펼침, 0원 계좌 포함)</li>
         <li><b style="color:var(--ink)">자산</b> — 전체 자산 추이 + <b style="color:var(--ink)">영업점별·PB별 자산 분포</b> + <b style="color:var(--ink)">계좌별 고객 / 날짜별 스냅샷 좌우 탭</b>. 계좌별 고객은 유형(주식·CMA·연금저축·IRP·DC) 탭 + <b style="color:var(--ink)">고객 검색</b>, 스냅샷은 <b style="color:var(--ink)">🗑 버튼</b>으로 삭제</li>
-        <li><b style="color:var(--ink)">영업</b> — 오늘연락(통합 분기 스케줄)·현금자산(현금성 보유 많은 순·LMS가능)·관리(손실·급감·<b style="color:var(--ink)">현금성 증대</b>)·캘린더(상품만기·성향만기·연금개시연령)·정보없음(자산 있으나 CRM 미입력)·0원계좌(<b style="color:var(--ink)">전체자산 0원</b>)·해지(사라진 계좌)</li>
+        <li><b style="color:var(--ink)">영업</b> — 오늘연락(통합 스케줄 · 한투 분기/보험 반기)·현금자산(현금성 보유 많은 순·LMS가능)·관리(손실·급감·<b style="color:var(--ink)">현금성 증대</b>)·캘린더(상품만기·성향만기·연금개시연령)·정보없음(자산 있으나 CRM 미입력)·0원계좌(<b style="color:var(--ink)">전체자산 0원</b>)·해지(사라진 계좌)</li>
         <li><b style="color:var(--ink)">리포트</b> — 보장분석/제안/가이드 HTML을 toss-reports에 <b style="color:var(--ink)">배포·공유링크 생성</b>. 목록 항목 클릭 시 바로 열림 · 링크복사. 오래된 링크 정리. 고객 연결은 고객 상세에서</li>
       </ul></div>
 
