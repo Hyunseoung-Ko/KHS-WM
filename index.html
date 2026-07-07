@@ -1566,8 +1566,14 @@ async function insSave(){
 }
 async function insDelete(){
   if(!insEditId)return;
-  if(!confirm('이 계약 기록을 완전히 삭제할까요?\n(해지·실효·타설계사 등은 삭제 대신 상태를 바꿔 보관하세요)'))return;
-  const cr=CRM[insModalName];if(cr){cr.contracts=(cr.contracts||[]).filter(x=>x.id!==insEditId);cr.updatedAt=new Date().toISOString();await crmPut(cr);if(syncOn())syncNow(true);}
+  if(!confirm('이 계약을 삭제할까요?\n다른 기기에서도 삭제됩니다. (해지·실효·타설계사 등은 삭제 대신 상태를 바꿔 보관하세요)'))return;
+  const cr=CRM[insModalName];
+  if(cr){
+    const ct=(cr.contracts||[]).find(x=>x.id===insEditId);
+    if(ct){cr.delContracts=cr.delContracts||{};cr.delContracts[contractKey(ct)]=new Date().toISOString();}   // tombstone(삭제 전파)
+    cr.contracts=(cr.contracts||[]).filter(x=>x.id!==insEditId);
+    cr.updatedAt=new Date().toISOString();await crmPut(cr);if(syncOn())syncNow(true);
+  }
   closeInsModal();refreshInsAfter();toast('삭제됨');
 }
 function bindInsModal(){
@@ -1655,7 +1661,7 @@ function bindCrmForm(){
       riskType:$('#cf_risk').value,pension:$('#cf_pension').checked,dormant:$('#cf_dormant').checked,prod,memo:$('#cf_memo').value.trim(),
       lastContact:dnorm($('#cf_contact').value),
       channels,anchorMonth:ex.anchorMonth||null,
-      history:ex.history||[],passes:ex.passes||[],linkIds:ex.linkIds||[],contracts:ex.contracts||[],
+      history:ex.history||[],passes:ex.passes||[],linkIds:ex.linkIds||[],contracts:ex.contracts||[],delContracts:ex.delContracts||{},
       updatedAt:new Date().toISOString()};
     await crmPut(rec);CRM[nm]=rec;close();toast('저장됨');
     if(syncOn())syncNow(true);
@@ -1715,8 +1721,13 @@ function mergeCrm(a,b){const m={};[...(a||[]),...(b||[])].forEach(c=>{
   u.passes=Object.values(pm).sort((x,y)=>String(x.date).localeCompare(String(y.date)));
   u.linkIds=[...new Set([...(ex.linkIds||[]),...(c.linkIds||[])])];
   // 보험 계약 union — 계약키별 최신(updatedAt) 채택, 두 기기 입력 유실 방지
+  // + tombstone(삭제 표식)으로 삭제 전파: 삭제시각 ≥ 계약 updatedAt 이면 제외(그 이후 재등록이면 계약이 이김)
+  const tomb={...(ex.delContracts||{})};
+  Object.entries(c.delContracts||{}).forEach(([k,ts])=>{if(!tomb[k]||String(ts)>String(tomb[k]))tomb[k]=ts;});
   const cmap={};[...(ex.contracts||[]),...(c.contracts||[])].forEach(ct=>{if(!ct)return;const k=contractKey(ct);const e=cmap[k];if(!e||(ct.updatedAt||'')>=(e.updatedAt||''))cmap[k]=ct;});
+  Object.keys(cmap).forEach(k=>{const t=tomb[k];if(t&&String(t)>=String(cmap[k].updatedAt||''))delete cmap[k];else if(t)delete tomb[k];}); // 재등록으로 살아난 계약이면 stale tombstone 정리
   u.contracts=Object.values(cmap);
+  if(Object.keys(tomb).length)u.delContracts=tomb;else delete u.delContracts;
   if(u.history.length){const last=u.history[u.history.length-1];if(!u.lastContact||last>u.lastContact)u.lastContact=last;}
   m[c.name]=u;});
   return Object.values(m);}
@@ -3212,7 +3223,7 @@ async function migrateInsurance(){
       channels:[...channels],
       anchorMonth:ic.anchorMonth||(ex&&ex.anchorMonth)||null,
       history:mergedHist,passes:(ex&&ex.passes)||[],
-      linkIds:(ex&&ex.linkIds)||[],contracts:(ex&&ex.contracts)||[],dormant:!!(ex&&ex.dormant),
+      linkIds:(ex&&ex.linkIds)||[],contracts:(ex&&ex.contracts)||[],delContracts:(ex&&ex.delContracts)||{},dormant:!!(ex&&ex.dormant),
       updatedAt:new Date().toISOString()};
     if(ex)merged++;else added++;
     await crmPut(rec);CRM[nm]=rec;
