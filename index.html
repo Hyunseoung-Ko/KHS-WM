@@ -1841,15 +1841,15 @@ function parseInsCrmVertical(t){
 /* 탭 구분 표(엑셀/웹표 복사) — 헤더행으로 컬럼 매핑 */
 function parseInsTsv(t){
   const rows=t.split(/\r?\n/).filter(l=>l.trim()).map(l=>l.split('\t'));
-  let hIdx=rows.findIndex(r=>r.some(c=>/보험사|보험명|계약일/.test(c)));if(hIdx<0)hIdx=0;
+  let hIdx=rows.findIndex(r=>r.some(c=>/보험사|회사명|보험회사|보험명|상품명|계약일/.test(c)));if(hIdx<0)hIdx=0;
   const H=rows[hIdx].map(norm);
   const col=names=>{for(const n of names){const i=H.findIndex(h=>h.includes(norm(n)));if(i>=0)return i;}return -1;};
-  const I={date:col(['계약일','가입일']),status:col(['계약상태','상태']),insurer:col(['보험사']),product:col(['보험명','상품명','상품']),policy:col(['증권번호','증권']),prem:col(['보험료','월보험료']),cyc:col(['납입주기','주기']),yrs:col(['납입년수','납입기간']),ctor:col(['계약자']),insd:col(['피보험자']),agent:col(['모집자','설계사'])};
+  const I={date:col(['계약일','가입일']),status:col(['계약상태','상태']),insurer:col(['보험사','회사명','보험회사']),product:col(['보험명','상품명','상품']),policy:col(['증권번호','증권']),prem:col(['월보험료','보험료']),cyc:col(['납입주기','주기']),yrs:col(['납입기간','납입년수']),mat:col(['만기','보장만기','만기일']),ctor:col(['계약자']),insd:col(['피보험자']),agent:col(['모집자','설계사'])};
   const g=(r,i)=>i>=0?String(r[i]||'').trim():'';
   const out=[];
   rows.slice(hIdx+1).forEach(r=>{
     if(!g(r,I.insurer)&&!g(r,I.product))return;
-    out.push(newContract({contractDate:g(r,I.date),status:g(r,I.status),insurer:g(r,I.insurer),product:g(r,I.product),policyNo:g(r,I.policy),premium:g(r,I.prem),payCycle:g(r,I.cyc),payYears:g(r,I.yrs),contractor:g(r,I.ctor),insured:g(r,I.insd),agent:g(r,I.agent),source:'paste'}));
+    out.push(newContract({contractDate:g(r,I.date),status:g(r,I.status),insurer:g(r,I.insurer),product:g(r,I.product),policyNo:g(r,I.policy),premium:g(r,I.prem),payCycle:g(r,I.cyc),payYears:g(r,I.yrs),maturity:g(r,I.mat),contractor:g(r,I.ctor),insured:g(r,I.insd),agent:g(r,I.agent),source:'paste'}));
   });
   return out;
 }
