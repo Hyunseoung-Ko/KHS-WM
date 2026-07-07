@@ -2439,7 +2439,7 @@ function renderHelp(){
     <div class="card"><h3>🧭 화면별 기능</h3>
       <ul>
         <li><b style="color:var(--ink)">홈</b> — 총자산·원금·손익·관리고객 요약(KPI 4종), 자산구분 도넛, 전체 추이, <b style="color:var(--ink)">오늘 연락할 고객</b> 카드(클릭 → 영업). 우측 상단 <code>📅 일정 ↗</code>은 캘린더를 별도 창으로 엶</li>
-        <li><b style="color:var(--ink)">일정</b> — 구글 캘린더·Tasks 양방향 연동, 주 시작=월요일. <b style="color:var(--ink)">일·3일·주·월 보기</b> + <code>✓ Tasks</code> 패널(⤢=전체 보기, 목록별 색 지정) + 좌측 사이드바에서 <b style="color:var(--ink)">캘린더·할 일 목록 표시 켜기/끄기</b>(캘린더는 구글 웹 체크 상태를 기본으로 따름). 할 일 <b style="color:var(--ink)">☆ 중요 표시·시간 지정</b>은 대시보드 전용(구글 Tasks API 미지원, 내 기기 간만 동기화) — 시간을 넣으면 일·3일·주 시간 그리드에 배치됨. 주소에 <code>?cal=1</code>을 붙이면 <b style="color:var(--ink)">전체화면 단독 창</b>(바탕화면·휴대폰 홈화면 바로가기용, <code>&amp;v=month</code>로 시작 보기 지정)</li>
+        <li><b style="color:var(--ink)">일정</b> — 대시보드에서 <b style="color:var(--ink)">자동 도출되는 일정</b>(연락 예정 등)과 <code>+ 일정</code>으로 <b style="color:var(--ink)">직접 추가한 일정</b>을 로컬 캘린더로 표시(구글 연동 없음), 주 시작=월요일. <b style="color:var(--ink)">일·3일·주·월 보기</b> + 좌측 사이드바 <b style="color:var(--ink)">일정 목록</b>에서 카테고리별 <b style="color:var(--ink)">색 구분·표시 켜기/끄기</b>(연락 예정 / 가입 90일·1년·2년·상령일=준비 중 / 직접 입력). 도출 일정은 대시보드에서 자동 갱신되어 편집 불가, 직접 추가 일정만 편집·삭제. 주소에 <code>?cal=1</code>을 붙이면 <b style="color:var(--ink)">전체화면 단독 창</b>(바탕화면·휴대폰 홈화면 바로가기용, <code>&amp;v=month</code>로 시작 보기 지정). 향후 구글 캘린더로 내보내기 예정</li>
         <li><b style="color:var(--ink)">고객</b> — 이름·등록일·자산·수익률 정렬 + 검색. <code>+ 신규 고객</code>으로 자산 없는 잠재고객도 직접 추가</li>
         <li><b style="color:var(--ink)">고객상세</b> — <b style="color:var(--ink)">영업·CRM 정보</b> <code>✏️편집</code>, <b style="color:var(--ink)">운용상품 보유(실계좌 자동연결: ✓계좌 확인 · 색채움=잔고 · 테두리만=0원)</b>, 원금·총액·수익률 추이, 자산구성, 은퇴 시뮬레이션, 보유상품(계좌별 접기/펼침, 0원 계좌 포함)</li>
         <li><b style="color:var(--ink)">자산</b> — 전체 자산 추이 + <b style="color:var(--ink)">영업점별·PB별 자산 분포</b> + <b style="color:var(--ink)">계좌별 고객 / 날짜별 스냅샷 좌우 탭</b>. 계좌별 고객은 유형(주식·CMA·연금저축·IRP·DC) 탭 + <b style="color:var(--ink)">고객 검색</b>, 스냅샷은 <b style="color:var(--ink)">🗑 버튼</b>으로 삭제</li>
@@ -2796,7 +2796,7 @@ function enhanceNavA11y(){
     a.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();a.click();}});
   });
 }
-const MODAL_IDS=['repModal','uploadModal','syncModal','logModal','crmModal','gcEvModal','gcTaskModal','gcTasksModal','gcColorModal','gcSetModal'];
+const MODAL_IDS=['repModal','uploadModal','syncModal','logModal','crmModal','gcEvModal'];
 function openModalEl(){return MODAL_IDS.map(id=>document.getElementById(id)).find(m=>m&&!m.classList.contains('hidden'))||null;}
 function bindGlobal(){
   enhanceNavA11y();
@@ -2836,22 +2836,21 @@ function bindGlobal(){
 }
 
 /* =========================================================
-   일정 — Google Calendar & Tasks 양방향 연동
-   브라우저 ↔ 구글 직통(GIS 토큰, 서버 없음). 대시보드 수정 → 즉시 API 반영,
-   구글 쪽 수정 → 30초 폴링 + 화면 복귀 시 즉시 새로고침으로 반영.
-   대시보드 전용 데이터(gmeta: Tasks 목록 색·캘린더/목록 숨김·할 일 중요 별표·할 일 시간)는
-   구글에 없는 기능이라(Tasks API는 별표·시간 미제공) localStorage + store.enc(gmeta)로만 기기 간 동기화된다.
+   일정 — 대시보드 도출 일정 로컬 캘린더 (구글 연동 없음)
+   캘린더는 대시보드에서 자동 도출되는 일정(연락 예정 등 · unifiedDue)과
+   사용자가 직접 추가한 수동 일정(gmeta.manualEvents)을 로컬로만 표시한다.
+   구글 캘린더/Tasks 양방향 동기화는 제거됨 — 향후 '대시보드 → 구글 캘린더 export'로
+   재도입 예정이라 GIS 인증 헬퍼(gAuth/gFetch/gsiLoad)는 dormant 상태로 보존한다.
+   대시보드 전용 설정(gmeta: 카테고리 숨김·수동 일정)은 localStorage + store.enc(gmeta)로 기기 간 동기화.
    ========================================================= */
 const G_CID_KEY='ab_g_cid', G_TOK_KEY='ab_g_tok', GMETA_KEY='ab_gmeta';
-const G_SCOPES='https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks';
-const GC_API='https://www.googleapis.com/calendar/v3', GT_API='https://tasks.googleapis.com/tasks/v1';
-/* Tasks 목록용 색 팔레트 (구글 Tasks에는 색 개념이 없음 → 대시보드 전용) */
-const GC_TLCOLORS=['#3182F6','#15B370','#F04452','#F7B23B','#8B5CF6','#E0640F','#0F9D58','#DB2777','#0EA5E9','#64748B','#A16207','#191F28'];
+const G_SCOPES='https://www.googleapis.com/auth/calendar';   /* 향후 export용(현재 미사용) */
+const GC_API='https://www.googleapis.com/calendar/v3';
 
 /* ---------- gmeta (대시보드 전용 메타 · updatedAt 최신 승리로 병합) ---------- */
 let GMETA=null;
 function gmeta(){if(!GMETA){try{GMETA=JSON.parse(localStorage.getItem(GMETA_KEY)||'null');}catch(e){GMETA=null;}
-  if(!GMETA)GMETA={v:1,updatedAt:'',listColors:{},hiddenCals:{},taskStars:{},hiddenLists:{},taskTimes:{}};}return GMETA;}
+  if(!GMETA)GMETA={v:1,updatedAt:'',hiddenCals:{},manualEvents:[]};}return GMETA;}
 function gmetaSave(patch){const m=gmeta();Object.assign(m,patch);m.updatedAt=new Date().toISOString();
   localStorage.setItem(GMETA_KEY,JSON.stringify(m));
   if(syncOn()){clearTimeout(gmetaSave._t);gmetaSave._t=setTimeout(()=>syncNow(true),1500);}}
@@ -2894,40 +2893,22 @@ async function gFetch(url,opt){
   const txt=await r.text();return txt?JSON.parse(txt):null;}
 
 /* ---------- 데이터 ---------- */
-let GC={cals:[],palette:null,lists:[],tasks:{},events:{},loadedAt:0,err:null,needAuth:false,_showDone:{},_ev:null,_tk:null,_colorCb:null};
+let GC={cals:[],events:{},loadedAt:0,err:null,_ev:null};
 let gcDate=(()=>{const d=new Date();d.setHours(0,0,0,0);return d;})();
 let gcView=localStorage.getItem('ab_gc_view')||'';
 if(CAL_V)gcView=CAL_V;   /* 바로가기 URL(?cal=1&v=month 등)이 지정한 보기 우선 */
 let gcMini=null;   /* 미니 달력이 보여주는 달(메인 날짜와 별도 탐색 가능) */
 function gcCurView(){const v=gcView||(isMobile()?'day':'week');return ['day','d3','week','month'].includes(v)?v:'week';}
-let gcBusy=false;
-async function gcRefresh(silent){
-  if(!gClientId()||gcBusy)return;gcBusy=true;
-  try{
-    if(!GC.palette){try{GC.palette=((await gFetch(GC_API+'/colors'))||{}).calendar||{};}catch(e){GC.palette={};}}
-    const [cl,tl]=await Promise.all([
-      gFetch(GC_API+'/users/me/calendarList?maxResults=250'),
-      gFetch(GT_API+'/users/@me/lists?maxResults=100')]);
-    GC.cals=(cl.items||[]).sort((a,b)=>((b.primary?1:0)-(a.primary?1:0))||String(a.summary||'').localeCompare(String(b.summary||''),'ko'));
-    GC.lists=tl.items||[];
-    const t0=new Date(gcDate.getFullYear(),gcDate.getMonth(),gcDate.getDate()-45).toISOString(),
-          t1=new Date(gcDate.getFullYear(),gcDate.getMonth(),gcDate.getDate()+45).toISOString();
-    const evs={},tks={};
-    await Promise.all([
-      ...GC.cals.filter(calShown).map(async c=>{
-        try{const r=await gFetch(GC_API+'/calendars/'+encodeURIComponent(c.id)+'/events?singleEvents=true&orderBy=startTime&maxResults=2500&timeMin='+encodeURIComponent(t0)+'&timeMax='+encodeURIComponent(t1));
-          evs[c.id]=r.items||[];}catch(e){evs[c.id]=[];}}),
-      ...GC.lists.map(async l=>{
-        try{const r=await gFetch(GT_API+'/lists/'+encodeURIComponent(l.id)+'/tasks?showCompleted=true&showHidden=true&maxResults=200');
-          tks[l.id]=r.items||[];}catch(e){tks[l.id]=[];}})]);
-    GC.events=evs;GC.tasks=tks;GC.loadedAt=Date.now();GC.err=null;
-  }catch(e){GC.err=e.message||'불러오기 실패';if(!silent)toast(GC.err);}
-  gcBusy=false;
-  if(curView==='gcal')renderGcal();
+/* 대시보드 → 일정 데이터 재생성: GC.cals=카테고리, GC.events=카테고리별 이벤트(구글 연동 없음, 로컬만) */
+function gcBuild(){
+  GC.cals=CAL_CATS.map(c=>({id:c.id,summary:c.name,backgroundColor:c.color,primary:false,selected:true,accessRole:c.derived?'reader':'owner',_derived:c.derived}));
+  const evs={};CAL_CATS.forEach(c=>evs[c.id]=[]);
+  buildContactEvents().forEach(e=>evs.contact.push(e));
+  /* 향후: 가입 90일·1년·2년·상령일 도출 이벤트를 각 카테고리에 push */
+  buildManualEvents().forEach(e=>{const k=evs[e._cat]?e._cat:'manual';evs[k].push(e);});
+  GC.events=evs;GC.loadedAt=Date.now();GC.err=null;
 }
-/* 구글 → 대시보드 반영: 열려 있는 동안 30초 폴링 + 화면 복귀 시 즉시 */
-setInterval(()=>{if(curView==='gcal'&&gClientId()&&gConnected()&&document.visibilityState==='visible'&&Date.now()-GC.loadedAt>25000)gcRefresh(true);},30000);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&curView==='gcal'&&gClientId()&&gConnected())gcRefresh(true);});
+function gcRefresh(silent){gcBuild();if(curView==='gcal')renderGcal();}
 
 /* ---------- 유틸 ---------- */
 function dkey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -2935,8 +2916,37 @@ function rfc3339(dateStr,timeStr){const dt=new Date(dateStr+'T'+timeStr);const o
   const p=n=>String(Math.abs(n)).padStart(2,'0');return dateStr+'T'+timeStr+':00'+(off>=0?'+':'-')+p(Math.trunc(off/60))+':'+p(off%60);}
 function evTime(ev){if(!(ev.start&&ev.start.dateTime))return '';const d=new Date(ev.start.dateTime);
   return d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');}
-function tlColor(id){const m=gmeta().listColors||{};if(m[id])return m[id];
-  const i=Math.max(0,GC.lists.findIndex(l=>l.id===id));return GC_TLCOLORS[i%GC_TLCOLORS.length];}
+/* ---------- 대시보드 도출 일정: 카테고리 + 이벤트 빌더 ---------- */
+/* 사이드바 색 목록 = 이 카테고리들. derived=대시보드 자동 생성(읽기 전용),
+   manual=사용자 직접 추가(gmeta.manualEvents, 기기 간 동기화).
+   ⚠ signup90/1y/2y·agechange는 향후 구현 — 지금은 목록에만 노출(이벤트 미생성) */
+const CAL_CATS=[
+  {id:'contact',  name:'연락 예정',   color:'#3182F6', derived:true},
+  {id:'signup90', name:'가입 90일',   color:'#15B370', derived:true},
+  {id:'signup1y', name:'가입 후 1년', color:'#F7B23B', derived:true},
+  {id:'signup2y', name:'가입 후 2년', color:'#E0640F', derived:true},
+  {id:'agechange',name:'상령일',      color:'#F04452', derived:true},
+  {id:'manual',   name:'직접 입력',   color:'#8B5CF6', derived:false},
+];
+function catById(id){return CAL_CATS.find(c=>c.id===id)||null;}
+function nextDay(k){const d=new Date(k+'T00:00:00');d.setDate(d.getDate()+1);return dkey(d);}
+/* 연락 예정 — unifiedDue()(한투 분기·보험 반기 도래 고객)에서 도출, 종일 이벤트(재생성마다 최신) */
+function buildContactEvents(){
+  return unifiedDue().map(c=>({
+    id:'contact::'+c.name, summary:'📞 '+c.name+' 연락',
+    description:(contactReasons(c)[0]||''), status:'confirmed',
+    start:{date:c._dateIso}, end:{date:nextDay(c._dateIso)},
+    _cat:'contact', _derived:true, _name:c.name, _st:c._st}));
+}
+/* 수동 일정 — gmeta.manualEvents({id,cat,title,memo,allday,sd,st,ed,et})를 렌더용 이벤트로 변환 */
+function manualEvents(){return (gmeta().manualEvents)||[];}
+function buildManualEvents(){
+  return manualEvents().map(m=>{
+    const ev={id:m.id, summary:m.title||'', description:m.memo||'', status:'confirmed', _cat:catById(m.cat)?m.cat:'manual', _manual:true, _src:m};
+    if(m.allday===false&&m.st){ev.start={dateTime:rfc3339(m.sd,m.st)};ev.end={dateTime:rfc3339(m.ed||m.sd,m.et||m.st)};}
+    else{ev.start={date:m.sd};ev.end={date:nextDay(m.ed||m.sd)};}
+    return ev;});
+}
 function calColor(c){return (c&&c.backgroundColor)||'#3182F6';}
 const GC_DOWS=['월','화','수','목','금','토','일'];   /* 한 주 시작 = 월요일 */
 function gcDow(d){return (d.getDay()+6)%7;}           /* 0=월 … 6=일 */
@@ -2944,27 +2954,6 @@ function gcDow(d){return (d.getDay()+6)%7;}           /* 0=월 … 6=일 */
    hiddenCals[id]: true=숨김 · false=명시적 표시 · 없음=구글 selected 따름 */
 function calShown(c){const hid=gmeta().hiddenCals||{};
   return hid[c.id]===undefined ? c.selected!==false : !hid[c.id];}
-/* 할 일 목록 표시 여부(달력 그리드에서만 숨김 — 우측 패널·전체 보기엔 항상 표시) */
-function listShown(id){return !((gmeta().hiddenLists)||{})[id];}
-/* 할 일 기한 해석 → {date:'YYYY-MM-DD', time:'HH:MM'|''}
-   Tasks API due는 원칙적으로 날짜만(자정Z = 시간 없음). 자정이 아닌 시각이 오면(구글이
-   시간을 내려주는 경우) 로컬 시각으로 사용, 없으면 대시보드 전용 시간(gmeta.taskTimes) 폴백 */
-function tkWhen(t){if(!t||!t.due)return null;const s=String(t.due);
-  let d,tm='';
-  if(/T00:00(:00(\.\d+)?)?Z$/.test(s))d=s.slice(0,10);
-  else{const dt=new Date(s);if(isNaN(dt))d=s.slice(0,10);
-    else{d=dkey(dt);tm=String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');}}
-  if(!tm)tm=((gmeta().taskTimes)||{})[t.id]||'';
-  return {date:d,time:tm};}
-/* 할 일 중요 별표 — 대시보드 전용(gmeta), 구글 Tasks API엔 별표가 없어 미연동 */
-function tStarred(id){return !!((gmeta().taskStars)||{})[id];}
-function gcToggleStar(id){const s=Object.assign({},gmeta().taskStars||{});
-  if(s[id])delete s[id];else s[id]=true;gmetaSave({taskStars:s});
-  renderGcal();if(!$('#gcTasksModal').classList.contains('hidden'))gcFillTasksModal();}
-/* 달력(월간·종일 칸)용 Tasks 칩 — 목록색 띠 + 같은 색 글자 + ★ + 시간(있으면) */
-function gcTkChipHTML(x){const c=tlColor(x.list.id),w=tkWhen(x.t);
-  return `<div class="gc-tkchip ${x.t.status==='completed'?'done':''}" data-gtk="${esc(x.list.id)}~~${esc(x.t.id)}"><span class="b" style="background:${c}"></span><span class="tt" style="color:${c}">${tStarred(x.t.id)?'★ ':''}${w&&w.time?`<b>${w.time}</b> `:''}${esc(x.t.title||'(제목 없음)')}</span></div>`;}
-
 /* ---------- 시간 그리드 (일·주 보기) ---------- */
 const GC_HH=()=>isMobile()?44:48;   /* 1시간 높이(px) */
 function txtOn(hex){try{const h=String(hex).replace('#','');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);
@@ -2999,14 +2988,7 @@ function gcTgDay(k){
         const sm=Math.max(0,(Math.max(s,d0)-d0)/60000),em=Math.min(1440,(Math.min(e,d1)-d0)/60000);
         timed.push({ev,cal:c,s:sm,e:Math.max(em,sm+30)});
       }}}
-  const tks=[];
-  for(const l of GC.lists){if(!listShown(l.id))continue;
-    for(const t of (GC.tasks[l.id]||[])){if(t.deleted)continue;
-      const w=tkWhen(t);if(!w||w.date!==k)continue;
-      if(w.time){const sm=(+w.time.slice(0,2))*60+(+w.time.slice(3,5));
-        timed.push({tk:{t,list:l},s:sm,e:sm+30});}     /* 시간 있는 할 일 → 시간 그리드에 30분 박스 */
-      else tks.push({t,list:l});}}
-  return {ad,timed,tks};
+  return {ad,timed};
 }
 /* 보이는 범위와 겹치는 며칠짜리 일정(종일 여러 날·24h 이상) — 일·3일·주 상단 연속 바용 */
 function gcRangeBars(sK,eK){
@@ -3061,7 +3043,6 @@ function gcTimeGridHTML(){
     /* 종일 칸: 하루짜리 종일 일정(색 채움) + 날짜 지정 Tasks(목록색 띠+글자) */
     head+='<div class="gc-tg-ad" data-gcoladd="'+k+'">'+
       dd.ad.map(x=>{const bg=calColor(x.cal);return '<div class="gc-adev" data-gev="'+esc(x.cal.id)+'~~'+esc(x.ev.id)+'" style="background:'+bg+';color:'+txtOn(bg)+'">'+esc(x.ev.summary||'(제목 없음)')+'</div>';}).join('')+
-      dd.tks.map(x=>gcTkChipHTML(x)).join('')+
       '</div>';}
   head+='</div>';
   let gutter='<div class="gc-tg-gut">';
@@ -3075,11 +3056,8 @@ function gcTimeGridHTML(){
       const top=x.s/60*HH,hgt=Math.max(17,(x.e-x.s)/60*HH-2);
       const w=100/x.ncol,l=x.col*w;
       const pos='top:'+top.toFixed(1)+'px;height:'+hgt.toFixed(1)+'px;left:calc('+l.toFixed(2)+'% + 1px);width:calc('+w.toFixed(2)+'% - 3px)';
-      if(x.tk){ /* 시간 지정 할 일 — 흰 바탕 + 목록색 테두리·글자 + ○ */
-        const c=tlColor(x.tk.list.id),tm=String(Math.floor(x.s/60)).padStart(2,'0')+':'+String(x.s%60).padStart(2,'0');
-        evs+='<div class="gc-tgev gc-tgtk '+(x.tk.t.status==='completed'?'done':'')+'" data-gtk="'+esc(x.tk.list.id)+'~~'+esc(x.tk.t.id)+'" style="'+pos+';background:var(--card);box-shadow:inset 0 0 0 1.5px '+c+';color:'+c+'">○ <b>'+tm+'</b> '+(tStarred(x.tk.t.id)?'★ ':'')+esc(x.tk.t.title||'(제목 없음)')+'</div>';}
-      else{const bg=calColor(x.cal);
-        evs+='<div class="gc-tgev" data-gev="'+esc(x.cal.id)+'~~'+esc(x.ev.id)+'" style="'+pos+';background:'+bg+';color:'+txtOn(bg)+'"><b>'+evTime(x.ev)+'</b> '+esc(x.ev.summary||'(제목 없음)')+'</div>';}}
+      const bg=calColor(x.cal);
+      evs+='<div class="gc-tgev" data-gev="'+esc(x.cal.id)+'~~'+esc(x.ev.id)+'" style="'+pos+';background:'+bg+';color:'+txtOn(bg)+'"><b>'+evTime(x.ev)+'</b> '+esc(x.ev.summary||'(제목 없음)')+'</div>';}
     let nowLine='';
     if(k===todayK)nowLine='<div class="gc-now" style="top:'+(((now.getHours()*60+now.getMinutes())/60*HH).toFixed(1))+'px"></div>';
     cols+='<div class="gc-tg-col" data-gcol="'+k+'" style="height:'+(24*HH)+'px;background-image:linear-gradient(var(--line2) 1px,transparent 1px);background-size:100% '+HH+'px">'+evs+nowLine+'</div>';}
@@ -3102,27 +3080,19 @@ function gcMiniHTML(){
   </div>`;
 }
 function gcLeftHTML(){
+  const cnt=id=>(GC.events[id]||[]).length;
   const rows=GC.cals.map(c=>`<div class="gc-lrow">
       <input type="checkbox" class="gc-chk" data-gcalvis="${esc(c.id)}" ${calShown(c)?'checked':''} title="달력에 표시">
-      <button class="gc-dot" data-gcalcolor="${esc(c.id)}" style="background:${calColor(c)}" title="색 변경"></button>
+      <span class="gc-dot" style="background:${calColor(c)}"></span>
       <span class="gc-lname">${esc(c.summary||'')}</span>
-      ${c.primary?'':`<button class="gc-x" data-gcaldel="${esc(c.id)}" data-role="${esc(c.accessRole||'')}" title="삭제">🗑</button>`}
+      <span style="margin-left:auto;color:var(--sub);font-size:12px">${cnt(c.id)||''}</span>
     </div>`).join('');
-  const trows=GC.lists.map(l=>`<div class="gc-lrow">
-      <input type="checkbox" class="gc-chk" data-glistvis="${esc(l.id)}" ${listShown(l.id)?'checked':''} title="달력에 표시">
-      <button class="gc-dot" data-gtlcolor="${esc(l.id)}" style="background:${tlColor(l.id)}" title="표시 색 변경"></button>
-      <span class="gc-lname">${esc(l.title||'')}</span>
-    </div>`).join('');
-  return `<button class="btn primary sm" id="gcMake" style="width:100%;margin-bottom:10px">+ 만들기</button>
+  return `<button class="btn primary sm" id="gcMake" style="width:100%;margin-bottom:10px">+ 일정 추가</button>
     ${gcMiniHTML()}
-    <div class="gc-sechead" id="gcCalSec"><span>내 캘린더</span><span class="chev ${GC._calsClosed?'r':''}">▾</span></div>
+    <div class="gc-sechead" id="gcCalSec"><span>일정 목록</span><span class="chev ${GC._calsClosed?'r':''}">▾</span></div>
     <div id="gcCalWrap" class="${GC._calsClosed?'hidden':''}">
-      ${rows||'<p class="msub">캘린더가 없습니다</p>'}
-      <div class="gc-addrow"><input id="gcNewCal" placeholder="+ 새 캘린더 (Enter)" autocomplete="off"><button class="btn ghost sm" id="gcNewCalBtn">추가</button></div>
-    </div>
-    <div class="gc-sechead" id="gcTlSec"><span>할 일 목록</span><span class="chev ${GC._tlsClosed?'r':''}">▾</span></div>
-    <div id="gcTlWrap" class="${GC._tlsClosed?'hidden':''}">
-      ${trows||'<p class="msub">할 일 목록이 없습니다</p>'}
+      ${rows||'<p class="msub">카테고리가 없습니다</p>'}
+      <p class="msub" style="margin:8px 2px 0;font-size:11.5px;line-height:1.5">대시보드에서 자동 도출된 일정과 직접 추가한 일정을 색으로 구분합니다. 가입 90일·1년·2년·상령일은 준비 중입니다.</p>
     </div>`;
 }
 
@@ -3141,9 +3111,6 @@ function gcMonthData(){
         if(en-s>=86400000)bars.push({ev,cal:c,sd:dkey(s),ed:dkey(new Date(en.getTime()-1))});
         else add(dkey(s),'evs',{ev,cal:c});
       }}}
-  for(const l of GC.lists){if(!listShown(l.id))continue;
-    for(const t of (GC.tasks[l.id]||[])){if(t.deleted)continue;
-      const w=tkWhen(t);if(w)add(w.date,'tks',{t,list:l});}}
   return {cellMap,bars};
 }
 function gcMonthHTML(){
@@ -3172,140 +3139,26 @@ function gcMonthHTML(){
       const evHtml=cell.evs.slice(0,MAXE).map(x=>{const bg=calColor(x.cal);
         return `<div class="gc-echip" data-gev="${esc(x.cal.id)}~~${esc(x.ev.id)}" style="background:${bg};color:${txtOn(bg)}">${evTime(x.ev)?`<b>${evTime(x.ev)}</b> `:''}${esc(x.ev.summary||'(제목 없음)')}</div>`;}).join('')
         +(cell.evs.length>MAXE?`<div class="gc-more">+${cell.evs.length-MAXE}개</div>`:'');
-      const tkHtml=cell.tks.length?`<div class="gc-tksec">`+
-        cell.tks.slice(0,MAXT).map(x=>gcTkChipHTML(x)).join('')+
-        (cell.tks.length>MAXT?`<div class="gc-more">+${cell.tks.length-MAXT}개 할 일</div>`:'')+`</div>`:'';
       cells+=`<div class="gc-mcell ${out?'out':''} ${k===todayK?'today':''}" data-gdaygo="${k}">
         <div class="gc-dnw"><span class="gc-dn ${dow===0?'sun':dow===6?'sat':''}">${d.getDate()}</span></div>
         ${nl?`<div style="height:${nl*LH}px;flex:none"></div>`:''}
-        ${evHtml}${tkHtml}</div>`;}
+        ${evHtml}</div>`;}
     html+=`<div class="gc-mrow" style="min-height:${MH+nl*LH}px">${cells}${barsHtml}</div>`;}
   return `<div class="gc-mv">${html}</div>`;
-}
-
-/* ---------- 우측 Tasks 패널: 목록 1개씩 캐러셀 (§4) ---------- */
-function gcTaskRowHTML(l,t){
-  const todayK=dkey(new Date()),st=tStarred(t.id),w=tkWhen(t);
-  const due=w?w.date:'';
-  const over=due&&t.status!=='completed'&&due<todayK;
-  return `<div class="gc-titem ${t.status==='completed'?'done':''}">
-    <input type="checkbox" class="gc-chk gray" data-gtdone="${esc(l.id)}~~${esc(t.id)}" ${t.status==='completed'?'checked':''}>
-    <div class="tmain" data-gtedit="${esc(l.id)}~~${esc(t.id)}">
-      <span class="tt">${esc(t.title||'(제목 없음)')}</span>
-      ${t.notes?`<div class="nts">${esc(t.notes)}</div>`:''}
-      ${due?`<span class="duep ${over?'over':''}">🕒 ${+due.slice(5,7)}월 ${+due.slice(8,10)}일 (${GC_DOWS[gcDow(new Date(due+'T00:00:00'))]})${w.time?' '+w.time:''}</span>`:''}
-    </div>
-    <button class="gc-star ${st?'on':''}" data-gtstar="${esc(t.id)}" title="중요 표시 (대시보드 전용)">${st?'★':'☆'}</button>
-  </div>`;
-}
-function gcTasksPanelHTML(){
-  const n=GC.lists.length;
-  GC._tlIdx=Math.max(0,Math.min(GC._tlIdx||0,Math.max(0,n-1)));
-  const l=GC.lists[GC._tlIdx];
-  let items='';
-  if(l){
-    const ts=(GC.tasks[l.id]||[]).filter(t=>!t.deleted&&(t.title||t.notes));
-    const open=ts.filter(t=>t.status!=='completed').sort((a,b)=>tStarred(b.id)-tStarred(a.id)),done=ts.filter(t=>t.status==='completed');
-    items=(open.map(t=>gcTaskRowHTML(l,t)).join('')||'<p class="msub" style="margin:10px 0">할 일이 없습니다</p>')
-      +(done.length?`<div class="gc-titem" style="cursor:pointer;color:var(--sub);font-size:13px;border-bottom:none" data-gtshowdone="${esc(l.id)}">완료 ${done.length}개 ${GC._showDone[l.id]?'접기 ▴':'보기 ▾'}</div>`:'')
-      +(GC._showDone[l.id]?done.map(t=>gcTaskRowHTML(l,t)).join(''):'');
-  }else items='<p class="msub" style="margin:10px 0">할 일 목록이 없습니다 — ⤢에서 새 목록을 만드세요</p>';
-  return `<div class="gc-tkhead">
-      <button class="gc-ibtn" id="gcTlPrev" style="width:28px;height:28px" ${n<2?'disabled':''}>‹</button>
-      <span class="gc-lname" style="text-align:center;font-weight:700" ${l?`data-gtlren="${esc(l.id)}" title="이름 변경"`:''}>${l?esc(l.title):'Tasks'}</span>
-      <button class="gc-ibtn" id="gcTlNext" style="width:28px;height:28px" ${n<2?'disabled':''}>›</button>
-      <button class="gc-ibtn" id="gcTkExpand" style="width:28px;height:28px" title="전체 보기">⤢</button>
-      <button class="gc-ibtn" id="gcSideClose" style="width:28px;height:28px" title="닫기">✕</button>
-    </div>
-    <div class="gc-dots">${GC.lists.map((x,i)=>`<span class="${i===GC._tlIdx?'on':''}"></span>`).join('')}</div>
-    <div>${items}</div>
-    ${l?`<div class="gc-addrow"><input id="gcTkAddIn" placeholder="+ 할 일 추가 (Enter)" autocomplete="off"><button class="btn ghost sm" id="gcTkAddBtn">추가</button></div>`:''}`;
-}
-/* Tasks 전체 보기 모달 (⤢) — 구글 Tasks식: 좌측 목록 내비(색 지정) + 목록별 가로 컬럼 */
-function gcFillTasksModal(){
-  const nav=$('#gctm_nav'),el=$('#gctm_body');if(!el)return;
-  nav.innerHTML=(GC.lists.map(l=>{
-    const open=(GC.tasks[l.id]||[]).filter(t=>!t.deleted&&t.status!=='completed'&&(t.title||t.notes)).length;
-    return `<div class="gc-tmnavrow" data-gtmgo="${esc(l.id)}">
-      <button class="gc-dot" data-gtlcolor="${esc(l.id)}" style="background:${tlColor(l.id)}" title="표시 색 변경"></button>
-      <span class="gc-lname">${esc(l.title||'')}</span><span class="cnt">${open}</span>
-    </div>`;}).join(''))||'<p class="msub">목록이 없습니다</p>';
-  el.innerHTML=(GC.lists.map(l=>{
-    const ts=(GC.tasks[l.id]||[]).filter(t=>!t.deleted&&(t.title||t.notes));
-    const open=ts.filter(t=>t.status!=='completed').sort((a,b)=>tStarred(b.id)-tStarred(a.id)),done=ts.filter(t=>t.status==='completed');
-    const dk='m_'+l.id;
-    return `<div class="gc-tmcol" data-gtmcol="${esc(l.id)}">
-      <div class="gc-lrow" style="border-bottom:2px solid var(--line)">
-        <button class="gc-dot" data-gtlcolor="${esc(l.id)}" style="background:${tlColor(l.id)}" title="표시 색 변경"></button>
-        <span class="gc-lname" data-gtlren="${esc(l.id)}" style="cursor:pointer" title="이름 변경">${esc(l.title||'')}</span>
-        <span class="meta">${open.length}개</span>
-        <button class="gc-x" data-gtldel="${esc(l.id)}" title="목록 삭제">🗑</button>
-      </div>
-      <div class="gc-addrow" style="margin:8px 0 2px"><input data-gtadd="${esc(l.id)}" placeholder="+ 할 일 추가 (Enter)" autocomplete="off"></div>
-      ${open.map(t=>gcTaskRowHTML(l,t)).join('')||'<p class="msub" style="margin:8px 0">할 일이 없습니다</p>'}
-      ${done.length?`<div class="gc-titem" data-gtmdone="${esc(l.id)}" style="cursor:pointer;color:var(--sub);font-size:13px;border-bottom:none">완료됨 ${done.length}개 ${GC._showDone[dk]?'접기 ▴':'보기 ▾'}</div>`:''}
-      ${GC._showDone[dk]?done.map(t=>gcTaskRowHTML(l,t)).join(''):''}
-    </div>`;}).join(''))||'<p class="msub" style="padding:20px">목록이 없습니다 — 왼쪽에서 새 목록을 만드세요</p>';
-  nav.querySelectorAll('[data-gtmgo]').forEach(r=>r.onclick=e=>{
-    if(e.target.closest('[data-gtlcolor]'))return;   /* 점 클릭은 색 선택 */
-    const c=[...el.children].find(x=>x.dataset&&x.dataset.gtmcol===r.dataset.gtmgo);
-    if(c)c.scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'});});
-  el.querySelectorAll('[data-gtmdone]').forEach(b=>b.onclick=()=>{const k='m_'+b.dataset.gtmdone;GC._showDone[k]=!GC._showDone[k];gcFillTasksModal();});
-  gcBindTaskBits(el);gcBindTaskBits(nav);
-}
-/* 할 일 관련 위임 바인딩 — 메인 뷰와 전체 보기 모달에서 공용 */
-function gcBindTaskBits(scope){
-  scope.querySelectorAll('[data-gtdone]').forEach(el=>el.onclick=async e=>{e.stopPropagation();const [l,i]=el.dataset.gtdone.split('~~');
-    try{await gFetch(GT_API+'/lists/'+encodeURIComponent(l)+'/tasks/'+encodeURIComponent(i),{method:'PATCH',body:{status:el.checked?'completed':'needsAction'}});gcRefresh(true);}catch(e2){toast(e2.message);gcRefresh(true);}});
-  scope.querySelectorAll('[data-gtedit]').forEach(el=>el.onclick=()=>{const [l,i]=el.dataset.gtedit.split('~~');gcOpenTk({listId:l,taskId:i});});
-  scope.querySelectorAll('[data-gtstar]').forEach(el=>el.onclick=e=>{e.stopPropagation();gcToggleStar(el.dataset.gtstar);});
-  scope.querySelectorAll('[data-gtshowdone]').forEach(el=>el.onclick=()=>{GC._showDone[el.dataset.gtshowdone]=!GC._showDone[el.dataset.gtshowdone];renderGcal();
-    if(!$('#gcTasksModal').classList.contains('hidden'))gcFillTasksModal();});
-  scope.querySelectorAll('[data-gtlcolor]').forEach(el=>el.onclick=()=>gcPickListColor(el.dataset.gtlcolor));
-  scope.querySelectorAll('[data-gtlren]').forEach(el=>el.onclick=async()=>{const id=el.dataset.gtlren;const l=GC.lists.find(x=>x.id===id);
-    const nm=prompt('목록 이름',(l&&l.title)||'');if(!nm||!nm.trim())return;
-    try{await gFetch(GT_API+'/users/@me/lists/'+encodeURIComponent(id),{method:'PATCH',body:{title:nm.trim()}});gcRefresh(true);}catch(e){toast(e.message);}});
-  scope.querySelectorAll('[data-gtldel]').forEach(el=>el.onclick=async()=>{const id=el.dataset.gtldel;const l=GC.lists.find(x=>x.id===id);
-    if(!confirm(`할 일 목록 "${(l&&l.title)||''}"과 그 안의 할 일을 모두 삭제할까요?\n구글 Tasks에서도 삭제되며 되돌릴 수 없습니다.`))return;
-    try{await gFetch(GT_API+'/users/@me/lists/'+encodeURIComponent(id),{method:'DELETE'});toast('목록 삭제됨');gcRefresh(true);}catch(e){toast(e.message);}});
-  scope.querySelectorAll('[data-gtadd]').forEach(el=>el.onkeydown=e=>{if(e.key==='Enter')gcQuickAdd(el.dataset.gtadd,el);});
 }
 
 /* ---------- 렌더 ---------- */
 function renderGcal(){
   const v=$('#view');
-  if(!gClientId()){
-    v.innerHTML=`<div class="wrap"><div class="card"><h3>📅 일정 — Google 연동 설정</h3>
-      <p class="msub">구글 캘린더·Tasks와 양방향으로 연결합니다. 최초 1회, Google Cloud에서 발급한 <b>OAuth 클라이언트 ID</b>가 필요합니다.</p>
-      <label>OAuth 클라이언트 ID</label>
-      <input id="gcCid" placeholder="xxxxx.apps.googleusercontent.com" autocomplete="off">
-      <div class="modal-btns"><button class="btn primary sm" id="gcCidSave">저장하고 연결</button></div></div></div>`;
-    $('#gcCidSave').onclick=async()=>{const cid=$('#gcCid').value.trim();if(!cid)return toast('클라이언트 ID를 입력하세요');
-      localStorage.setItem(G_CID_KEY,cid);toast('저장됨 — 구글 로그인 창이 뜹니다');
-      try{await gAuth();await gcRefresh();}catch(e){toast(e.message);renderGcal();}};
-    return;
-  }
-  if((!gConnected()||GC.needAuth)&&!GC.loadedAt){
-    v.innerHTML=`<div class="wrap"><div class="card"><div class="gc-conn">
-      <div style="font-size:38px">📅</div><b style="font-size:17px">Google 캘린더 · Tasks 연결</b>
-      <p class="msub" style="margin:0">버튼을 누르면 구글 로그인 팝업이 열립니다. 캘린더·할 일이 이 대시보드와 양방향으로 동기화됩니다.</p>
-      <button class="btn primary" id="gcConnBtn">Google 계정 연결</button>
-      <button class="btn ghost sm" id="gcSetBtn2">연결 설정</button></div></div></div>`;
-    $('#gcConnBtn').onclick=async()=>{try{$('#gcConnBtn').textContent='연결 중...';await gAuth();await gcRefresh();}catch(e){toast(e.message);renderGcal();}};
-    $('#gcSetBtn2').onclick=gcOpenSet;
-    return;
-  }
-  if(!GC.loadedAt){v.innerHTML=`<div class="wrap"><div class="card empty"><div class="big">⏳</div>구글에서 일정을 불러오는 중...</div></div>`;gcRefresh();return;}
-
-  if(GC._leftOpen===undefined)GC._leftOpen=!isMobile();   /* 좌: PC 기본 열림 · 우(Tasks): 기본 닫힘(§1) */
+  gcBuild();
+  if(GC._leftOpen===undefined)GC._leftOpen=!isMobile();   /* 좌 사이드바: PC 기본 열림 */
   const view=gcCurView(),mob=isMobile();
   const center=view==='month'?gcMonthHTML():`<div class="gc-tg">${gcTimeGridHTML()}</div>`;
   const leftCls=mob?(GC._leftOpen?'openm':''):(GC._leftOpen?'':'closed');
-  const rightCls=mob?(GC._sideOpen?'openm':''):(GC._sideOpen?'':'closed');
   v.innerHTML=`<div class="wrap gc-wrap">
    <div class="card gc-card">
     <div class="gc-topbar">
-      <button class="gc-ibtn" id="gcLeftBtn" title="내 캘린더">☰</button>
+      <button class="gc-ibtn" id="gcLeftBtn" title="일정 목록">☰</button>
       <span style="font-weight:800;font-size:15px">📅 일정</span>
       <button class="btn ghost sm" id="gcToday">오늘</button>
       <button class="gc-ibtn" id="gcPrev">‹</button>
@@ -3318,20 +3171,16 @@ function renderGcal(){
         <button data-v="week" class="${view==='week'?'on':''}">주</button>
         <button data-v="month" class="${view==='month'?'on':''}">월</button>
       </div>
-      ${GC.needAuth?'<button class="btn primary sm" id="gcReauth">다시 연결</button>':''}
       <button class="gc-ibtn" id="gcReload" title="새로고침">↻</button>
-      <button class="gc-ibtn" id="gcSetBtn" title="연결 설정">⚙</button>
       <button class="btn primary sm" id="gcAddEv">+ 일정</button>
-      <button class="btn ${GC._sideOpen?'primary':'ghost'} sm" id="gcSideBtn" title="Tasks 열기/닫기">✓ Tasks</button>
     </div>
     ${GC.err?`<p class="msub" style="color:var(--danger);padding:6px 14px;margin:0">⚠️ ${esc(GC.err)}</p>`:''}
     <div class="gc-shell">
       <aside class="gc-left ${leftCls}"><div class="gc-lin">${gcLeftHTML()}</div></aside>
       <div class="gc-center">${center}</div>
-      <aside class="gc-right ${rightCls}"><div class="gc-rin">${gcTasksPanelHTML()}</div></aside>
     </div>
    </div>
-   <div id="gcShellBk" class="gc-shellbk ${mob&&(GC._leftOpen||GC._sideOpen)?'open':''}"></div>
+   <div id="gcShellBk" class="gc-shellbk ${mob&&GC._leftOpen?'open':''}"></div>
   </div>`;
   gcBindView(v);
   const tb=$('#gcTgBody');
@@ -3341,11 +3190,10 @@ function renderGcal(){
       tb.scrollTop=Math.max(0,((hasToday?now.getHours()+now.getMinutes()/60:8)-1.3)*GC_HH());}
     tb.onscroll=()=>{GC._tgScroll=tb.scrollTop;};
   }
-  if(!$('#gcTasksModal').classList.contains('hidden'))gcFillTasksModal();
 }
 
 function gcBindView(v){
-  const jump=(d)=>{gcDate=d;gcMini=null;GC._tgScroll=null;renderGcal();gcRefresh(true);};
+  const jump=(d)=>{gcDate=d;gcMini=null;GC._tgScroll=null;renderGcal();};
   const step=dir=>{
     if(gcCurView()==='month')jump(new Date(gcDate.getFullYear(),gcDate.getMonth()+dir,1));
     else{const d=new Date(gcDate);d.setDate(d.getDate()+dir*gcRangeDays());jump(d);}};
@@ -3354,23 +3202,14 @@ function gcBindView(v){
   $('#gcNext').onclick=()=>step(1);
   $('#gcToday').onclick=()=>{const d=new Date();d.setHours(0,0,0,0);jump(d);};
   v.querySelectorAll('#gcSeg button').forEach(b=>b.onclick=()=>{gcView=b.dataset.v;localStorage.setItem('ab_gc_view',gcView);GC._tgScroll=null;renderGcal();});
-  /* 사이드바 토글 — 좌: ☰ · 우(Tasks): ✓ 또는 패널 ✕ (§1) */
   $('#gcLeftBtn').onclick=()=>{GC._leftOpen=!GC._leftOpen;renderGcal();};
-  $('#gcSideBtn').onclick=()=>{GC._sideOpen=!GC._sideOpen;renderGcal();};
-  const scl=$('#gcSideClose');if(scl)scl.onclick=()=>{GC._sideOpen=false;renderGcal();};
-  const bk=$('#gcShellBk');if(bk)bk.onclick=()=>{GC._leftOpen=false;GC._sideOpen=false;renderGcal();};
-  /* 좌측: 만들기 + 미니 달력 + 섹션 접기 */
+  const bk=$('#gcShellBk');if(bk)bk.onclick=()=>{GC._leftOpen=false;renderGcal();};
+  /* 좌측: 일정 추가 + 미니 달력 + 섹션 접기 */
   const mk=$('#gcMake');if(mk)mk.onclick=()=>gcOpenEv(null,dkey(gcDate));
   v.querySelectorAll('[data-gmini]').forEach(el=>el.onclick=()=>{const b=gcMini||gcDate;gcMini=new Date(b.getFullYear(),b.getMonth()+(+el.dataset.gmini),1);renderGcal();});
   v.querySelectorAll('[data-gminigo]').forEach(el=>el.onclick=()=>goDay(el.dataset.gminigo));
   const cse=$('#gcCalSec');if(cse)cse.onclick=()=>{GC._calsClosed=!GC._calsClosed;renderGcal();};
-  const tse=$('#gcTlSec');if(tse)tse.onclick=()=>{GC._tlsClosed=!GC._tlsClosed;renderGcal();};
-  /* 할 일 목록 표시 토글 — 달력 그리드에서만 숨김(우측 패널·전체 보기는 유지) */
-  v.querySelectorAll('[data-glistvis]').forEach(el=>el.onclick=e=>{e.stopPropagation();
-    const h=Object.assign({},gmeta().hiddenLists);
-    if(el.checked)delete h[el.dataset.glistvis];else h[el.dataset.glistvis]=true;
-    gmetaSave({hiddenLists:h});renderGcal();});
-  /* 월간 셀·시간그리드 날짜 헤더 클릭 → 해당일 일간 뷰 (§7) */
+  /* 월간 셀·시간그리드 날짜 헤더 클릭 → 해당일 일간 뷰 */
   v.querySelectorAll('[data-gdaygo]').forEach(el=>el.onclick=()=>goDay(el.dataset.gdaygo));
   v.querySelectorAll('[data-gjump]').forEach(el=>el.onclick=()=>goDay(el.dataset.gjump));
   /* 시간 그리드 빈 칸 클릭 → 그 시각으로 새 일정 (30분 단위 반올림) */
@@ -3380,213 +3219,77 @@ function gcBindView(v){
     const mins=Math.max(0,Math.min(23*60+30,Math.round((e.clientY-r.top)/GC_HH()*60/30)*30));
     gcOpenEv(null,el.dataset.gcol,String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'));});
   v.querySelectorAll('[data-gcoladd]').forEach(el=>el.onclick=e=>{if(e.target===el)gcOpenEv(null,el.dataset.gcoladd);});
-  /* Tasks 캐러셀: ‹ › 목록 전환 + ⤢ 전체 보기 + 현재 목록에 추가 (§4) */
-  const tp=$('#gcTlPrev'),tn=$('#gcTlNext');
-  if(tp)tp.onclick=()=>{GC._tlIdx=(GC._tlIdx-1+GC.lists.length)%GC.lists.length;renderGcal();};
-  if(tn)tn.onclick=()=>{GC._tlIdx=(GC._tlIdx+1)%GC.lists.length;renderGcal();};
-  const tx=$('#gcTkExpand');if(tx)tx.onclick=()=>{gcFillTasksModal();$('#gcTasksModal').classList.remove('hidden');};
-  const ta=$('#gcTkAddIn');
-  if(ta){const doAdd=()=>{const l=GC.lists[GC._tlIdx];if(l)gcQuickAdd(l.id,ta);};
-    ta.onkeydown=e=>{if(e.key==='Enter')doAdd();};$('#gcTkAddBtn').onclick=doAdd;}
-  $('#gcReload').onclick=()=>{gcRefresh(false);toast('새로고침 중...');};
-  $('#gcSetBtn').onclick=gcOpenSet;
+  $('#gcReload').onclick=()=>{gcRefresh(false);toast('새로고침됨');};
   $('#gcAddEv').onclick=()=>gcOpenEv(null,dkey(gcCurView()==='month'?new Date():gcDate));
-  const re=$('#gcReauth');if(re)re.onclick=async()=>{try{await gAuth();gcRefresh();}catch(e){toast(e.message);}};
   v.querySelectorAll('[data-gev]').forEach(el=>el.onclick=e=>{e.stopPropagation();const [c,i]=el.dataset.gev.split('~~');gcOpenEv({calId:c,evId:i});});
-  v.querySelectorAll('[data-gtk]').forEach(el=>el.onclick=e=>{e.stopPropagation();const [l,i]=el.dataset.gtk.split('~~');gcOpenTk({listId:l,taskId:i});});
-  /* 캘린더 체크박스 → 즉시 필터링(§7) + 원격 재조회 */
+  /* 카테고리(일정 목록) 표시 토글 */
   v.querySelectorAll('[data-gcalvis]').forEach(el=>el.onclick=e=>{e.stopPropagation();const hid=Object.assign({},gmeta().hiddenCals);
-    hid[el.dataset.gcalvis]=!el.checked;   /* true=숨김·false=명시적 표시(구글 selected보다 우선) */
-    gmetaSave({hiddenCals:hid});renderGcal();gcRefresh(true);});
-  v.querySelectorAll('[data-gcalcolor]').forEach(el=>el.onclick=()=>gcPickCalColor(el.dataset.gcalcolor));
-  v.querySelectorAll('[data-gcaldel]').forEach(el=>el.onclick=async()=>{const id=el.dataset.gcaldel;const c=GC.cals.find(x=>x.id===id);
-    if(!confirm(`캘린더 "${(c&&c.summary)||id}"를 삭제할까요?\n구글 캘린더에서도 삭제되며 되돌릴 수 없습니다.`))return;
-    try{if(el.dataset.role==='owner')await gFetch(GC_API+'/calendars/'+encodeURIComponent(id),{method:'DELETE'});
-      else await gFetch(GC_API+'/users/me/calendarList/'+encodeURIComponent(id),{method:'DELETE'});
-      toast('삭제됨');gcRefresh(true);}catch(e){toast(e.message);}});
-  const addCal=async()=>{const nm=$('#gcNewCal').value.trim();if(!nm)return;
-    try{await gFetch(GC_API+'/calendars',{method:'POST',body:{summary:nm}});$('#gcNewCal').value='';toast('캘린더 추가됨');gcRefresh(true);}catch(e){toast(e.message);}};
-  const nc=$('#gcNewCal');if(nc){$('#gcNewCalBtn').onclick=addCal;nc.onkeydown=e=>{if(e.key==='Enter')addCal();};}
-  gcBindTaskBits(v);
+    hid[el.dataset.gcalvis]=!el.checked;
+    gmetaSave({hiddenCals:hid});renderGcal();});
 }
-async function gcQuickAdd(listId,inp){const t=(inp&&inp.value||'').trim();if(!t)return;
-  try{await gFetch(GT_API+'/lists/'+encodeURIComponent(listId)+'/tasks',{method:'POST',body:{title:t}});inp.value='';gcRefresh(true);}catch(e){toast(e.message);}}
 
-/* ---------- 색 선택 ---------- */
-function gcSwatches(list,cur){return `<div class="gc-swwrap">${list.map(s=>`<button class="gc-sw ${s.v===cur?'on':''}" data-gsw="${esc(s.v)}" style="background:${s.bg}"></button>`).join('')}</div>`;}
-function gcOpenColor(title,swatches,cur,cb){GC._colorCb=cb;
-  $('#gcc_title').textContent=title;$('#gcc_body').innerHTML=gcSwatches(swatches,cur);
-  $('#gcColorModal').classList.remove('hidden');
-  document.querySelectorAll('#gcc_body [data-gsw]').forEach(el=>el.onclick=()=>{$('#gcColorModal').classList.add('hidden');const cb2=GC._colorCb;GC._colorCb=null;if(cb2)cb2(el.dataset.gsw);});}
-function gcPickCalColor(calId){const c=GC.cals.find(x=>x.id===calId);if(!c)return;
-  const pal=Object.entries(GC.palette||{}).map(([id,v])=>({v:id,bg:v.background}));
-  if(!pal.length)return toast('색 팔레트를 불러오지 못했습니다');
-  gcOpenColor('캘린더 색 — 구글에 반영됩니다',pal,c.colorId,async id=>{
-    try{await gFetch(GC_API+'/users/me/calendarList/'+encodeURIComponent(calId),{method:'PATCH',body:{colorId:id}});gcRefresh(true);}catch(e){toast(e.message);}});}
-function gcPickListColor(listId){
-  gcOpenColor('목록 색 — 대시보드 전용(내 기기 간 동기화)',GC_TLCOLORS.map(c=>({v:c,bg:c})),tlColor(listId),c=>{
-    const lc=Object.assign({},gmeta().listColors);lc[listId]=c;gmetaSave({listColors:lc});renderGcal();});}
-
-/* ---------- 일정 모달 ---------- */
+/* ---------- 일정 모달 (수동 일정 추가/편집 · 로컬 저장) ---------- */
+/* 도출 일정(_derived)은 대시보드가 자동 생성 → 편집 불가(클릭 시 안내만). 수동 일정만 편집 */
 function gcOpenEv(ref,prefDate,prefTime){
-  GC._ev=ref;const isNew=!ref;
-  let ev=null,calId=(GC.cals.find(c=>c.primary)||GC.cals[0]||{}).id;
-  if(ref){calId=ref.calId;ev=(GC.events[ref.calId]||[]).find(e=>e.id===ref.evId);if(!ev)return toast('일정을 찾을 수 없습니다 — 새로고침하세요');}
+  GC._ev=null;
+  if(ref){
+    const ev=(GC.events[ref.calId]||[]).find(e=>e.id===ref.evId);
+    if(!ev)return toast('일정을 찾을 수 없습니다 — 새로고침하세요');
+    if(ev._derived){const cat=catById(ev._cat);toast((cat?cat.name+' · ':'')+(ev.summary||'')+(ev.description?' — '+ev.description:''));return;}
+    GC._ev=ev._src||null;   /* 수동 일정 저장 원본 */
+  }
+  const m=GC._ev,isNew=!m;
   $('#gev_mtitle').textContent=isNew?'📅 새 일정':'📅 일정 편집';
-  $('#gev_cal').innerHTML=GC.cals.filter(c=>c.accessRole==='owner'||c.accessRole==='writer').map(c=>`<option value="${esc(c.id)}" ${c.id===calId?'selected':''}>${esc(c.summary)}</option>`).join('');
-  const allday=ev?!!(ev.start&&ev.start.date):!prefTime;
+  $('#gev_cal').innerHTML=CAL_CATS.map(c=>`<option value="${esc(c.id)}" ${((m&&m.cat)||'manual')===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+  const allday=m?(m.allday!==false&&!m.st):!prefTime;
   $('#gev_allday').checked=allday;
   let sd=prefDate||dkey(new Date()),st=prefTime||'09:00',ed=sd,
       et=String(Math.min(23,+st.slice(0,2)+1)).padStart(2,'0')+st.slice(2);
-  if(ev){
-    if(ev.start.date){sd=ev.start.date;const e=new Date(ev.end.date+'T00:00:00');e.setDate(e.getDate()-1);ed=dkey(e);}
-    else{const s=new Date(ev.start.dateTime),e=new Date(ev.end.dateTime);sd=dkey(s);ed=dkey(e);
-      st=String(s.getHours()).padStart(2,'0')+':'+String(s.getMinutes()).padStart(2,'0');
-      et=String(e.getHours()).padStart(2,'0')+':'+String(e.getMinutes()).padStart(2,'0');}}
-  $('#gev_title').value=ev?(ev.summary||''):'';$('#gev_memo').value=ev?(ev.description||''):'';
+  if(m){sd=m.sd||sd;ed=m.ed||sd;if(m.st)st=m.st;if(m.et)et=m.et;}
+  $('#gev_title').value=m?(m.title||''):'';$('#gev_memo').value=m?(m.memo||''):'';
   $('#gev_sd').value=sd;$('#gev_st').value=st;$('#gev_ed').value=ed;$('#gev_et').value=et;
   gevAllday();
   $('#gev_del').classList.toggle('hidden',isNew);
   $('#gcEvModal').classList.remove('hidden');
 }
 function gevAllday(){const a=$('#gev_allday').checked;$('#gev_st').style.display=a?'none':'';$('#gev_et').style.display=a?'none':'';}
-async function gcSaveEv(){
-  const calId=$('#gev_cal').value,title=$('#gev_title').value.trim();
+function gcSaveEv(){
+  const cat=$('#gev_cal').value,title=$('#gev_title').value.trim();
   const sd=$('#gev_sd').value,ed=$('#gev_ed').value||sd,allday=$('#gev_allday').checked;
   if(!title)return toast('제목을 입력하세요');if(!sd)return toast('시작일을 선택하세요');
   if(ed<sd)return toast('종료일이 시작일보다 빠릅니다');
-  let start,end;
-  if(allday){const e=new Date(ed+'T00:00:00');e.setDate(e.getDate()+1);start={date:sd};end={date:dkey(e)};}
-  else{const st=$('#gev_st').value||'09:00';let et=$('#gev_et').value||'';
+  const rec={cat:catById(cat)?cat:'manual',title,memo:$('#gev_memo').value,allday,sd,ed};
+  if(!allday){const st=$('#gev_st').value||'09:00';let et=$('#gev_et').value||'';
     if(!et||(ed===sd&&et<=st))et=String(Math.min(23,+st.slice(0,2)+1)).padStart(2,'0')+st.slice(2);
-    start={dateTime:rfc3339(sd,st)};end={dateTime:rfc3339(ed,et)};}
-  const body={summary:title,description:$('#gev_memo').value,start,end};
-  try{
-    if(GC._ev){let {calId:oc,evId}=GC._ev;
-      if(oc!==calId){const mv=await gFetch(GC_API+'/calendars/'+encodeURIComponent(oc)+'/events/'+encodeURIComponent(evId)+'/move?destination='+encodeURIComponent(calId),{method:'POST'});evId=mv.id;}
-      await gFetch(GC_API+'/calendars/'+encodeURIComponent(calId)+'/events/'+encodeURIComponent(evId),{method:'PATCH',body});}
-    else await gFetch(GC_API+'/calendars/'+encodeURIComponent(calId)+'/events',{method:'POST',body});
-    $('#gcEvModal').classList.add('hidden');toast('구글 캘린더에 저장됨');gcRefresh(true);
-  }catch(e){toast(e.message);}
+    rec.st=st;rec.et=et;}
+  const list=manualEvents().slice();
+  if(GC._ev&&GC._ev.id){rec.id=GC._ev.id;const i=list.findIndex(x=>x.id===GC._ev.id);if(i>=0)list[i]=rec;else list.push(rec);}
+  else rec.id='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  if(!(GC._ev&&GC._ev.id))list.push(rec);
+  gmetaSave({manualEvents:list});
+  $('#gcEvModal').classList.add('hidden');toast('일정 저장됨');renderGcal();
 }
-async function gcDelEv(){if(!GC._ev)return;
-  if(!confirm('이 일정을 삭제할까요? 구글 캘린더에서도 삭제됩니다.'))return;
-  try{await gFetch(GC_API+'/calendars/'+encodeURIComponent(GC._ev.calId)+'/events/'+encodeURIComponent(GC._ev.evId),{method:'DELETE'});
-    $('#gcEvModal').classList.add('hidden');toast('삭제됨');gcRefresh(true);}catch(e){toast(e.message);}}
-
-/* ---------- 할 일 모달 ---------- */
-function gcOpenTk(ref,prefDate){
-  GC._tk=ref;const isNew=!ref;
-  let t=null,listId=(GC.lists[0]||{}).id;
-  if(ref){listId=ref.listId;t=(GC.tasks[ref.listId]||[]).find(x=>x.id===ref.taskId);if(!t)return toast('할 일을 찾을 수 없습니다 — 새로고침하세요');}
-  $('#gtk_mtitle').textContent=isNew?'✅ 새 할 일':'✅ 할 일 편집';
-  $('#gtk_list').innerHTML=GC.lists.map(l=>`<option value="${esc(l.id)}" ${l.id===listId?'selected':''}>${esc(l.title)}</option>`).join('');
-  $('#gtk_list').disabled=!isNew; /* Tasks API는 목록 간 이동 미지원 */
-  $('#gtk_title').value=t?(t.title||''):'';$('#gtk_memo').value=t?(t.notes||''):'';
-  const w=t?tkWhen(t):null;
-  $('#gtk_due').value=w?w.date:(prefDate||'');
-  $('#gtk_time').value=w&&w.time?w.time:'';
-  $('#gtk_done').checked=!!(t&&t.status==='completed');$('#gtk_done').parentElement.style.display=isNew?'none':'';
-  $('#gtk_del').classList.toggle('hidden',isNew);
-  $('#gcTaskModal').classList.remove('hidden');
-}
-/* 할 일 시간 저장 — 대시보드 전용(gmeta.taskTimes). Tasks API는 due의 시간을 버리므로 구글엔 못 올림 */
-function setTaskTime(id,tm){const m=Object.assign({},gmeta().taskTimes||{});
-  if(tm)m[id]=tm;else delete m[id];gmetaSave({taskTimes:m});}
-async function gcSaveTk(){
-  const listId=$('#gtk_list').value,title=$('#gtk_title').value.trim();
-  if(!listId)return toast('할 일 목록이 없습니다 — 목록을 먼저 만드세요');
-  if(!title)return toast('제목을 입력하세요');
-  const due=$('#gtk_due').value,tmv=due?$('#gtk_time').value:'';
-  const body={title,notes:$('#gtk_memo').value,due:due?due+'T00:00:00.000Z':null};
-  try{
-    if(GC._tk){body.status=$('#gtk_done').checked?'completed':'needsAction';
-      await gFetch(GT_API+'/lists/'+encodeURIComponent(GC._tk.listId)+'/tasks/'+encodeURIComponent(GC._tk.taskId),{method:'PATCH',body});
-      setTaskTime(GC._tk.taskId,tmv);}
-    else{const created=await gFetch(GT_API+'/lists/'+encodeURIComponent(listId)+'/tasks',{method:'POST',body});
-      if(created&&created.id&&tmv)setTaskTime(created.id,tmv);}
-    $('#gcTaskModal').classList.add('hidden');toast('Google Tasks에 저장됨');gcRefresh(true);
-  }catch(e){toast(e.message);}
-}
-async function gcDelTk(){if(!GC._tk)return;
-  if(!confirm('이 할 일을 삭제할까요? Google Tasks에서도 삭제됩니다.'))return;
-  try{await gFetch(GT_API+'/lists/'+encodeURIComponent(GC._tk.listId)+'/tasks/'+encodeURIComponent(GC._tk.taskId),{method:'DELETE'});
-    $('#gcTaskModal').classList.add('hidden');toast('삭제됨');gcRefresh(true);}catch(e){toast(e.message);}}
-
-/* ---------- 연결 설정 ---------- */
-function gcOpenSet(){
-  $('#gcs_cid').value=gClientId();
-  $('#gcs_stat').textContent=gConnected()?'✅ 연결됨':'연결 안 됨 (만료/미연결)';
-  $('#gcSetModal').classList.remove('hidden');
-}
-async function gcDisconnect(){
-  try{if(GTOK&&GTOK.t&&window.google&&google.accounts)google.accounts.oauth2.revoke(GTOK.t,()=>{});}catch(e){}
-  GTOK=null;localStorage.removeItem(G_TOK_KEY);GC={cals:[],palette:GC.palette,lists:[],tasks:{},events:{},loadedAt:0,err:null,needAuth:false,_showDone:{},_ev:null,_tk:null,_colorCb:null};
-  $('#gcSetModal').classList.add('hidden');toast('구글 연결 해제됨');if(curView==='gcal')renderGcal();
-}
+function gcDelEv(){if(!GC._ev||!GC._ev.id)return;
+  if(!confirm('이 일정을 삭제할까요?'))return;
+  gmetaSave({manualEvents:manualEvents().filter(x=>x.id!==GC._ev.id)});
+  $('#gcEvModal').classList.add('hidden');toast('삭제됨');renderGcal();}
 
 /* ---------- 모달 DOM + 정적 바인딩 ---------- */
 document.body.insertAdjacentHTML('beforeend',`
 <div id="gcEvModal" class="modal hidden"><div class="modal-card">
   <button class="modal-x" data-gcx="gcEvModal">✕</button><h3 id="gev_mtitle">📅 일정</h3>
-  <label>캘린더</label><select id="gev_cal"></select>
+  <label>카테고리</label><select id="gev_cal"></select>
   <label>제목 *</label><input id="gev_title" autocomplete="off">
   <div class="cfchk" style="margin-top:10px"><label><input type="checkbox" id="gev_allday">종일</label></div>
   <div class="cf2"><div><label>시작</label><input type="date" id="gev_sd"></div><div><label style="visibility:hidden">시간</label><input type="time" id="gev_st"></div></div>
   <div class="cf2"><div><label>종료</label><input type="date" id="gev_ed"></div><div><label style="visibility:hidden">시간</label><input type="time" id="gev_et"></div></div>
   <label>메모</label><textarea id="gev_memo" rows="3" style="width:100%"></textarea>
   <div class="modal-btns"><button class="btn ghost sm" id="gev_del" style="color:var(--danger)">삭제</button><button class="btn primary sm" id="gev_save">저장</button></div>
-</div></div>
-<div id="gcTaskModal" class="modal hidden"><div class="modal-card">
-  <button class="modal-x" data-gcx="gcTaskModal">✕</button><h3 id="gtk_mtitle">✅ 할 일</h3>
-  <label>목록</label><select id="gtk_list"></select>
-  <label>제목 *</label><input id="gtk_title" autocomplete="off">
-  <div class="cf2">
-    <div><label>날짜 <span style="font-weight:500;color:var(--sub)">· 선택</span></label><input type="date" id="gtk_due"></div>
-    <div><label>시간 <span style="font-weight:500;color:var(--sub)">· 대시보드 전용</span></label><input type="time" id="gtk_time"></div>
-  </div>
-  <p class="msub" style="margin:6px 0 0">시간은 이 대시보드에서만 표시됩니다(내 기기 간 동기화). 구글 Tasks API가 시간을 받지 않아 구글 앱에는 반영되지 않습니다.</p>
-  <label>메모</label><textarea id="gtk_memo" rows="3" style="width:100%"></textarea>
-  <div class="cfchk" style="margin-top:10px"><label><input type="checkbox" id="gtk_done">완료</label></div>
-  <div class="modal-btns"><button class="btn ghost sm" id="gtk_del" style="color:var(--danger)">삭제</button><button class="btn primary sm" id="gtk_save">저장</button></div>
-</div></div>
-<div id="gcTasksModal" class="modal hidden"><div class="modal-card gc-tmfull">
-  <button class="modal-x" data-gcx="gcTasksModal">✕</button><h3>✅ Tasks 전체 보기</h3>
-  <div class="gc-tmbody">
-    <aside class="gc-tmnav"><div class="navlb">목록 · 점=표시 색</div><div id="gctm_nav"></div>
-      <div class="gc-addrow" style="margin-top:12px"><input id="gcNewList" placeholder="+ 새 목록 (Enter)" autocomplete="off"><button class="btn ghost sm" id="gcNewListBtn">추가</button></div>
-    </aside>
-    <div class="gc-tmcols" id="gctm_body"></div>
-  </div>
-</div></div>
-<div id="gcColorModal" class="modal hidden"><div class="modal-card">
-  <button class="modal-x" data-gcx="gcColorModal">✕</button><h3 id="gcc_title">색 선택</h3><div id="gcc_body"></div>
-</div></div>
-<div id="gcSetModal" class="modal hidden"><div class="modal-card">
-  <button class="modal-x" data-gcx="gcSetModal">✕</button><h3>⚙ Google 연결 설정</h3>
-  <p class="msub">브라우저에서 구글로 직접 연결합니다(서버 없음). 토큰은 이 기기에만 저장되고 1시간마다 자동 갱신됩니다.</p>
-  <label>OAuth 클라이언트 ID</label><input id="gcs_cid" autocomplete="off">
-  <div id="gcs_stat" class="systat"></div>
-  <div class="modal-btns"><button class="btn ghost sm" id="gcs_off">연결 해제</button><button class="btn primary sm" id="gcs_save">저장 &amp; 다시 연결</button></div>
 </div></div>`);
 document.querySelectorAll('[data-gcx]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.gcx).classList.add('hidden'));
-['gcEvModal','gcTaskModal','gcTasksModal','gcColorModal','gcSetModal'].forEach(id=>{const m=document.getElementById(id);
-  m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');});});
+{const m=document.getElementById('gcEvModal');m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');});}
 $('#gev_allday').onchange=gevAllday;
 $('#gev_save').onclick=gcSaveEv;$('#gev_del').onclick=gcDelEv;
-$('#gtk_save').onclick=gcSaveTk;$('#gtk_del').onclick=gcDelTk;
-$('#gcs_save').onclick=async()=>{const cid=$('#gcs_cid').value.trim();if(!cid)return toast('클라이언트 ID를 입력하세요');
-  localStorage.setItem(G_CID_KEY,cid);GTOK=null;localStorage.removeItem(G_TOK_KEY);gTokClient=null;
-  $('#gcSetModal').classList.add('hidden');
-  try{await gAuth();toast('연결됨');gcRefresh();}catch(e){toast(e.message);if(curView==='gcal')renderGcal();}};
-$('#gcs_off').onclick=gcDisconnect;
-/* 새 목록 추가 — Tasks 전체 보기 모달 하단 */
-const gcAddList=async()=>{const nm=$('#gcNewList').value.trim();if(!nm)return;
-  try{const l=await gFetch(GT_API+'/users/@me/lists',{method:'POST',body:{title:nm}});$('#gcNewList').value='';
-    const lc=Object.assign({},gmeta().listColors);lc[l.id]=GC_TLCOLORS[GC.lists.length%GC_TLCOLORS.length];gmetaSave({listColors:lc});
-    toast('목록 추가됨');gcRefresh(true);}catch(e){toast(e.message);}};
-$('#gcNewListBtn').onclick=gcAddList;
-$('#gcNewList').onkeydown=e=>{if(e.key==='Enter')gcAddList();};
 
 /* =========================================================
    misc helpers / boot
@@ -3713,7 +3416,7 @@ function onViewportChange(){clearTimeout(_rzT);_rzT=setTimeout(()=>{applyMobileC
   if(_pendingRotate){_pendingRotate=false;hardResetViewport();if(!$('#app').classList.contains('hidden'))rerenderCurrent();}
   /* 창 크기 변경으로 모바일↔데스크톱 레이아웃 경계를 넘으면 즉시 재렌더 — 별도 창 캘린더 유동 대응 */
   else if(_wasM!==null&&isMobile()!==_wasM&&!$('#app').classList.contains('hidden')){
-    GC._leftOpen=!isMobile();GC._sideOpen=false;   /* 캘린더 패널: 모바일=닫힘 · PC=내 캘린더 열림 */
+    GC._leftOpen=!isMobile();   /* 캘린더 좌측 목록: 모바일=닫힘 · PC=열림 */
     rerenderCurrent();}
   _wasM=isMobile();
   Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},70);}
