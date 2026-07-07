@@ -1724,7 +1724,9 @@ function mergeCrm(a,b){const m={};[...(a||[]),...(b||[])].forEach(c=>{
   // + tombstone(삭제 표식)으로 삭제 전파: 삭제시각 ≥ 계약 updatedAt 이면 제외(그 이후 재등록이면 계약이 이김)
   const tomb={...(ex.delContracts||{})};
   Object.entries(c.delContracts||{}).forEach(([k,ts])=>{if(!tomb[k]||String(ts)>String(tomb[k]))tomb[k]=ts;});
-  const cmap={};[...(ex.contracts||[]),...(c.contracts||[])].forEach(ct=>{if(!ct)return;const k=contractKey(ct);const e=cmap[k];if(!e||(ct.updatedAt||'')>=(e.updatedAt||''))cmap[k]=ct;});
+  const cmap={};
+  const pickCt=(ct,e)=>{if(!e)return true;const ci=!!ct.id,ei=!!e.id;if(ci!==ei)return ci;return (ct.updatedAt||'')>=(e.updatedAt||'');};   // id본 우선(구버전 id없는 계약이 id를 벗기지 못하게), 그다음 최신
+  [...(ex.contracts||[]),...(c.contracts||[])].forEach(ct=>{if(!ct)return;const k=contractKey(ct);if(pickCt(ct,cmap[k]))cmap[k]=ct;});
   Object.keys(cmap).forEach(k=>{const t=tomb[k];if(t&&String(t)>=String(cmap[k].updatedAt||''))delete cmap[k];else if(t)delete tomb[k];}); // 재등록으로 살아난 계약이면 stale tombstone 정리
   u.contracts=Object.values(cmap);
   if(Object.keys(tomb).length)u.delContracts=tomb;else delete u.delContracts;
@@ -1803,7 +1805,7 @@ async function backfillContractIds(){
   Object.values(CRM).forEach(cr=>{
     if(!cr||!Array.isArray(cr.contracts))return;
     let touched=false;
-    cr.contracts.forEach(ct=>{if(ct&&!ct.id){ct.id=newCtId();touched=true;}});
+    cr.contracts.forEach(ct=>{if(ct&&!ct.id){ct.id=newCtId();ct.updatedAt=new Date().toISOString();touched=true;}});   // updatedAt도 올려 동기화 병합에서 id본이 이기게
     if(touched){cr.updatedAt=new Date().toISOString();changed.push(cr);}
   });
   for(const cr of changed)await crmPut(cr);
