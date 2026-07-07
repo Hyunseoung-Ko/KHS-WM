@@ -374,6 +374,26 @@ html.m .gc-tkchip .b{height:9px}
 html.m .gc-mbar{font-size:9px;height:14px;line-height:14px}
 html.m .gc-dnw{height:20px}
 html.m .gc-dn{width:18px;height:18px;font-size:10.5px}
+/* 공휴일 — 날짜 숫자 빨강(일요일과 동일 톤) */
+.gc-tg-hd .dd.hol{color:var(--danger)}
+.gc-mini-d.hol:not(.td):not(.out){color:var(--danger)}
+/* ---- 일정 뷰: 메뉴 우측 공간을 꽉 채우는 전체 높이 레이아웃(창 크기에 반응) ---- */
+.gc-full{max-width:none;margin:0;padding:14px 18px 16px;height:100dvh;display:flex;flex-direction:column}
+.gc-full .gc-card{flex:1;min-height:0;display:flex;flex-direction:column;margin-bottom:0}
+.gc-full .gc-shell{flex:1;min-height:0}
+.gc-full .gc-center{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.gc-full .gc-mv{flex:1;display:flex;flex-direction:column;min-height:0}
+.gc-full .gc-mrow{flex:1 1 0;min-height:0}
+.gc-full .gc-mcell{overflow-y:auto}
+.gc-full .gc-tg{flex:1;display:flex;flex-direction:column;min-height:0}
+.gc-full .gc-tg-body{flex:1;max-height:none;min-height:0}
+body.v-gcal #main{padding-bottom:0}
+/* 모바일: 전체 너비만 채우고 자연 높이로 스크롤(하단탭 공간 유지) */
+html.m .gc-full{height:auto;display:block;padding:10px 8px 16px}
+html.m .gc-full .gc-card{display:block}
+html.m .gc-full .gc-mrow{flex:none}
+html.m .gc-full .gc-tg-body{max-height:62vh}
+html.m body.v-gcal #main{padding-bottom:78px}
 .modal.hidden{display:none}
 .modal-card{background:#fff;border-radius:22px;padding:28px;width:100%;max-width:440px;position:relative;box-shadow:0 24px 60px rgba(0,0,0,.25);max-height:92vh;overflow:auto}
 .modal-card h3{margin:0 0 4px;font-size:18px;font-weight:800}
@@ -1079,6 +1099,7 @@ function toggleDrawer(open){const sb=$('#sidebar'),bd=$('#drawerBackdrop');if(!s
 function bindCollapsers(scope){(scope||document).querySelectorAll('.collapser').forEach(h=>{h.onclick=()=>{const t=document.getElementById(h.dataset.target);if(!t)return;const c=t.classList.toggle('collapsed');const meta=h.querySelector('.meta');if(meta)meta.textContent=c?'▾ 펼치기':'▴ 접기';};});}
 
 function render(){killCharts();
+  document.body.classList.toggle('v-gcal',curView==='gcal');
   if(curView==='home')renderHome();
   else if(curView==='gcal')renderGcal();
   else if(curView==='clients')renderClients();
@@ -1894,10 +1915,64 @@ function addMonths(d,n){const p=d.split('-');const dt=new Date(+p[0],+p[1]-1+n,+
    ----- 영업일·연락이력 공용 헬퍼 (통합 연락 스케줄에서 사용) -----
    완료 여부는 crm.history(연락일 배열)로 판정, 동기화에 함께 실림
    ========================================================= */
-const INS_HOLIDAYS=new Set(['2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-02','2026-05-05','2026-05-25','2026-06-06','2026-08-15','2026-08-17','2026-09-24','2026-09-25','2026-09-28','2026-10-05','2026-10-09','2026-12-25']);
 const insPad=n=>String(n).padStart(2,'0');
 const insIso=d=>`${d.getFullYear()}-${insPad(d.getMonth()+1)}-${insPad(d.getDate())}`;
-function insBizDay(d){const w=d.getDay();return w!==0&&w!==6&&!INS_HOLIDAYS.has(insIso(d));}
+/* ===== 한국 공휴일 (달력 표시 + 영업일 제외 · 자동 업데이트) =====================
+   - 검증된 하드코딩 표(2025~2027)를 기준으로 삼고, date.nager.at에서 받은 목록을
+     합집합(union)으로 병합 → 새 대체공휴일·임시공휴일이 지정되면 자동 반영.
+   - 제헌절(7/17)은 실제 휴무일이 아니라 제외. 근로자의 날(5/1)은 금융권 휴장이라 포함.
+   - 네트워크 실패/오프라인이어도 하드코딩 표로 정상 동작(현재·내년 포함).
+   - 대체공휴일 규칙: 설날·추석은 '일요일' 겹칠 때만, 그 외(국경일·어린이날·부처님·
+     성탄절)는 '토·일' 겹칠 때 대체 부여. (2023 개정 기준)
+   - HOLIDAYS = { 'YYYY-MM-DD': '이름' } */
+const HOLIDAYS_BASE={
+  /* 2025 */
+  '2025-01-01':'신정','2025-01-27':'임시공휴일','2025-01-28':'설날 연휴','2025-01-29':'설날','2025-01-30':'설날 연휴',
+  '2025-03-01':'삼일절','2025-03-03':'대체공휴일(삼일절)','2025-05-01':'근로자의 날',
+  '2025-05-05':'어린이날·부처님오신날','2025-05-06':'대체공휴일','2025-06-06':'현충일',
+  '2025-08-15':'광복절','2025-10-03':'개천절','2025-10-05':'추석 연휴','2025-10-06':'추석','2025-10-07':'추석 연휴',
+  '2025-10-08':'대체공휴일(추석)','2025-10-09':'한글날','2025-12-25':'성탄절',
+  /* 2026 */
+  '2026-01-01':'신정','2026-02-16':'설날 연휴','2026-02-17':'설날','2026-02-18':'설날 연휴',
+  '2026-03-01':'삼일절','2026-03-02':'대체공휴일(삼일절)','2026-05-01':'근로자의 날','2026-05-05':'어린이날',
+  '2026-05-24':'부처님오신날','2026-05-25':'대체공휴일(부처님오신날)','2026-06-03':'지방선거일','2026-06-06':'현충일',
+  '2026-08-15':'광복절','2026-08-17':'대체공휴일(광복절)','2026-09-24':'추석 연휴','2026-09-25':'추석','2026-09-26':'추석 연휴',
+  '2026-10-03':'개천절','2026-10-05':'대체공휴일(개천절)','2026-10-09':'한글날','2026-12-25':'성탄절',
+  /* 2027 */
+  '2027-01-01':'신정','2027-02-06':'설날 연휴','2027-02-07':'설날','2027-02-08':'설날 연휴','2027-02-09':'대체공휴일(설날)',
+  '2027-03-01':'삼일절','2027-05-01':'근로자의 날','2027-05-05':'어린이날','2027-05-13':'부처님오신날','2027-06-06':'현충일',
+  '2027-08-15':'광복절','2027-08-16':'대체공휴일(광복절)','2027-09-14':'추석 연휴','2027-09-15':'추석','2027-09-16':'추석 연휴',
+  '2027-10-03':'개천절','2027-10-04':'대체공휴일(개천절)','2027-10-09':'한글날','2027-10-11':'대체공휴일(한글날)',
+  '2027-12-25':'성탄절','2027-12-27':'대체공휴일(성탄절)',
+};
+let HOLIDAYS=Object.assign({},HOLIDAYS_BASE);
+try{const rc=JSON.parse(localStorage.getItem('ab_holidays')||'null');if(rc&&rc.map)HOLIDAYS=Object.assign({},HOLIDAYS_BASE,rc.map);}catch(e){}
+function isHoliday(iso){return !!HOLIDAYS[iso];}
+function holidayName(iso){return HOLIDAYS[iso]||'';}
+/* 원격에서 공휴일 자동 갱신(대체·임시공휴일 반영) — 7일 캐시, 실패해도 하드코딩 유지 */
+async function refreshHolidays(force){
+  try{
+    const y0=new Date().getFullYear(),ys=[y0-1,y0,y0+1,y0+2];
+    let cache=null;try{cache=JSON.parse(localStorage.getItem('ab_holidays')||'null');}catch(e){}
+    if(!force&&cache&&cache.at&&(Date.now()-cache.at)<7*864e5&&Array.isArray(cache.years)&&ys.every(y=>cache.years.includes(y)))return;
+    const map={};
+    for(const y of ys){
+      let arr;try{const r=await fetch('https://date.nager.at/api/v3/PublicHolidays/'+y+'/KR');if(!r.ok)continue;arr=await r.json();}catch(e){continue;}
+      if(!Array.isArray(arr))continue;
+      for(const h of arr){const nm=h.localName||h.name||'';
+        if(/제헌|Constitution/i.test(nm))continue;   /* 제헌절은 실제 휴무 아님 */
+        if(h.date)map[h.date]=nm;}
+    }
+    if(Object.keys(map).length){
+      const changed=JSON.stringify(HOLIDAYS)!==JSON.stringify(Object.assign({},HOLIDAYS_BASE,map));
+      localStorage.setItem('ab_holidays',JSON.stringify({at:Date.now(),years:ys,map}));
+      HOLIDAYS=Object.assign({},HOLIDAYS_BASE,map);
+      /* 공휴일이 바뀌었고 앱이 열려 있으면 현재 화면 재렌더(달력·연락 일정 반영) */
+      if(changed&&typeof rerenderCurrent==='function'&&$('#app')&&!$('#app').classList.contains('hidden'))rerenderCurrent();
+    }
+  }catch(e){/* 오프라인 등 — 하드코딩 표 유지 */}
+}
+function insBizDay(d){const w=d.getDay();return w!==0&&w!==6&&!isHoliday(insIso(d));}
 function insBizDaysOfMonth(y,m){const out=[],last=new Date(y,m,0).getDate();for(let day=1;day<=last;day++){const d=new Date(y,m-1,day);if(insBizDay(d))out.push(day);}return out;}
 function insHistory(c){return((c.crm&&c.crm.history)||[]).slice().sort();}
 function insLastContact(c){const h=insHistory(c);return h.length?h[h.length-1]:null;}
@@ -2869,6 +2944,7 @@ function gcBuild(){
   GC.cals=CAL_CATS.map(c=>({id:c.id,summary:c.name,backgroundColor:c.color,primary:false,selected:true,accessRole:c.derived?'reader':'owner',_derived:c.derived}));
   const evs={};CAL_CATS.forEach(c=>evs[c.id]=[]);
   buildContactEvents().forEach(e=>evs.contact.push(e));
+  buildHolidayEvents().forEach(e=>evs.holiday.push(e));
   /* 향후: 가입 90일·1년·2년·상령일 도출 이벤트를 각 카테고리에 push */
   buildManualEvents().forEach(e=>{const k=evs[e._cat]?e._cat:'manual';evs[k].push(e);});
   GC.events=evs;GC.loadedAt=Date.now();GC.err=null;
@@ -2887,10 +2963,11 @@ function evTime(ev){if(!(ev.start&&ev.start.dateTime))return '';const d=new Date
    ⚠ signup90/1y/2y·agechange는 향후 구현 — 지금은 목록에만 노출(이벤트 미생성) */
 const CAL_CATS=[
   {id:'contact',  name:'연락 예정',   color:'#3182F6', derived:true},
+  {id:'holiday',  name:'공휴일',      color:'#F04452', derived:true},
   {id:'signup90', name:'가입 90일',   color:'#15B370', derived:true},
   {id:'signup1y', name:'가입 후 1년', color:'#F7B23B', derived:true},
   {id:'signup2y', name:'가입 후 2년', color:'#E0640F', derived:true},
-  {id:'agechange',name:'상령일',      color:'#F04452', derived:true},
+  {id:'agechange',name:'상령일',      color:'#EC4899', derived:true},
   {id:'manual',   name:'직접 입력',   color:'#8B5CF6', derived:false},
 ];
 function catById(id){return CAL_CATS.find(c=>c.id===id)||null;}
@@ -2902,6 +2979,15 @@ function buildContactEvents(){
     description:(contactReasons(c)[0]||''), status:'confirmed',
     start:{date:c._dateIso}, end:{date:nextDay(c._dateIso)},
     _cat:'contact', _derived:true, _name:c.name, _st:c._st}));
+}
+/* 공휴일 — HOLIDAYS(하드코딩+원격 병합)에서 종일 이벤트로 도출. 표시 범위(현재 년도 ±1) */
+function buildHolidayEvents(){
+  const y=gcDate.getFullYear(),lo=(y-1)+'-01-01',hi=(y+2)+'-01-01';
+  const out=[];
+  for(const k in HOLIDAYS){if(k<lo||k>=hi)continue;
+    out.push({id:'hol::'+k, summary:HOLIDAYS[k], status:'confirmed',
+      start:{date:k}, end:{date:nextDay(k)}, _cat:'holiday', _derived:true, _holiday:true});}
+  return out;
 }
 /* 수동 일정 — gmeta.manualEvents({id,cat,title,memo,allday,sd,st,ed,et})를 렌더용 이벤트로 변환 */
 function manualEvents(){return (gmeta().manualEvents)||[];}
@@ -2990,8 +3076,8 @@ function gcTimeGridHTML(){
   const colT='grid-template-columns:'+gut+'px repeat('+n+',minmax(0,1fr))';
   const dayData=days.map(d=>gcTgDay(dkey(d)));
   let head='<div class="gc-tg-head" style="'+colT+'"><div></div>';
-  for(const d of days){const k=dkey(d),dow=d.getDay();
-    head+='<div class="gc-tg-hd '+(k===todayK?'today':'')+'" data-gjump="'+k+'"><span class="dw '+(dow===0?'sun':dow===6?'sat':'')+'">'+['일','월','화','수','목','금','토'][dow]+'</span><br><span class="dd">'+d.getDate()+'</span></div>';}
+  for(const d of days){const k=dkey(d),dow=d.getDay(),hol=isHoliday(k);
+    head+='<div class="gc-tg-hd '+(k===todayK?'today':'')+'" data-gjump="'+k+'"'+(hol?' title="'+esc(holidayName(k))+'"':'')+'><span class="dw '+(dow===0||hol?'sun':dow===6?'sat':'')+'">'+['일','월','화','수','목','금','토'][dow]+'</span><br><span class="dd'+(hol?' hol':'')+'">'+d.getDate()+'</span></div>';}
   head+='</div>';
   /* 며칠짜리 일정 — 월간처럼 하나의 연속 바(겹치면 줄 나눔) */
   const wsK=dkey(days[0]),weK=dkey(days[n-1]),rbars=gcRangeBars(wsK,weK);
@@ -3036,7 +3122,7 @@ function gcMiniHTML(){
   const weeks=Math.ceil((off+dim)/7),todayK=dkey(new Date()),selK=dkey(gcDate);
   let cells='';
   for(let i=0;i<weeks*7;i++){const d=new Date(y,m,1-off+i),k=dkey(d);
-    cells+=`<button class="gc-mini-d ${d.getMonth()!==m?'out':''} ${k===todayK?'td':''} ${k===selK?'sel':''}" data-gminigo="${k}">${d.getDate()}</button>`;}
+    cells+=`<button class="gc-mini-d ${d.getMonth()!==m?'out':''} ${k===todayK?'td':''} ${k===selK?'sel':''} ${isHoliday(k)?'hol':''}" data-gminigo="${k}"${isHoliday(k)?` title="${esc(holidayName(k))}"`:''}>${d.getDate()}</button>`;}
   return `<div class="gc-mini">
     <div class="gc-mini-h"><span>${y}년 ${m+1}월</span>
       <button class="gc-ibtn" data-gmini="-1" style="width:26px;height:26px">‹</button>
@@ -3098,14 +3184,14 @@ function gcMonthHTML(){
       barsHtml+=`<div class="gc-mbar" data-gev="${esc(b.cal.id)}~~${esc(b.ev.id)}" style="left:calc(${cs}/7*100% + 2px);width:calc(${ce-cs+1}/7*100% - 4px);top:${BT+b.lane*LH}px;background:${bg};color:${txtOn(bg)}">${esc(b.ev.summary||'(제목 없음)')}</div>`;}
     let cells='';
     for(let i=0;i<7;i++){
-      const d=new Date(y,m,1-off+w*7+i),k=dkey(d),out=d.getMonth()!==m,dow=d.getDay();
+      const d=new Date(y,m,1-off+w*7+i),k=dkey(d),out=d.getMonth()!==m,dow=d.getDay(),hol=isHoliday(k);
       const cell=cellMap[k]||{evs:[],tks:[]};
       cell.evs.sort((a,b)=>evTime(a.ev).padStart(5,'0').localeCompare(evTime(b.ev).padStart(5,'0')));
       const evHtml=cell.evs.slice(0,MAXE).map(x=>{const bg=calColor(x.cal);
         return `<div class="gc-echip" data-gev="${esc(x.cal.id)}~~${esc(x.ev.id)}" style="background:${bg};color:${txtOn(bg)}">${evTime(x.ev)?`<b>${evTime(x.ev)}</b> `:''}${esc(x.ev.summary||'(제목 없음)')}</div>`;}).join('')
         +(cell.evs.length>MAXE?`<div class="gc-more">+${cell.evs.length-MAXE}개</div>`:'');
       cells+=`<div class="gc-mcell ${out?'out':''} ${k===todayK?'today':''}" data-gdaygo="${k}">
-        <div class="gc-dnw"><span class="gc-dn ${dow===0?'sun':dow===6?'sat':''}">${d.getDate()}</span></div>
+        <div class="gc-dnw"><span class="gc-dn ${dow===0||hol?'sun':dow===6?'sat':''}" ${hol?`title="${esc(holidayName(k))}"`:''}>${d.getDate()}</span></div>
         ${nl?`<div style="height:${nl*LH}px;flex:none"></div>`:''}
         ${evHtml}</div>`;}
     html+=`<div class="gc-mrow" style="min-height:${MH+nl*LH}px">${cells}${barsHtml}</div>`;}
@@ -3115,12 +3201,13 @@ function gcMonthHTML(){
 /* ---------- 렌더 ---------- */
 function renderGcal(){
   const v=$('#view');
+  refreshHolidays();   /* 공휴일 자동 갱신(7일 캐시) — 완료 시 재렌더 */
   gcBuild();
   if(GC._leftOpen===undefined)GC._leftOpen=!isMobile();   /* 좌 사이드바: PC 기본 열림 */
   const view=gcCurView(),mob=isMobile();
   const center=view==='month'?gcMonthHTML():`<div class="gc-tg">${gcTimeGridHTML()}</div>`;
   const leftCls=mob?(GC._leftOpen?'openm':''):(GC._leftOpen?'':'closed');
-  v.innerHTML=`<div class="wrap gc-wrap">
+  v.innerHTML=`<div class="wrap gc-wrap gc-full">
    <div class="card gc-card">
     <div class="gc-topbar">
       <button class="gc-ibtn" id="gcLeftBtn" title="일정 목록">☰</button>
@@ -3422,7 +3509,7 @@ document.addEventListener('touchend',e=>{if(_swX==null)return;const t=e.changedT
   if(_swX<=42 && dx>70 && Math.abs(dy)<55)goBack();_swX=null;},{passive:true});
 
 let booted=false;
-async function boot(){if(booted)return;booted=true;await openDB();bindGlobal();await reload();if(syncOn())syncNow(true);}
+async function boot(){if(booted)return;booted=true;await openDB();bindGlobal();await reload();if(syncOn())syncNow(true);refreshHolidays();}
 
 /* 물리 키보드로도 PIN 입력 가능 */
 document.addEventListener('keydown',e=>{
