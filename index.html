@@ -1127,7 +1127,7 @@ async function reload(){DELDATES=normDel(await metaGet('deletedDates'));
   }
   if(JSON.stringify(DELDATES)!==before)await metaPut('deletedDates',DELDATES);
   SNAPS=keep;
-  SNAPS.forEach(fixSnapPrincipals);const cl=await crmAll();CRM={};cl.forEach(c=>CRM[c.name]=c);render();}
+  SNAPS.forEach(fixSnapPrincipals);const cl=await crmAll();CRM={};cl.forEach(c=>CRM[c.name]=c);await backfillContractIds();render();}
 
 /* ---------- 자산(스냅샷) + CRM(직접입력) 통합 고객 맵 ---------- */
 function blankCust(name){return {name,acctPrefix:'',birth:'',gender:'',riskType:'',regDate:'',products:[],accounts:[],acctMeta:{},cats:{},totalEval:0,totalPrincipal:0,totalProfit:0,rate:0,branch:'',pb:'',crm:null};}
@@ -1483,6 +1483,7 @@ function crmBody(c){
 
 /* ----- 고객 상세: 가입 보험 계약 카드 ----- */
 function insCtRow(ct,cname){
+  if(ct&&!ct.id)ct.id=newCtId();   // 방어: id 없는 계약이 렌더되면 즉시 부여(편집→중복 버그 방지)
   const sub=[esc(ct.insurer),ct.contractDate,ct.insured&&ct.insured!==cname?'피 '+esc(ct.insured):'',ct.payYears?esc(ct.payYears)+'년납':'',ct.maturity?esc(ct.maturity):'',ct.policyNo?'증권 '+esc(ct.policyNo):'',ct.agent&&norm(ct.agent)!==norm(FC_NAME)?'⚠타설계사 '+esc(ct.agent):''].filter(Boolean).join(' · ');
   return `<div class="ins-ct" data-ctid="${esc(ct.id)}">
     <div class="ins-ct-main"><div class="ins-ct-nm">${esc(ct.product||'-')} ${insStatusTag(ct.status)}</div>
@@ -1781,6 +1782,21 @@ function ensureCrm(name){
   if(!Array.isArray(cr.channels))cr.channels=[];
   if(!cr.channels.includes('보험'))cr.channels.push('보험');
   return cr;
+}
+/* 구버전·동기화로 유입된 id 없는 계약에 안정적 id 부여.
+   id가 없으면 편집 버튼이 빈 ctid를 넘겨 '추가 모드'로 열리고, 저장 시 수정 대신 중복이 생성되던 버그 방지. */
+let _ctSeq=0;
+function newCtId(){return 'ct_'+Date.now().toString(36)+(_ctSeq++).toString(36)+Math.random().toString(36).slice(2,5);}
+async function backfillContractIds(){
+  const changed=[];
+  Object.values(CRM).forEach(cr=>{
+    if(!cr||!Array.isArray(cr.contracts))return;
+    let touched=false;
+    cr.contracts.forEach(ct=>{if(ct&&!ct.id){ct.id=newCtId();touched=true;}});
+    if(touched){cr.updatedAt=new Date().toISOString();changed.push(cr);}
+  });
+  for(const cr of changed)await crmPut(cr);
+  return changed.length;
 }
 /* 파싱/입력된 계약 목록을 계약자별로 그룹지어 저장(중복은 매칭 통합) */
 async function saveParsedContracts(list){
@@ -3099,7 +3115,7 @@ async function syncNow(silent){
       } else throw e; }
     }
     DELDATES=mergedDel;await metaPut('deletedDates',DELDATES);
-    SNAPS=merged;SNAPS.forEach(fixSnapPrincipals);CRM={};mergedCrm.forEach(c=>CRM[c.name]=c);
+    SNAPS=merged;SNAPS.forEach(fixSnapPrincipals);CRM={};mergedCrm.forEach(c=>CRM[c.name]=c);await backfillContractIds();
     setSyncDot('ok');syncing=false;if(!silent)toast('동기화 완료 · 스냅샷 '+merged.length+'개 · CRM '+mergedCrm.length+'명');
     if(curView)render();return true;
   }catch(e){setSyncDot('err');syncing=false;if(!silent)toast(e.message||'동기화 실패');return false;}
@@ -3196,7 +3212,7 @@ async function migrateInsurance(){
       channels:[...channels],
       anchorMonth:ic.anchorMonth||(ex&&ex.anchorMonth)||null,
       history:mergedHist,passes:(ex&&ex.passes)||[],
-      linkIds:(ex&&ex.linkIds)||[],
+      linkIds:(ex&&ex.linkIds)||[],contracts:(ex&&ex.contracts)||[],dormant:!!(ex&&ex.dormant),
       updatedAt:new Date().toISOString()};
     if(ex)merged++;else added++;
     await crmPut(rec);CRM[nm]=rec;
