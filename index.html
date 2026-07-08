@@ -744,7 +744,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <div class="cf3"><div><label>만기</label><input id="if_maturity" placeholder="100세 / 종신" autocomplete="off"></div>
         <div><label>증권번호</label><input id="if_policy" autocomplete="off"></div>
         <div><label>상태</label><select id="if_status"></select></div></div>
-      <label>모집자 <span style="font-weight:500;color:var(--sub)">· 본인(고현승) 외면 '삭제'로 자동표시</span></label><input id="if_agent" placeholder="고현승" autocomplete="off">
+      <label>모집자 <span style="font-weight:500;color:var(--sub)">· 본인(고현승) 외면 ⚠ 배지로 표시(숨기지 않음)</span></label><input id="if_agent" placeholder="고현승" autocomplete="off">
       <label class="cf-pen"><input type="checkbox" id="if_continue">저장 후 계속 입력(연속 등록)</label>
     </div>
     <div id="insPastePane" style="display:none">
@@ -1285,7 +1285,6 @@ function renderClients(){
         <button data-s="asset" class="${clientSort==='asset'?'on':''}">자산</button>
         <button data-s="rate" class="${clientSort==='rate'?'on':''}">수익률</button>
       </div>
-      <button class="btn ghost sm" id="btnInsBulk">🛡 보험 가져오기</button>
       <button class="btn primary sm" id="btnNewClient">+ 신규 고객</button>
     </div>
     <div class="search"><span>🔍</span><input id="cSearch" placeholder="고객 이름 검색" value="${esc(clientQuery)}"></div>
@@ -1294,7 +1293,6 @@ function renderClients(){
   v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{clientChannel=b.dataset.ch;renderClients();});
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{clientSort=b.dataset.s;renderClients();});
   $('#btnNewClient').onclick=()=>openCrmForm(null);
-  $('#btnInsBulk').onclick=()=>openInsModal('');
   const bindRows=()=>$('#view').querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
   const s=$('#cSearch');s.oninput=()=>{clientQuery=s.value.trim();
     $('#view .list').innerHTML=apply(clientQuery).map(c=>clientRow(c)).join('')||'<div class="empty">검색 결과 없음</div>';bindRows();};
@@ -1396,10 +1394,6 @@ function openClient(name){killCharts();currentClientName=name;
         <div class="delta ${c.rate>=0?'up':'down'}">${pct(c.rate)}${(()=>{const a=annualize(c.rate||0,yearsBetween(c.regDate,sdate));return a!=null?` · 연환산 ${(a>=0?'+':'')+a.toFixed(1)}%`:'';})()}</div></div>
     </div>
 
-    ${crmCard}
-
-    ${insCard(c)}
-
     <div class="card"><h3>자산 변화 추이<span class="meta">원금 · 손익 · 총액 (스냅샷 ${series.length}개)</span></h3>
       <div class="chartbox" style="height:240px"><canvas id="cCli"></canvas></div>
       ${series.length<2?'<p class="page-sub" style="text-align:center;margin-top:10px">스냅샷이 2개 이상 쌓이면 변화선이 그려집니다</p>':''}
@@ -1413,6 +1407,10 @@ function openClient(name){killCharts();currentClientName=name;
           <div class="nm" style="font-size:13.5px">${x.date}</div>
           <div class="right"><span class="amt">${won(x.c.totalEval)}</span><span class="rate ${x.c.rate>=0?'up':'down'}">${pct(x.c.rate)}</span></div></div>`).join('')||'<div class="empty">-</div>'}</div></div>
     </div>
+
+    ${crmCard}
+
+    ${insCard(c)}
 
     <div class="card"><h3 class="collapser" data-target="simBody">은퇴 시뮬레이션<span class="meta">▾ 펼치기</span></h3><div id="simBody" class="collapse-body collapsed"><div id="sim" class="sim"></div></div></div>
 
@@ -1493,7 +1491,7 @@ function insCtRow(ct,cname){
 }
 function insCard(c){
   const cts=((c.crm&&c.crm.contracts)||[]).slice().sort((a,b)=>(b.contractDate||'').localeCompare(a.contractDate||''));
-  const act=cts.filter(insActive),ended=cts.filter(x=>!insActive(x)&&x.status!=='삭제'),del=cts.filter(x=>x.status==='삭제');
+  const act=cts.filter(insActive),ended=cts.filter(x=>!insActive(x));
   const mon=act.filter(x=>x.payCycle==='월납').reduce((s,x)=>s+(x.premium||0),0);
   const head=`<h3>🛡 가입 보험 계약<span class="meta">유효 ${act.length}건${mon?' · 월 '+won(mon):''}</span>
     <button class="btn primary sm" id="btnInsAdd">+ 계약 추가·가져오기</button></h3>`;
@@ -1501,8 +1499,7 @@ function insCard(c){
   if(!cts.length){body=`<div class="empty" style="padding:14px 10px">아직 등록된 보험 계약이 없습니다 · <b>+ 계약 추가·가져오기</b>로 직접입력·붙여넣기·파일로 추가하세요</div>`;}
   else{
     body=act.map(ct=>insCtRow(ct,c.name)).join('')||'<div class="empty" style="padding:10px">유효 계약 없음</div>';
-    if(ended.length)body+=`<div class="ins-sec"><span class="collapser" data-target="insEnded">해지·실효·만기 ${ended.length}건<span class="meta">▾ 펼치기</span></span></div><div id="insEnded" class="collapse-body collapsed">${ended.map(ct=>insCtRow(ct,c.name)).join('')}</div>`;
-    if(del.length)body+=`<div class="ins-sec"><span class="collapser" data-target="insDel">숨김·타설계사 ${del.length}건<span class="meta">▾ 펼치기</span></span></div><div id="insDel" class="collapse-body collapsed">${del.map(ct=>insCtRow(ct,c.name)).join('')}</div>`;
+    if(ended.length)body+=`<div class="ins-sec"><span class="collapser" data-target="insEnded">해지·철회·만기 ${ended.length}건<span class="meta">▾ 펼치기</span></span></div><div id="insEnded" class="collapse-body collapsed">${ended.map(ct=>insCtRow(ct,c.name)).join('')}</div>`;
   }
   return `<div class="card">${head}${body}</div>`;
 }
@@ -1566,7 +1563,7 @@ async function insSave(){
 }
 async function insDelete(){
   if(!insEditId)return;
-  if(!confirm('이 계약을 삭제할까요?\n다른 기기에서도 삭제됩니다. (해지·실효·타설계사 등은 삭제 대신 상태를 바꿔 보관하세요)'))return;
+  if(!confirm('이 계약을 완전히 삭제할까요?\n목록에서 사라지고 다른 기기에서도 삭제됩니다. (해지·실효·만기는 삭제 대신 상태만 바꿔 보관할 수 있어요)'))return;
   const cr=CRM[insModalName];
   if(cr){
     const ct=(cr.contracts||[]).find(x=>x.id===insEditId);
@@ -1724,9 +1721,15 @@ function mergeCrm(a,b){const m={};[...(a||[]),...(b||[])].forEach(c=>{
   // + tombstone(삭제 표식)으로 삭제 전파: 삭제시각 ≥ 계약 updatedAt 이면 제외(그 이후 재등록이면 계약이 이김)
   const tomb={...(ex.delContracts||{})};
   Object.entries(c.delContracts||{}).forEach(([k,ts])=>{if(!tomb[k]||String(ts)>String(tomb[k]))tomb[k]=ts;});
+  // 1) 같은 id = 같은 계약(한 기기에서 편집됨) → updatedAt 최신 채택.
+  //    편집으로 매칭키(보험사·상품·계약일)가 바뀌어도 원격의 옛 버전과 중복이 생기지 않게 id로 먼저 접는다.
+  const byId={},noId=[];
+  [...(ex.contracts||[]),...(c.contracts||[])].forEach(ct=>{if(!ct)return;
+    if(ct.id){const e=byId[ct.id];if(!e||(ct.updatedAt||'')>=(e.updatedAt||''))byId[ct.id]=ct;}else noId.push(ct);});
+  // 2) 남은 계약을 매칭키로 통합(기기별로 각각 입력된 동일 실계약 합치기)
   const cmap={};
-  const pickCt=(ct,e)=>{if(!e)return true;const ci=!!ct.id,ei=!!e.id;if(ci!==ei)return ci;return (ct.updatedAt||'')>=(e.updatedAt||'');};   // id본 우선(구버전 id없는 계약이 id를 벗기지 못하게), 그다음 최신
-  [...(ex.contracts||[]),...(c.contracts||[])].forEach(ct=>{if(!ct)return;const k=contractKey(ct);if(pickCt(ct,cmap[k]))cmap[k]=ct;});
+  const pickCt=(ct,e)=>{if(!e)return true;const ci=!!ct.id,ei=!!e.id;if(ci!==ei)return ci;return (ct.updatedAt||'')>=(e.updatedAt||'');};   // id본 우선, 그다음 최신
+  [...Object.values(byId),...noId].forEach(ct=>{const k=contractKey(ct);if(pickCt(ct,cmap[k]))cmap[k]=ct;});
   Object.keys(cmap).forEach(k=>{const t=tomb[k];if(t&&String(t)>=String(cmap[k].updatedAt||''))delete cmap[k];else if(t)delete tomb[k];}); // 재등록으로 살아난 계약이면 stale tombstone 정리
   u.contracts=Object.values(cmap);
   if(Object.keys(tomb).length)u.delContracts=tomb;else delete u.delContracts;
@@ -1741,7 +1744,7 @@ function mergeCrm(a,b){const m={};[...(a||[]),...(b||[])].forEach(c=>{
             premium,payCycle,payYears,maturity,status,agent,source,riders,createdAt,updatedAt}
    ========================================================= */
 const FC_NAME='고현승';   // 본인(모집자) — 타 설계사 계약 자동 식별용
-const INS_STATUSES=['정상','실효','해지','철회','만기','삭제'];
+const INS_STATUSES=['정상','실효','해지','철회','만기'];   // '삭제'는 상태가 아니라 완전삭제(insDelete)로만 처리
 const INS_STATUS_STYLE={
   '정상':['#0F9D58','#E5F8EE'],'실효':['#C98A0B','#FCF3E0'],
   '해지':['#8B95A1','#F2F4F6'],'철회':['#8B95A1','#F2F4F6'],
@@ -1771,8 +1774,8 @@ function newContract(o){
     status:INS_STATUSES.includes(o.status)?o.status:'정상',agent:String(o.agent||'').trim(),
     source:o.source||'manual',riders:Array.isArray(o.riders)?o.riders:[],createdAt:o.createdAt||now,updatedAt:now};
 }
-/* 타 설계사 계약이면 삭제 상태로 자동 표시(모집자가 본인이 아닐 때) */
-function autoFlagAgent(ct){if(ct.agent&&norm(ct.agent)!==norm(FC_NAME)&&ct.status==='정상')ct.status='삭제';return ct;}
+/* 타 설계사 계약도 숨기지 않고 그대로 보관(⚠타설계사 배지로만 표시) — 숨김처리 폐지 */
+function autoFlagAgent(ct){return ct;}
 /* 두 계약 병합 — 빈 값 채우고, 새 값(b) 우선. 비'정상' 상태는 보존 */
 function mergeContract(a,b){
   const out={...a};
@@ -1805,7 +1808,10 @@ async function backfillContractIds(){
   Object.values(CRM).forEach(cr=>{
     if(!cr||!Array.isArray(cr.contracts))return;
     let touched=false;
-    cr.contracts.forEach(ct=>{if(ct&&!ct.id){ct.id=newCtId();ct.updatedAt=new Date().toISOString();touched=true;}});   // updatedAt도 올려 동기화 병합에서 id본이 이기게
+    cr.contracts.forEach(ct=>{if(!ct)return;
+      if(!ct.id){ct.id=newCtId();ct.updatedAt=new Date().toISOString();touched=true;}   // updatedAt도 올려 동기화 병합에서 id본이 이기게
+      if(ct.status==='삭제'){ct.status='정상';ct.updatedAt=new Date().toISOString();touched=true;}   // 폐지된 숨김 상태 → 정상 복원(⚠타설계사 배지로만 표시)
+    });
     if(touched){cr.updatedAt=new Date().toISOString();changed.push(cr);}
   });
   for(const cr of changed)await crmPut(cr);
@@ -3130,7 +3136,7 @@ async function syncNow(silent){
     DELDATES=mergedDel;await metaPut('deletedDates',DELDATES);
     SNAPS=merged;SNAPS.forEach(fixSnapPrincipals);CRM={};mergedCrm.forEach(c=>CRM[c.name]=c);await backfillContractIds();
     setSyncDot('ok');syncing=false;if(!silent)toast('동기화 완료 · 스냅샷 '+merged.length+'개 · CRM '+mergedCrm.length+'명');
-    if(curView)render();return true;
+    if(curView)rerenderCurrent();return true;   // 상세 화면(inDetail)에 있으면 목록으로 튕기지 않고 그 자리 유지
   }catch(e){setSyncDot('err');syncing=false;if(!silent)toast(e.message||'동기화 실패');return false;}
 }
 
