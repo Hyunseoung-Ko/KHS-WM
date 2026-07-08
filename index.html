@@ -1652,45 +1652,78 @@ function parseCrmText(text){
   const PHONE=/(01[0-9])[-.\s]?(\d{3,4})[-.\s]?(\d{4})/;
   const EMAIL=/[\w.+-]+@[A-Za-z0-9-]+\.[A-Za-z0-9.-]+/;
   const RRN=/(\d{6})[-\s]?([1-8])[\d*]{0,7}/;
-  const isLabel=s=>/^(기본정보|고객명|성명|이름|성별|연락처|휴대폰|전화|핸드폰|주소|거주지|생년월일|생일|상령일|이메일|메일|e-?mail|회사|회사명|직장|근무처|insu\s*no\.?|user\s*no\.?|ga\s*no\.?|비고|메모)$/i.test(s);
-  const used=new Array(lines.length).fill(false);
-  lines.forEach((l,i)=>{if(/^기본정보$/.test(l))used[i]=true;});
-  // 라벨:값 (다음 줄이 값)
-  const grab=res=>{for(let i=0;i<lines.length;i++){if(used[i])continue;if(res.test(lines[i])){const nx=lines[i+1];if(nx&&!isLabel(nx)){used[i]=true;used[i+1]=true;return nx.trim();}used[i]=true;}}return '';};
-  const gName=grab(/^(고객명|성명|이름)$/),gGender=grab(/^성별$/),gPhone=grab(/^(연락처|휴대폰|전화|핸드폰)$/),
-    gAddr=grab(/^(주소|거주지)$/),gBirth=grab(/^(생년월일|생일)$/),gSang=grab(/^상령일$/),
-    gEmail=grab(/^(이메일|메일|e-?mail)$/i),gCompany=grab(/^(회사|회사명|직장|근무처)$/),
-    gInsu=grab(/^insu\s*no\.?$/i),gUser=grab(/^user\s*no\.?$/i),gGa=grab(/^ga\s*no\.?$/i),gMemo=grab(/^(비고|메모)$/);
-  if(gName)out.name=gName.replace(/\s+/g,' ');
-  if(gGender)out.gender=/남/.test(gGender)?'남':/여/.test(gGender)?'여':'';
-  if(gPhone){const m=gPhone.match(PHONE);out.phone=m?m[1]+'-'+m[2]+'-'+m[3]:gPhone;}
-  if(gAddr)Object.assign(out,splitAddr(gAddr));
-  if(gBirth){const d=gBirth.match(/(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);if(d)out.birth=d[1]+'-'+String(d[2]).padStart(2,'0')+'-'+String(d[3]).padStart(2,'0');
-    const ba=gBirth.match(/보험나이\s*(\d+)\s*세/);if(ba)out.memoExtra.push('보험나이 '+ba[1]+'세');}
-  if(gCompany)out.company=gCompany;
-  if(gEmail){const e=gEmail.match(EMAIL);if(e){out.memoExtra.push('이메일 '+e[0]);out._email=1;}}
-  if(gSang){out.memoExtra.push('상령일 '+gSang);out.insChannel=true;}
-  if(gInsu){out.memoExtra.push('Insu No. '+gInsu);out.insChannel=true;}
-  if(gUser)out.memoExtra.push('User No. '+gUser);
-  if(gGa){out.memoExtra.push('GA No. '+gGa);out.insChannel=true;}
-  if(gMemo)out.memoExtra.push(gMemo);
-  // 자유형 스캔 (라벨로 안 잡힌 줄)
+  const CARRIER=/(SKT|KTF|KT|LG\s*U\+?|LGU\+?|알뜰|헬로|세븐모바일)/i;
+  const pad=n=>String(n).padStart(2,'0');
+  const push=s=>{if(s&&!out.memoExtra.includes(s))out.memoExtra.push(s);};
+  const isNoise=s=>/^(기본정보|가입설계요청정보|고객정보|인적사항|기본인적사항|신청정보|계약자정보|피보험자정보)$/.test(s.replace(/\s+/g,''));
+  /* 라벨 정규화(불릿·괄호주석·공백 제거) → 표준키 */
+  const labelKey=s=>{const k=String(s).replace(/^[^0-9A-Za-z가-힣]+/,'').replace(/[（(][^)）]*[)）]/g,'').replace(/\s+/g,'').toLowerCase();
+    if(/^(고객명|성명|이름|성함)$/.test(k))return 'name';
+    if(/^성별$/.test(k))return 'gender';
+    if(/^(연락처|휴대폰|휴대전화|전화|전화번호|핸드폰|연락|hp)$/.test(k))return 'phone';
+    if(/^(주소|거주지|자택주소)$/.test(k))return 'addr';
+    if(/^(생년월일|생일)$/.test(k))return 'birth';
+    if(/^상령일$/.test(k))return 'sang';
+    if(/^(이메일주소|이메일|메일|email|e-mail)$/.test(k))return 'email';
+    if(/^(회사|회사명|직장|직장명|근무처)$/.test(k))return 'company';
+    if(/^(직업|하는일|직종)$/.test(k))return 'job';
+    if(/^통신사$/.test(k))return 'carrier';
+    if(/^운전(여부)?$/.test(k))return 'drive';
+    if(/^키\/?몸무게$/.test(k))return 'hw';
+    if(/^키$/.test(k))return 'height';
+    if(/^몸무게$/.test(k))return 'weight';
+    if(/^(주민등록번호|주민번호|주민)$/.test(k))return 'rrn';
+    if(/^insuno\.?$/.test(k))return 'insu';
+    if(/^userno\.?$/.test(k))return 'user';
+    if(/^gano\.?$/.test(k))return 'ga';
+    if(/^(비고|메모|특이사항)$/.test(k))return 'memo';
+    return null;};
+  const used=new Array(lines.length).fill(false),pairs=[];
+  lines.forEach((t,i)=>{if(isNoise(t))used[i]=true;});
+  // (라벨,값) 페어: ① 같은 줄 "라벨 : 값"  ② 라벨 단독 줄 → 다음 줄이 값
+  for(let i=0;i<lines.length;i++){if(used[i])continue;const t=lines[i];
+    const ci=t.search(/[:：]/);
+    if(ci>0){const key=labelKey(t.slice(0,ci));if(key){pairs.push([key,t.slice(ci+1).trim()]);used[i]=true;continue;}}
+    if(!/[:：]/.test(t)){const key=labelKey(t);if(key){const j=i+1;if(j<lines.length&&labelKey(lines[j])===null&&!isNoise(lines[j])){pairs.push([key,lines[j]]);used[i]=true;used[j]=true;}else used[i]=true;continue;}}
+  }
+  for(const pr of pairs){const key=pr[0],val=pr[1];
+    if(key==='name'){if(val)out.name=val.replace(/\s+/g,' ');}
+    else if(key==='gender'){if(/남/.test(val))out.gender='남';else if(/여/.test(val))out.gender='여';}
+    else if(key==='phone'){const m=val.match(PHONE);if(m)out.phone=m[1]+'-'+m[2]+'-'+m[3];else if(val)out.phone=val.trim();const c=val.match(CARRIER);if(c)push('통신사 '+c[0].toUpperCase());}
+    else if(key==='addr'){if(val)Object.assign(out,splitAddr(val));}
+    else if(key==='birth'){const d=val.match(/(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/);if(d)out.birth=d[1]+'-'+pad(d[2])+'-'+pad(d[3]);const ba=val.match(/보험나이\s*(\d+)/);if(ba)push('보험나이 '+ba[1]+'세');}
+    else if(key==='sang'){push('상령일 '+val.trim());out.insChannel=true;}
+    else if(key==='email'){const e=val.match(EMAIL);if(e)push('이메일 '+e[0]);}
+    else if(key==='company'){if(val)out.company=val.trim();}
+    else if(key==='job'){if(val)push('직업 '+val.trim());}
+    else if(key==='carrier'){const c=val.match(CARRIER);if(c||val)push('통신사 '+(c?c[0].toUpperCase():val.trim()));}
+    else if(key==='drive'){if(val)push('운전 '+val.replace(/^운전\s*/,'').trim());}
+    else if(key==='height'){if(val)push('키 '+val.replace(/\s*cm/i,'').trim()+'cm');}
+    else if(key==='weight'){if(val)push('몸무게 '+val.replace(/\s*kg/i,'').trim()+'kg');}
+    else if(key==='hw'){if(val)push('키/몸무게 '+val.replace(/\s+/g,' ').trim());}
+    else if(key==='rrn'){const m=val.match(RRN);if(m){const info=rrnInfo(m[1],m[2]);if(info){if(!out.birth)out.birth=info.birth;if(!out.gender)out.gender=info.gender;}}}
+    else if(key==='insu'){push('Insu No. '+val.trim());out.insChannel=true;}
+    else if(key==='user'){push('User No. '+val.trim());}
+    else if(key==='ga'){push('GA No. '+val.trim());out.insChannel=true;}
+    else if(key==='memo'){if(val)push(val.trim());}
+  }
+  // 자유형(라벨 없는 연락처 블록) 스캔
   for(let i=0;i<lines.length;i++){if(used[i])continue;const t=lines[i];
     if(!out.phone){const m=t.match(PHONE);if(m){out.phone=m[1]+'-'+m[2]+'-'+m[3];used[i]=true;continue;}}
-    if(!out._email){const e=t.match(EMAIL);if(e){out.memoExtra.push('이메일 '+e[0]);out._email=1;used[i]=true;continue;}}
-    if(/^배우자/.test(t)){out.memoExtra.push(t);used[i]=true;continue;}
+    if(!out._email){const e=t.match(EMAIL);if(e){push('이메일 '+e[0]);out._email=1;used[i]=true;continue;}}
+    if(/^배우자/.test(t)){push(t);used[i]=true;continue;}
     if(!out.sido&&CRM_SIDO.test(t)&&/\s/.test(t)){Object.assign(out,splitAddr(t));used[i]=true;continue;}
   }
-  // 주민번호로 성별·생일 보강
+  // 주민번호로 성별·생일 보강(전체 줄 스캔) — 전체 주민번호는 저장하지 않음
   if(!out.birth||!out.gender){for(let i=0;i<lines.length;i++){const m=lines[i].match(RRN);if(m){const info=rrnInfo(m[1],m[2]);if(info){if(!out.birth)out.birth=info.birth;if(!out.gender)out.gender=info.gender;break;}}}}
-  // 이름 — 아직 없으면 첫 선두 한글 줄
-  if(!out.name){for(let i=0;i<lines.length;i++){if(used[i]||isLabel(lines[i])||CRM_SIDO.test(lines[i]))continue;const m=lines[i].match(/^([가-힣]{2,4})(?:\s|$|\d)/);if(m){out.name=m[1];used[i]=true;break;}}}
-  // 회사 — 아직 없으면 남은 한글 줄
+  // 이름 — 아직 없으면 선두 한글(공백 1개 이하) 줄
+  if(!out.name){for(let i=0;i<lines.length;i++){if(used[i]||labelKey(lines[i])||isNoise(lines[i])||CRM_SIDO.test(lines[i]))continue;if((lines[i].match(/\s/g)||[]).length>1)continue;const m=lines[i].match(/^([가-힣]{2,4})(?:\s|$|\d)/);if(m){out.name=m[1];used[i]=true;break;}}}
+  // 회사 — 아직 없으면 남은 한글 줄(공백 1개 이하)
   if(!out.company){for(let i=0;i<lines.length;i++){if(used[i])continue;const t=lines[i];
-    if(isLabel(t)||/^\d/.test(t)||/^배우자/.test(t)||PHONE.test(t)||EMAIL.test(t))continue;
-    if(CRM_SIDO.test(t)&&/\s/.test(t))continue;
+    if(labelKey(t)||isNoise(t)||/^\d/.test(t)||/^배우자/.test(t)||PHONE.test(t)||EMAIL.test(t))continue;
+    if(CRM_SIDO.test(t)&&/\s/.test(t))continue;if((t.match(/\s/g)||[]).length>1)continue;
     if(/[가-힣A-Za-z]/.test(t)&&t.length<=24){out.company=t;used[i]=true;break;}}}
-  delete out._email;out.memoExtra=[...new Set(out.memoExtra)];
+  delete out._email;
   return out;
 }
 function cfFillFromText(){
