@@ -1387,6 +1387,10 @@ function openClient(name){killCharts();currentClientName=name;
     <h1 class="page-title">${esc(c.name)} <span style="font-size:14px;color:var(--sub);font-weight:600">${c.acctPrefix||''}</span></h1>
     <p class="page-sub">${[c.branch,c.pb?c.pb+' PB':'',c.riskType,c.gender,c.birth].filter(Boolean).join(' · ')||'-'}</p>
 
+    ${crmCard}
+
+    ${insCard(c)}
+
     <div class="grid3" style="margin-bottom:18px">
       <div class="kpi"><div class="lab">총 평가자산</div><div class="val sm">${won(c.totalEval)}</div></div>
       <div class="kpi"><div class="lab">투입 원금</div><div class="val sm">${won(c.totalPrincipal)}</div></div>
@@ -1407,10 +1411,6 @@ function openClient(name){killCharts();currentClientName=name;
           <div class="nm" style="font-size:13.5px">${x.date}</div>
           <div class="right"><span class="amt">${won(x.c.totalEval)}</span><span class="rate ${x.c.rate>=0?'up':'down'}">${pct(x.c.rate)}</span></div></div>`).join('')||'<div class="empty">-</div>'}</div></div>
     </div>
-
-    ${crmCard}
-
-    ${insCard(c)}
 
     <div class="card"><h3 class="collapser" data-target="simBody">은퇴 시뮬레이션<span class="meta">▾ 펼치기</span></h3><div id="simBody" class="collapse-body collapsed"><div id="sim" class="sim"></div></div></div>
 
