@@ -705,6 +705,8 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <label><input type="checkbox" id="cf_ch_kis">한투</label>
       <label><input type="checkbox" id="cf_ch_ins">보험</label>
     </div>
+    <label>한투 종합계좌번호 <span style="font-weight:500;color:var(--sub)">· 동명이인 자산 구분용 · 쉼표로 여러 개</span></label>
+    <input id="cf_kisacct" placeholder="예: 63451***, 62584***" autocomplete="off">
     <div class="cf2">
       <div><label>생년월일</label><input id="cf_birth" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off"></div>
       <div><label>성별</label><select id="cf_gender"><option value="">-</option><option>남</option><option>여</option></select></div>
@@ -777,6 +779,19 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       <button class="btn primary sm" id="insSave">저장</button>
     </div>
     <datalist id="insurerList"></datalist>
+  </div>
+</div>
+
+<!-- 한투 업로드 시 동명이인 계좌 배분 확인 (전역 ESC/배경닫기 제외 — doUpload가 결과를 기다림) -->
+<div id="acctModal" class="modal hidden">
+  <div class="modal-card">
+    <h3>👥 동명이인 자산 배분</h3>
+    <p class="msub">같은 이름의 고객이 여럿이라 아래 종합계좌번호가 누구 것인지 확인이 필요합니다. 선택하면 고객 정보(한투 종합계좌번호)에 저장되어 다음 업로드부터 자동 배분됩니다.</p>
+    <div id="aaList"></div>
+    <div class="modal-btns">
+      <button class="btn ghost sm" id="aaCancel">업로드 취소</button>
+      <button class="btn primary sm" id="aaSave">저장하고 계속</button>
+    </div>
   </div>
 </div>
 
@@ -929,6 +944,36 @@ function acctName(code,sampleCat){
   return acctNameFromCat(sampleCat)||'기타';
 }
 
+/* ---------- 동명이인(같은 이름·다른 사람) 구분 ----------
+   동명이인은 CRM에 '이름(78)'처럼 접미사 키로 등록되고 baseName에 원래 이름을 보관.
+   한투 엑셀에는 이름만 나오므로, CRM에 등록한 종합계좌번호(kisAccts)·생년월로 각 사람에게 배분한다. */
+function baseNameOf(n){return String(n||'').replace(/\s*\([^()]*\)\s*$/,'').trim();}
+/* 종합계좌번호 비교 — 마스킹(*)은 어느 쪽이든 와일드카드로 취급 */
+function acctMatch(a,b){
+  a=String(a||'').trim();b=String(b||'').trim();
+  if(!a||!b)return false;
+  if(a===b)return true;
+  if(a.length!==b.length)return false;
+  for(let i=0;i<a.length;i++){if(a[i]!==b[i]&&a[i]!=='*'&&b[i]!=='*')return false;}
+  return true;
+}
+/* 생년 비교키(YYMM) — YYYY로 시작하면 세기 잘라내고, YYMMDD·YYMM은 앞 4자리 (형식이 달라도 연·월로 비교) */
+function ymKey(s){const d=String(s||'').replace(/\D/g,'');if(!d)return '';return (/^(19|20)/.test(d)&&d.length>=6)?d.slice(2,6):d.slice(0,4);}
+/* 기본이름 → 동명이인 CRM 후보들. 접미사 레코드가 하나라도 있으면(=동명이인 상황) 그룹으로 취급 */
+function kisNameGroups(){
+  const g={};
+  Object.values(CRM).forEach(cr=>{if(!cr||!cr.name)return;const b=(cr.baseName||baseNameOf(cr.name))||cr.name;(g[b]=g[b]||[]).push(cr);});
+  Object.keys(g).forEach(k=>{const arr=g[k];if(arr.length<2&&!arr.some(cr=>cr.name!==k))delete g[k];});
+  return g;
+}
+/* 동명이인 신규 키 — 생년 2자리 우선, 겹치면 순번 */
+function dupCrmKey(nm,birth){
+  const yy=(String(birth||'').replace(/\D/g,'').match(/^(?:19|20)?(\d{2})/)||[])[1];
+  const cand=[];if(yy)cand.push(`${nm}(${yy})`);for(let i=2;i<10;i++)cand.push(`${nm}(${i})`);
+  const taken=k=>CRM[k]||(latest()&&latest().customers[k]);
+  return cand.find(k=>!taken(k))||`${nm}(${Date.now()%1000})`;
+}
+
 /* ---------- 고객 원금 계산 ----------
    퇴직연금(DC·IRP)은 상품별 매입원금 합이 매매·재투자로 부풀려지므로
    계약별 파일의 납입원금(a)을 원금으로 사용. 그 외 상품은 상품별 원금 합. */
@@ -957,7 +1002,17 @@ function fixSnapPrincipals(s){
 function buildSnapshot(date, files){
   // files: {type:[{headers,rows}]}
   const cust={}; // name -> obj
-  const ensure=n=>{n=String(n||'').trim();if(!n||/^(합계|소계|총계|총합계?|합\s*계|total)$/i.test(n))return null;if(!cust[n])cust[n]={name:n,acctPrefix:'',birth:'',gender:'',riskType:'',riskExpiry:'',lmsFund:'',lmsPension:'',regDate:'',branchCount:{},pbCount:{},products:[],accounts:[],acctMeta:{},cats:{}};return cust[n];};
+  // 동명이인 배분: 같은 이름의 CRM이 여럿이면 종합계좌번호(kisAccts) → 생년월 순으로 해당 고객 키로 라우팅
+  const homGroups=kisNameGroups();
+  const routeName=(n,acct,birth)=>{
+    const cands=homGroups[n];if(!cands)return n;
+    const jong=acct?parseAcct(acct).jong:'';
+    if(jong){const hit=cands.find(cr=>(cr.kisAccts||[]).some(a=>acctMatch(a,jong)));if(hit)return hit.name;}
+    const bk=ymKey(birth);
+    if(bk){const hits=cands.filter(cr=>cr.birth&&ymKey(cr.birth)===bk);if(hits.length===1)return hits[0].name;}
+    return n;   // 구분 불가 → 기본 이름 (업로드 전 확인 모달에서 계좌 등록 유도)
+  };
+  const ensure=(n,acct,birth)=>{n=String(n||'').trim();if(!n||/^(합계|소계|총계|총합계?|합\s*계|total)$/i.test(n))return null;n=routeName(n,acct,birth);if(!cust[n])cust[n]={name:n,acctPrefix:'',birth:'',gender:'',riskType:'',riskExpiry:'',lmsFund:'',lmsPension:'',regDate:'',branchCount:{},pbCount:{},products:[],accounts:[],acctMeta:{},cats:{}};return cust[n];};
   const setPrefix=(o,acct)=>{const j=parseAcct(acct).jong;if(j&&!o.acctPrefix)o.acctPrefix=j;};
   const minDate=(a,b)=>{b=dnorm(b);if(!b)return a;if(!a)return b;return b<a?b:a;};
   const bump=(m,k)=>{k=String(k||'').trim();if(k)m[k]=(m[k]||0)+1;};
@@ -973,14 +1028,14 @@ function buildSnapshot(date, files){
 
   // 고객 마스터
   (files.customer||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
-    const o=ensure(g(r,'고객명'));if(!o)return;
+    const o=ensure(g(r,'고객명'),null,g(r,'생년월'));if(!o)return;
     o.birth=String(g(r,'생년월')||'');o.gender=String(g(r,'성별')||'');
     o.riskType=String(g(r,'투자성향')||'');o.riskExpiry=dnorm(g(r,'투자성향만기일'));
     o.lmsFund=String(g(r,'펀드매매권유LMS발송가능여부')||'');o.lmsPension=String(g(r,'퇴직연금권유LMS발송가능여부')||'');
   });});
   // 위탁계좌 (주식/현금성, 등록일)
   (files.trust||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
-    const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
     o.regDate=minDate(o.regDate,g(r,'유치등록일')||g(r,'신규일'));
     bump(o.branchCount,g(r,'관리점'));
     regAcct(o,g(r,'계좌번호'),'주식',{branch:g(r,'관리점'),openDate:dnorm(g(r,'신규일'))});
@@ -992,7 +1047,7 @@ function buildSnapshot(date, files){
   // 퇴직연금 계약별 (계좌 단위)
   (files.pensionAccount||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
     const cat=String(g(r,'제도구분')||'').trim();if(isSummary(cat))return;
-    const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
     o.regDate=minDate(o.regDate,g(r,'계좌개설일'));
     bump(o.branchCount,g(r,'계좌관리점명'));bump(o.pbCount,g(r,'계좌관리자명'));
     if(!o.riskType)o.riskType=String(g(r,'투자성향')||'');
@@ -1005,7 +1060,7 @@ function buildSnapshot(date, files){
   // 퇴직연금 상품별 (상품/비중)
   (files.pensionProduct||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
     const cat=String(g(r,'제도구분')||'').trim();if(isSummary(cat))return;
-    const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
     bump(o.branchCount,g(r,'계좌관리점명'));bump(o.pbCount,g(r,'계좌관리자명'));
     regAcct(o,g(r,'계좌번호'),cat,{branch:g(r,'계좌관리점명'),pb:g(r,'계좌관리자명')});
     const principal=num(g(r,'매입원금(a)')),ev=num(g(r,'평가금액(b)'));
@@ -1017,7 +1072,7 @@ function buildSnapshot(date, files){
   });});
   // 펀드/CMA/신탁
   (files.fund||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
-    const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
     o.regDate=minDate(o.regDate,g(r,'계좌개설일'));
     bump(o.branchCount,g(r,'계좌관리점'));bump(o.pbCount,g(r,'계좌관리자'));
     regAcct(o,g(r,'계좌번호'),fundCategory(g(r,'상품명')),{branch:g(r,'계좌관리점'),pb:g(r,'계좌관리자'),openDate:dnorm(g(r,'계좌개설일'))});
@@ -1030,7 +1085,7 @@ function buildSnapshot(date, files){
   });});
   // 채권/ELS (FC유치 계좌리스트 - 채권_ELS)
   (files.bondels||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
-    const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
     bump(o.branchCount,g(r,'계좌관리점'));bump(o.pbCount,g(r,'계좌관리자'));
     let cat=String(g(r,'상품유형')||'').trim();if(isSummary(cat))return;if(!cat)cat='채권';
     regAcct(o,g(r,'계좌번호'),cat,{branch:g(r,'계좌관리점'),pb:g(r,'계좌관리자'),openDate:dnorm(g(r,'매수일자'))});
@@ -1048,7 +1103,7 @@ function buildSnapshot(date, files){
       rtK=pick(['수익률(%)','단순수익률(c/a)%','수익률']),nmK=pick(['상품명','계약명','종목명','상품유형']),
       ctK=pick(['제도구분','상품유형','자산구분','구분']),brK=pick(['계좌관리점명','계좌관리점','관리점']),pbK=pick(['계좌관리자명','계좌관리자','담당자']),
       opK=pick(['계좌개설일','개설일','신규일']),mtK=pick(['만기일']);
-    f.rows.forEach(r=>{const o=ensure(g(r,'고객명'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    f.rows.forEach(r=>{const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
       let cat=ctK?String(g(r,ctK)||'').trim():'';if(isSummary(cat))return;if(!cat)cat='기타자산';
       regAcct(o,g(r,'계좌번호'),cat,{branch:brK?g(r,brK):'',pb:pbK?g(r,pbK):'',openDate:opK?dnorm(g(r,opK)):''});
       const ev=evK?num(g(r,evK)):0,pr=prK?num(g(r,prK)):0;if(ev===0&&pr===0)return;
@@ -1128,6 +1183,7 @@ let pendingFiles=[];    // selected for upload
 let curView='home';
 let inDetail=false;
 let currentClientName=null;
+let detailFrom='clients';   // 고객 상세로 들어오기 직전 화면 — 뒤로가기 시 원래 화면으로 복귀
 let charts={};
 function killCharts(){Object.values(charts).forEach(c=>{try{c.destroy();}catch(e){}});charts={};}
 const latest=()=>SNAPS[SNAPS.length-1]||null;
@@ -1180,8 +1236,12 @@ function hasChannel(c,ch){return custChannels(c).includes(ch);}
 const CH_STYLE={'한투':['#1B64DA','#EBF2FE'],'보험':['#0F9D58','#E5F8EE']};
 function chBadges(c){return custChannels(c).map(ch=>{const s=CH_STYLE[ch]||['#4E5968','#EDEFF2'];return `<span class="tag" style="color:${s[0]};background:${s[1]};font-weight:700">${ch}</span>`;}).join('');}
 
+const VIEW_TITLES={home:'홈',gcal:'일정',clients:'고객',assets:'자산',strategy:'영업',reports:'리포트',help:'사용설명서'};
 function setView(v){curView=v;document.querySelectorAll('[data-view]').forEach(a=>a.classList.toggle('active',a.dataset.view===v));
-  $('#mTitle').textContent={home:'홈',gcal:'일정',clients:'고객',assets:'자산',strategy:'영업',reports:'리포트',help:'사용설명서'}[v];inDetail=false;currentClientName=null;render();window.scrollTo(0,0);toggleDrawer(false);}
+  $('#mTitle').textContent=VIEW_TITLES[v];inDetail=false;currentClientName=null;render();window.scrollTo(0,0);toggleDrawer(false);}
+/* 고객 상세 → 진입 전 화면으로 복귀 (영업·홈·일정 등 어디서 들어왔든) */
+function backFromDetail(){setView(VIEW_TITLES[detailFrom]?detailFrom:'clients');}
+window.backFromDetail=backFromDetail;
 function rerenderCurrent(){if(inDetail&&currentClientName&&curCustomers()[currentClientName])openClient(currentClientName);else render();}
 function toggleDrawer(open){const sb=$('#sidebar'),bd=$('#drawerBackdrop');if(!sb)return;const willOpen=open===undefined?!sb.classList.contains('open'):open;sb.classList.toggle('open',willOpen);if(bd)bd.classList.toggle('open',willOpen);}
 function bindCollapsers(scope){(scope||document).querySelectorAll('.collapser').forEach(h=>{h.onclick=()=>{const t=document.getElementById(h.dataset.target);if(!t)return;const c=t.classList.toggle('collapsed');const meta=h.querySelector('.meta');if(meta)meta.textContent=c?'▾ 펼치기':'▴ 접기';};});}
@@ -1208,9 +1268,8 @@ function homeContactCard(){
     <div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;padding:6px 2px 2px">
       <div><span style="font-size:28px;font-weight:800;color:var(--danger)">${over}</span><span style="color:var(--sub);margin-left:5px">명 밀림</span></div>
       <div><span style="font-size:28px;font-weight:800;color:var(--warn-d)">${tod}</span><span style="color:var(--sub);margin-left:5px">명 오늘</span></div>
-      <div><span style="font-size:28px;font-weight:800;color:var(--sub2)">${up}</span><span style="color:var(--sub);margin-left:5px">명 예정</span></div>
-      <div><span style="font-size:28px;font-weight:800;color:var(--ok-d)">${done}</span><span style="color:var(--sub);margin-left:5px">명 완료</span></div>
-    </div></div>`;
+    </div>
+    <p class="page-sub" style="margin:6px 0 0">이번 달 예정 ${up}명 · 완료 ${done}명 — 예정 고객은 연락일이 되면 표시됩니다</p></div>`;
 }
 function goStrategyContact(){stratTab='contact';setView('strategy');}
 window.goStrategyContact=goStrategyContact;
@@ -1269,7 +1328,7 @@ function renderHome(){
 /* 투자성향 색상 코딩 (토스 디자인 위험도 순) */
 const RISK_COLOR={'안정형':['#0F9D58','#EAF6EF'],'안정추구형':['#0E9384','#E6F6F4'],'위험중립형':['#C98A0B','#FCF3E0'],'적극투자형':['#E0640F','#FDEEE2'],'공격투자형':['#E0344B','#FDECEE']};
 function riskTag(r){if(!r)return '';const c=RISK_COLOR[r];return c?`<span class="tag" style="color:${c[0]};background:${c[1]}">${esc(r)}</span>`:`<span class="tag">${esc(r)}</span>`;}
-function clientRow(c){
+function clientRow(c,isDup){
   const co=c.crm&&c.crm.company;
   const ann=annualize(c.rate||0,yearsBetween(c.regDate,latest()&&latest().date));
   const insOnly=c.totalEval<=0&&hasChannel(c,'보험');
@@ -1281,9 +1340,11 @@ function clientRow(c){
   const isum=insSummary(c);
   const insTag=isum?`<span class="tag ins-tag" title="가입보험 ${isum.n}건${isum.mon?' · 월 '+won(isum.mon):''}">🛡 보험 ${isum.n}건${isum.mon?' · 월 '+eok(isum.mon):''}</span>`:'';
   const dormant=!!(c.crm&&c.crm.dormant);
+  const dupBadge=isDup?`<span class="tag" style="color:#C98A0B;background:#FCF3E0;font-weight:700" title="같은 이름의 다른 고객이 있습니다 — 생년월일·회사로 구분하세요">👥 동명이인</span>`:'';
+  const dupBirth=(isDup&&c.birth)?` <small>${esc(String(c.birth).slice(0,7))}</small>`:'';
   return `<div class="row${dormant?' dormant':''}" data-name="${esc(c.name)}">
-    <div><div class="nm">${esc(c.name)} <small>${c.acctPrefix||''}</small>${dormant?'<span class="tag" style="color:#8B95A1;background:#F2F4F6;font-weight:700">🚫 숨김</span>':''}</div>
-      <div class="tags">${chBadges(c)}${insTag}${co?`<span class="tag b">${esc(co)}</span>`:c.branch?`<span class="tag b">${esc(c.branch)}</span>`:''}${c.pb?`<span class="tag">${esc(c.pb)} PB</span>`:''}${riskTag(c.riskType)}</div></div>
+    <div><div class="nm">${esc(c.name)}${dupBirth} <small>${c.acctPrefix||''}</small>${dormant?'<span class="tag" style="color:#8B95A1;background:#F2F4F6;font-weight:700">🚫 숨김</span>':''}</div>
+      <div class="tags">${dupBadge}${chBadges(c)}${insTag}${co?`<span class="tag b">${esc(co)}</span>`:c.branch?`<span class="tag b">${esc(c.branch)}</span>`:''}${c.pb?`<span class="tag">${esc(c.pb)} PB</span>`:''}${riskTag(c.riskType)}</div></div>
     <div class="right">${right}</div>
     <span class="chev">›</span></div>`;
 }
@@ -1297,6 +1358,9 @@ function renderClients(){
   const dorm=c=>!!(c.crm&&c.crm.dormant);
   const active=all.filter(c=>!dorm(c));
   const matchCh=c=>{if(clientChannel==='숨김')return dorm(c);if(dorm(c))return false;if(!clientChannel)return true;if(clientChannel==='둘다')return hasChannel(c,'한투')&&hasChannel(c,'보험');return hasChannel(c,clientChannel);};
+  // 동명이인(같은 기본이름) 감지 — 배지 노출용
+  const baseCnt={};all.forEach(c=>{const b=baseNameOf(c.name);baseCnt[b]=(baseCnt[b]||0)+1;});
+  const rowOf=c=>clientRow(c,baseCnt[baseNameOf(c.name)]>1);
   const apply=q=>all.filter(c=>matchCh(c)&&(!q||c.name.includes(q))).sort(sorters[clientSort]);
   let list=apply(clientQuery);
   const nKis=active.filter(c=>hasChannel(c,'한투')).length,nIns=active.filter(c=>hasChannel(c,'보험')).length,nBoth=active.filter(c=>hasChannel(c,'한투')&&hasChannel(c,'보험')).length,nDorm=all.length-active.length;
@@ -1313,14 +1377,14 @@ function renderClients(){
       <button class="btn primary sm" id="btnNewClient">+ 신규 고객</button>
     </div>
     <div class="search"><span>🔍</span><input id="cSearch" placeholder="고객 이름 검색" value="${esc(clientQuery)}"></div>
-    <div class="card" style="padding:8px 14px"><div class="list">${list.map(c=>clientRow(c)).join('')||'<div class="empty">검색 결과 없음</div>'}</div></div>
+    <div class="card" style="padding:8px 14px"><div class="list">${list.map(rowOf).join('')||'<div class="empty">검색 결과 없음</div>'}</div></div>
   </div>`;
   v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{clientChannel=b.dataset.ch;renderClients();});
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{clientSort=b.dataset.s;renderClients();});
   $('#btnNewClient').onclick=()=>openCrmForm(null);
   const bindRows=()=>$('#view').querySelectorAll('.list .row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
   const s=$('#cSearch');s.oninput=()=>{clientQuery=s.value.trim();
-    $('#view .list').innerHTML=apply(clientQuery).map(c=>clientRow(c)).join('')||'<div class="empty">검색 결과 없음</div>';bindRows();};
+    $('#view .list').innerHTML=apply(clientQuery).map(rowOf).join('')||'<div class="empty">검색 결과 없음</div>';bindRows();};
   bindRows();
 }
 
@@ -1396,21 +1460,27 @@ function acctBlock(a,idx,sdate){
 }
 
 /* ----- CLIENT DETAIL ----- */
-function openClient(name){killCharts();currentClientName=name;
+function openClient(name){killCharts();
+  if(!inDetail)detailFrom=VIEW_TITLES[curView]?curView:'clients';   // 상세 내 재렌더 시엔 원 출발 화면 유지
+  currentClientName=name;
   const series=SNAPS.map(s=>({date:s.date,c:s.customers[name]})).filter(x=>x.c);
-  const snap=latest();const c=curCustomers()[name];if(!c){toast('데이터 없음');return;}
+  const custs=curCustomers();const snap=latest();const c=custs[name];if(!c){toast('데이터 없음');return;}
   const sdate=snap?snap.date:'-';
   const v=$('#view');
   // 보유상품을 상품계좌별로 묶음 (0원 계좌 포함, 디폴트 접힘)
   const accounts=buildAccounts(c);
   const acctHtml=accounts.map((a,i)=>acctBlock(a,i,sdate)).join('');
+  // 동명이인 안내 — 같은 기본이름의 다른 고객이 있으면 표시
+  const homs=Object.keys(custs).filter(k=>k!==name&&baseNameOf(k)===baseNameOf(name));
+  const homTag=homs.length?`<span class="tag" style="background:#FCF3E0;color:#C98A0B;font-weight:700" title="같은 이름의 다른 고객: ${esc(homs.join(', '))}">👥 동명이인 주의</span>`:'';
+  const backLabel=VIEW_TITLES[detailFrom]||'고객';
 
   const crmCard=`<div class="card"><h3>영업 · CRM 정보<button class="btn ghost sm" id="btnEditCrm">${c.crm?'✏️ 편집':'+ 입력'}</button></h3>${crmBody(c)}</div>`;
 
   v.innerHTML=`<div class="wrap">
-    <button class="back" onclick="setView('clients')">‹ 고객 목록</button>
-    <h1 class="page-title">${esc(c.name)} <span style="font-size:14px;color:var(--sub);font-weight:600">${c.acctPrefix||''}</span></h1>
-    <p class="page-sub">${[c.branch,c.pb?c.pb+' PB':'',c.riskType,c.gender,c.birth].filter(Boolean).join(' · ')||'-'}</p>
+    <button class="back" onclick="backFromDetail()">‹ ${esc(backLabel)}</button>
+    <h1 class="page-title">${esc(c.name)} <span style="font-size:14px;color:var(--sub);font-weight:600">${c.acctPrefix||''}</span> ${homTag}</h1>
+    <p class="page-sub">${[c.branch,c.pb?c.pb+' PB':'',c.riskType,c.gender,c.birth].filter(Boolean).join(' · ')||'-'}${homs.length?` · <b style="color:#C98A0B">동명이인: ${esc(homs.join(', '))}</b>`:''}</p>
 
     ${crmCard}
 
@@ -1490,6 +1560,7 @@ function crmBody(c){
     ${row('회사',cr.company)}
     ${row('지역',region)}
     ${row('휴대폰',cr.phone)}
+    ${row('한투 계좌',(cr.kisAccts||[]).join(' · '))}
     ${row('투자성향',cr.riskType)}
     ${cr.pension?`<div class="crmrow"><span>연금개시</span><b>O</b></div>`:''}
     ${row('최근접촉',cr.lastContact)}
@@ -1673,6 +1744,7 @@ function parseCrmText(text){
     if(/^키$/.test(k))return 'height';
     if(/^몸무게$/.test(k))return 'weight';
     if(/^(주민등록번호|주민번호|주민)$/.test(k))return 'rrn';
+    if(/^(종합계좌번호|종합계좌|한투계좌번호|한투계좌)$/.test(k))return 'kisacct';
     if(/^insuno\.?$/.test(k))return 'insu';
     if(/^userno\.?$/.test(k))return 'user';
     if(/^gano\.?$/.test(k))return 'ga';
@@ -1702,6 +1774,7 @@ function parseCrmText(text){
     else if(key==='weight'){if(val)push('몸무게 '+val.replace(/\s*kg/i,'').trim()+'kg');}
     else if(key==='hw'){if(val)push('키/몸무게 '+val.replace(/\s+/g,' ').trim());}
     else if(key==='rrn'){const m=val.match(RRN);if(m){const info=rrnInfo(m[1],m[2]);if(info){if(!out.birth)out.birth=info.birth;if(!out.gender)out.gender=info.gender;}}}
+    else if(key==='kisacct'){const m=val.replace(/\s/g,'').match(/^[0-9*-]{6,}/);if(m){const j=parseAcct(m[0]).jong||m[0];out.kisAccts=out.kisAccts||[];if(!out.kisAccts.includes(j))out.kisAccts.push(j);}}
     else if(key==='insu'){push('Insu No. '+val.trim());out.insChannel=true;}
     else if(key==='user'){push('User No. '+val.trim());}
     else if(key==='ga'){push('GA No. '+val.trim());out.insChannel=true;}
@@ -1709,6 +1782,10 @@ function parseCrmText(text){
   }
   // 자유형(라벨 없는 연락처 블록) 스캔
   for(let i=0;i<lines.length;i++){if(used[i])continue;const t=lines[i];
+    // 「이름 YYYY-MM[-DD] 주소」 한 줄형 (한투 고객 메모 형식)
+    if(!out.name){const nb=t.match(/^([가-힣]{2,4})\s+(\d{4})[-./](\d{1,2})(?:[-./](\d{1,2}))?\s+(.+)$/);
+      if(nb){out.name=nb[1];if(!out.birth)out.birth=nb[2]+'-'+pad(nb[3])+(nb[4]?'-'+pad(nb[4]):'');
+        if(!out.sido&&CRM_SIDO.test(nb[5]))Object.assign(out,splitAddr(nb[5]));used[i]=true;continue;}}
     if(!out.phone){const m=t.match(PHONE);if(m){out.phone=m[1]+'-'+m[2]+'-'+m[3];used[i]=true;continue;}}
     if(!out._email){const e=t.match(EMAIL);if(e){push('이메일 '+e[0]);out._email=1;used[i]=true;continue;}}
     if(/^배우자/.test(t)){push(t);used[i]=true;continue;}
@@ -1734,8 +1811,9 @@ function cfFillFromText(){
   setIf('#cf_birth',p.birth);setIf('#cf_phone',p.phone);setIf('#cf_company',p.company);
   setIf('#cf_sido',p.sido);setIf('#cf_sigungu',p.sigungu);setIf('#cf_dong',p.dong);
   if(p.insChannel)$('#cf_ch_ins').checked=true;
+  if(p.kisAccts&&p.kisAccts.length){setIf('#cf_kisacct',p.kisAccts.join(', '));$('#cf_ch_kis').checked=true;}
   if(p.memoExtra.length){const cur=$('#cf_memo').value.trim();$('#cf_memo').value=(cur?cur+'\n':'')+p.memoExtra.join('\n');}
-  const got=['name','phone','birth','company','sido'].filter(k=>p[k]).length+(p.memoExtra.length?1:0);
+  const got=['name','phone','birth','company','sido'].filter(k=>p[k]).length+(p.memoExtra.length?1:0)+((p.kisAccts&&p.kisAccts.length)?1:0);
   toast(got?'자동 채움 완료 · 내용 확인 후 저장하세요':'인식된 정보가 없습니다 — 형식을 확인하세요');
 }
 function openCrmForm(name){
@@ -1758,6 +1836,7 @@ function openCrmForm(name){
   const chs=c?custChannels(c):((cr&&cr.channels)||[]);
   $('#cf_ch_kis').checked=chs.includes('한투');
   $('#cf_ch_ins').checked=chs.includes('보험');
+  $('#cf_kisacct').value=(cr&&cr.kisAccts)?cr.kisAccts.join(', '):'';
   $('#cf_memo').value=cr?cr.memo||'':'';
   refreshFormProdChips();
   $('#cfDelete').style.display=(name&&cr)?'':'none';
@@ -1777,19 +1856,47 @@ function bindCrmForm(){
   const pf=$('#cfPasteFill');if(pf)pf.onclick=cfFillFromText;
   bindDateInput($('#cf_birth'));bindDateInput($('#cf_contact'));
   $('#cfSave').onclick=async()=>{
-    const nm=crmEditName||$('#cf_name').value.trim();
+    let nm=crmEditName||$('#cf_name').value.trim();
     if(!nm){toast('이름을 입력하세요');return;}
+    // 신규 등록: 같은 이름이 이미 있으면 생년월일·전화로 동일인 여부 판정 — 다르면 동명이인 별도 등록
+    if(!crmEditName){
+      const exR=CRM[nm];const snapC=(latest()&&latest().customers[nm])||null;
+      if(exR||snapC){
+        const exB=(exR&&exR.birth)||(snapC&&snapC.birth)||'',exP=(exR&&exR.phone)||'';
+        const nB=dnorm($('#cf_birth').value),nP=$('#cf_phone').value.replace(/\D/g,'');
+        const bDiff=!!(exB&&nB&&ymKey(exB)!==ymKey(nB));
+        const pDiff=!!(exP&&nP&&exP.replace(/\D/g,'')!==nP);
+        if(bDiff||pDiff){
+          // 이미 등록된 동명이인 중 입력 정보와 일치하는 레코드가 있으면 새로 만들지 않고 그쪽 업데이트
+          const sibs=Object.values(CRM).filter(cr=>cr.name!==nm&&(cr.baseName||baseNameOf(cr.name))===nm);
+          const match=sibs.find(cr=>(nB&&cr.birth&&ymKey(cr.birth)===ymKey(nB))||(nP&&cr.phone&&cr.phone.replace(/\D/g,'')===nP));
+          if(match){
+            if(!confirm(`동명이인 '${match.name}'이(가) 이미 등록되어 있고 입력한 생년월일·연락처와 일치합니다.\n'${match.name}' 정보를 업데이트할까요?`))return;
+            nm=match.name;
+          }else{
+            const info=[exB?'생년월일 '+exB:'',exP?'연락처 '+exP:''].filter(Boolean).join(' · ')||'정보 없음';
+            const nk=dupCrmKey(nm,nB);
+            if(!confirm(`이미 '${nm}' 고객이 있습니다 (${info}).\n입력한 생년월일·연락처와 달라 동명이인으로 보입니다.\n\n[확인] 별도 고객 '${nk}'(으)로 등록합니다.\n[취소] 등록을 중단합니다. 기존 고객 수정은 고객 상세 → ✏️ 편집에서.`))return;
+            nm=nk;
+          }
+        }else if(exR){
+          if(!confirm(`이미 등록된 고객 '${nm}'입니다.\n입력한 내용으로 기존 정보를 업데이트할까요?\n(같은 이름의 다른 사람이라면 취소 후 생년월일·휴대폰을 입력해 다시 저장하세요)`))return;
+        }
+      }
+    }
     const ex=CRM[nm]||{};
     const prod=ex.prod||{};   // 운용상품은 실계좌 자동연결 — 기존 값 유지(수동체크 폐지)
     const channels=[];if($('#cf_ch_kis').checked)channels.push('한투');if($('#cf_ch_ins').checked)channels.push('보험');
-    const rec={name:nm,birth:dnorm($('#cf_birth').value),gender:$('#cf_gender').value,phone:$('#cf_phone').value.trim(),
+    const kisAccts=[...new Set($('#cf_kisacct').value.split(/[,\s·/]+/).map(s=>s.trim()).filter(Boolean).map(s=>parseAcct(s).jong||s))];
+    const rec={name:nm,baseName:ex.baseName||(baseNameOf(nm)!==nm?baseNameOf(nm):''),kisAccts,
+      birth:dnorm($('#cf_birth').value),gender:$('#cf_gender').value,phone:$('#cf_phone').value.trim(),
       company:$('#cf_company').value.trim(),sido:$('#cf_sido').value.trim(),sigungu:$('#cf_sigungu').value.trim(),dong:$('#cf_dong').value.trim(),
       riskType:$('#cf_risk').value,pension:$('#cf_pension').checked,dormant:$('#cf_dormant').checked,prod,memo:$('#cf_memo').value.trim(),
       lastContact:dnorm($('#cf_contact').value),
       channels,anchorMonth:ex.anchorMonth||null,
       history:ex.history||[],passes:ex.passes||[],linkIds:ex.linkIds||[],contracts:ex.contracts||[],delContracts:ex.delContracts||{},
       updatedAt:new Date().toISOString()};
-    await crmPut(rec);CRM[nm]=rec;close();toast('저장됨');
+    await crmPut(rec);CRM[nm]=rec;close();toast(crmEditName?'저장됨':nm+' 저장됨');
     if(syncOn())syncNow(true);
     if(inDetail)openClient(nm);else if(curView==='clients')renderClients();else render();
   };
@@ -1800,7 +1907,7 @@ function bindCrmForm(){
     CRMDEL[nm]=new Date().toISOString();await metaPut('crmDeleted',CRMDEL);   // 삭제 전파용 tombstone
     await crmDel(nm);delete CRM[nm];$('#crmModal').classList.add('hidden');toast('삭제됨');
     if(syncOn())syncNow(true);
-    if(hasAsset)openClient(nm);else setView('clients');
+    if(hasAsset)openClient(nm);else if(inDetail)backFromDetail();else render();
   };
 }
 function fmtDate(v){if(v instanceof Date&&!isNaN(v))return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0');return dnorm(v);}
@@ -1969,22 +2076,38 @@ async function saveParsedContracts(list){
 }
 
 /* ---------- 붙여넣기 파서 (자동 판별) ---------- */
-const INS_CRM_COLN=13;   // 토스 ERP 세로형 컬럼 수(No.~현수금인)
 function parseInsText(text){
   const t=String(text||'');
   if(/증권번호/.test(t)&&/(계약상태|납입주기|모집자)/.test(t)&&t.split(/\n/).filter(l=>l.includes('\t')).length<2)return parseInsCrmVertical(t);
   if(t.split(/\n/).filter(l=>l.includes('\t')).length>=2)return parseInsTsv(t);
   return parseInsManual(t);
 }
-/* 토스 ERP 세로형: 헤더(No.~현수금인) 다음 값들이 13개씩 한 계약 */
+/* 토스 ERP 세로형: 헤더 컬럼명들이 한 줄씩 나온 뒤, 값들이 컬럼 수만큼 한 계약.
+   컬럼 구성이 바뀌어도(금소법·비교설명 추가 등) 헤더를 읽어 자동 매핑 — 고정 13열 파서 폐기 */
+const INS_V_ROLES={'no':null,'계약일':'contractDate','계약상태':'status','보험사명':'insurer','보험사':'insurer',
+  '상품명':'product','증권번호':'policyNo','금소법':null,'비교설명':null,'보험료':'premium','월보험료':'premium',
+  '납입주기':'payCycle','납입년수':'payYears','납입기간':'payYears','만기':'maturity','만기일':'maturity',
+  '계약자명':'contractor','계약자':'contractor','피보험자명':'insured','피보험자':'insured',
+  '모집자':'agent','설계사':'agent','현수금인':null,'현금수인':null,'수금인':null};
+function insVKey(s){return String(s||'').replace(/[\s.·∙‧•・]/g,'').toLowerCase();}
 function parseInsCrmVertical(t){
-  const lines=t.split(/\r?\n/).map(s=>s.trim());
-  let hi=lines.lastIndexOf('현수금인');if(hi<0)hi=lines.indexOf('모집자');
-  const data=lines.slice(hi+1).filter(l=>l!=='');
-  const out=[];
-  for(let i=0;i+INS_CRM_COLN<=data.length;i+=INS_CRM_COLN){
-    const g=data.slice(i,i+INS_CRM_COLN);
-    out.push(newContract({contractDate:g[1],status:g[2],insurer:g[3],product:g[4],policyNo:g[5],premium:g[6],payCycle:g[7],payYears:g[8],contractor:g[9],insured:g[10],agent:g[11],source:'paste'}));
+  const lines=String(t||'').split(/\r?\n/).map(s=>s.trim()).filter(s=>s!=='');
+  // 헤더 = 알려진 컬럼명이 연속으로 나오는 가장 긴 구간
+  let hs=-1,he=-1,best=0;
+  for(let i=0;i<lines.length;i++){
+    if(!(insVKey(lines[i]) in INS_V_ROLES))continue;
+    let j=i;while(j<lines.length&&(insVKey(lines[j]) in INS_V_ROLES))j++;
+    if(j-i>best){best=j-i;hs=i;he=j;}
+    i=j;
+  }
+  if(best<5)return [];   // 컬럼 5개 미만이면 ERP 표가 아님
+  const cols=lines.slice(hs,he).map(s=>INS_V_ROLES[insVKey(s)]);
+  const data=lines.slice(he),W=cols.length,out=[];
+  for(let i=0;i+W<=data.length;i+=W){
+    const o={source:'paste'};
+    cols.forEach((role,ci)=>{if(role)o[role]=data[i+ci];});
+    if(!o.insurer&&!o.product)continue;
+    out.push(newContract(o));
   }
   return out;
 }
@@ -2278,7 +2401,7 @@ function renderStrategy(){
     const overN=over.length, todayN=tod.length;
     const dueList=[...over,...tod];
     desc=started
-      ? `2026-07 시작 · 한투 분기(3개월)·보험 반기(6개월) 1회 · 영업일 분산 · 한투+보험 균형 배분 · 이번 달 도래 ${items.length}명 · 위에서부터 통화 후 [✓연락완료]`
+      ? `한투 분기(3개월)·보험 반기(6개월) 1회 · 영업일 분산 · 오늘·밀린 대상만 표시(예정 ${up.length}명은 연락일에 표시 · 완료 ${done.length}명) · 통화 후 [✓연락완료]`
       : `영업 진행은 2026-07부터 시작됩니다 · 7월이 되면 한투(분기)+보험(반기) 고객이 영업일 기준으로 자동 배분됩니다`;
     const md=c=>`${TM}/${c._day}`;
     const statusTag=c=>c._st==='overdue'?`<span class="tag" style="background:#FDECEE;color:#E0344B">${md(c)} 지남</span>`
@@ -2286,8 +2409,8 @@ function renderStrategy(){
       :c._st==='upcoming'?`<span class="tag" style="background:#EEF3FF;color:#3182F6">${md(c)} 예정</span>`
       :c._passed?`<span class="tag" style="background:#F2EEFB;color:#7C5CD6">⏭ 패스</span>`
       :`<span class="tag" style="background:#E5F8EE;color:#0F9D58">완료</span>`;
-    // 다음 한 명 강조 카드 (밀림→오늘→가까운 예정)
-    const next=dueList[0]||up[0]||null;
+    // 다음 한 명 강조 카드 (밀림→오늘) — 예정 고객은 연락일 전엔 노출하지 않음
+    const next=dueList[0]||null;
     const nextName=next?next.name:null;
     if(next){
       const c=next,ph=(c.crm&&c.crm.phone)||'';
@@ -2308,13 +2431,15 @@ function renderStrategy(){
         </div></div>
         <p class="page-sub">오늘 도래 <b>${overN+todayN}명</b>(지남 ${overN}·오늘 ${todayN}) · 이번 달 예정 ${up.length}명 · 완료 ${done.length}명</p>`;
     }
+    // 당일·지난 연락대상만 노출 — 예정(이번 달)·완료 목록은 숨김(카운트만 안내)
     const hdr=t=>`<div style="font-size:12px;font-weight:700;color:var(--sub);padding:12px 8px 6px">${t}</div>`;
-    const dueRows=dueList.filter(c=>c.name!==nextName).map(c=>contactRow(c,statusTag(c))).join('');
-    const upRows=up.filter(c=>c.name!==nextName).map(c=>contactRow(c,statusTag(c))).join('');
-    rows=(dueList.length?hdr(`🔴 오늘 연락 (지남 ${overN} · 오늘 ${todayN})`)+(dueRows||'<div class="empty" style="padding:10px">위 고객만 남음</div>'):'')
-        +(up.length?hdr(`🗓 이번 달 예정 (영업일 순 · ${up.length}명)`)+upRows:'')
-        +(done.length?hdr(`✅ 이번 달 완료 (${done.length}명)`)+done.map(c=>contactRow(c,statusTag(c))).join(''):'');
-    if(!items.length)rows=`<div class="empty">${started?'이번 달 도래 고객이 없습니다':'영업 진행은 2026-07부터 시작됩니다'}</div>`;
+    const overRows=over.filter(c=>c.name!==nextName).map(c=>contactRow(c,statusTag(c))).join('');
+    const todRows=tod.filter(c=>c.name!==nextName).map(c=>contactRow(c,statusTag(c))).join('');
+    rows=(overRows?hdr(`⏰ 지난 연락 (밀림 ${overN}명)`)+overRows:'')
+        +(todRows?hdr(`📞 오늘 연락 (${todayN}명)`)+todRows:'');
+    if(!rows)rows=dueList.length
+      ?'<div class="empty" style="padding:10px">위 고객만 남음</div>'
+      :`<div class="empty">${started?`오늘·밀린 연락 대상이 없습니다${up.length?` · 이번 달 예정 ${up.length}명은 연락일에 표시됩니다`:''}${done.length?` · 완료 ${done.length}명`:''}`:'영업 진행은 2026-07부터 시작됩니다'}</div>`;
   }
   else if(stratTab==='gap'){
     desc='현금성 자산 보유 고객(현금 많은 순) = 투자 권유 기회 · LMS = 권유문자 발송가능';
@@ -2389,16 +2514,17 @@ function renderStrategy(){
     desc='이전 자료엔 있었으나(0원 포함) 최신 자료에서 사라진 계좌 = 해지 추정';
     const lastDate=latest()?latest().date:null;
     const rec={}; // name -> {hist:{key->{name,date,eval}}, latest:Set|null}
+    const latestAll=new Set();   // 최신 스냅샷의 전체 계좌키 — 동명이인 분리 등으로 다른 이름 밑으로 옮겨간 계좌는 해지 아님
     SNAPS.forEach(s=>{Object.values(s.customers).forEach(o=>{
       const am=acctMapOf(o);
       const r=rec[o.name]||(rec[o.name]={hist:{},latest:null});
       Object.entries(am).forEach(([k,a])=>{r.hist[k]={name:a.name,date:s.date,eval:a.eval};});
-      if(s.date===lastDate)r.latest=new Set(Object.keys(am));
+      if(s.date===lastDate){r.latest=new Set(Object.keys(am));Object.keys(am).forEach(k=>latestAll.add(k));}
     });});
     const closed=[];
     Object.entries(rec).forEach(([nm,r])=>{
       if(!r.latest)return; // 최신 스냅샷에 고객이 없으면 계좌단위 해지 판단 보류
-      Object.entries(r.hist).forEach(([k,h])=>{if(!r.latest.has(k))closed.push({name:nm,acctName:h.name,date:h.date});});
+      Object.entries(r.hist).forEach(([k,h])=>{if(!r.latest.has(k)&&!latestAll.has(k))closed.push({name:nm,acctName:h.name,date:h.date});});
     });
     closed.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
     rows=closed.map(e=>`<div class="row" data-name="${esc(e.name)}"><div><div class="nm">${esc(e.name)} <small>${esc(e.acctName)}</small></div>
@@ -3008,7 +3134,8 @@ function renderHelp(){
     <div class="card tip"><h3>🔗 통합 대시보드 (한투 + 보험)</h3>
       <ul>
         <li><b>고객</b> — 한투·보험 고객을 한 화면에서. 채널 칩(전체/한투/보험/양쪽)으로 필터. 양쪽 고객은 배지 2개.</li>
-        <li><b>홈 · 오늘 연락</b> — 한투·보험을 통합한 연락 스케줄(2026-07 시작). 주기는 한투 분기(3개월)·보험 반기(6개월) — 보험은 카톡 정보 발송이 별도라 전화 주기를 여유있게 둡니다. 보험은 고객 상세에서 채널 '보험'을 체크하면 통합 스케줄에 자동 배정(이름순 주기 슬롯·영업일 분산)되고 연락이력이 반영됩니다.</li>
+        <li><b>홈 · 오늘 연락</b> — 한투·보험을 통합한 연락 스케줄(2026-07 시작). 주기는 한투 분기(3개월)·보험 반기(6개월) — 보험은 카톡 정보 발송이 별도라 전화 주기를 여유있게 둡니다. <b>오늘·밀린 연락 대상만 표시</b>되고, 이번 달 예정 고객은 연락일이 되면 나타납니다. 보험은 고객 상세에서 채널 '보험'을 체크하면 통합 스케줄에 자동 배정(이름순 주기 슬롯·영업일 분산)되고 연락이력이 반영됩니다.</li>
+        <li><b>👥 동명이인</b> — 같은 이름이라도 생년월일·전화번호가 다르면 신규 등록 시 <b>별도 고객 '이름(78)'</b>처럼 구분 등록됩니다. 각 고객의 ✏️편집에서 <b>한투 종합계좌번호</b>를 등록하면 자산 업로드 시 계좌번호로 자동 배분되고, 미등록 계좌가 있으면 업로드할 때 배분 확인 창이 뜹니다. 목록·상세에는 <b>👥 동명이인</b> 배지로 표시됩니다.</li>
         <li><b>리포트</b> — 보장분석/제안/가이드 HTML을 toss-reports에 배포·공유링크 생성. 목록에서 <b>항목을 누르면 바로 열림</b>. 고객 연결은 <b>고객 상세</b>에서 합니다.</li>
         <li><b>최초 1회</b> — 설정·백업의 <b>📥 보험 고객 가져오기</b>로 기존 보험 고객을 통합 CRM으로 이전(이름 기준 한투와 병합).</li>
         <li><b>저장·동기화</b> — 모든 고객정보는 E2EE 암호화로 데이터 repo에 동기화(보험 포함). 리포트/보험가져오기는 toss-reports 토큰 사용.</li>
@@ -3147,6 +3274,67 @@ async function showChips(){const box=$('#fileChips');if(!box)return;
   box.innerHTML=pendingFiles.map((f,i)=>`<span class="chip">${esc(f.name)} ✕</span>`).join('');
   box.querySelectorAll('.chip').forEach((c,i)=>c.onclick=()=>{pendingFiles.splice(i,1);showChips();});
 }
+/* ---------- 업로드 시 동명이인 계좌 배분 확인 ----------
+   같은 이름의 CRM 고객이 여럿인데 아직 누구 계좌인지 등록 안 된 종합계좌번호 수집 */
+function collectKisUnassigned(buckets){
+  const groups=kisNameGroups();
+  if(!Object.keys(groups).length)return [];
+  const need={};
+  Object.entries(buckets).forEach(([type,files])=>{
+    if(type==='customer'||type==='_unknown')return;   // 고객마스터는 계좌번호 없음(생년월로 자동 배분)
+    (files||[]).forEach(f=>{
+      const g=rowGetter(f.headers);
+      f.rows.forEach(r=>{
+        const n=String(g(r,'고객명')||'').trim();const cands=groups[n];if(!cands)return;
+        const jong=parseAcct(g(r,'계좌번호')).jong;if(!jong)return;
+        if(cands.some(cr=>(cr.kisAccts||[]).some(a=>acctMatch(a,jong))))return;
+        need[n+'|'+jong]={name:n,jong};
+      });
+    });
+  });
+  return Object.values(need);
+}
+/* 기본 이름으로 배분 선택 시, 그 이름의 CRM이 없으면 최소 레코드 생성(계좌 기억용) */
+function ensureKisCrm(name){
+  let cr=CRM[name];if(cr)return cr;
+  cr={name,birth:'',gender:'',phone:'',company:'',sido:'',sigungu:'',dong:'',riskType:'',pension:false,dormant:false,prod:{},memo:'',lastContact:'',channels:['한투'],anchorMonth:null,history:[],passes:[],linkIds:[],contracts:[],kisAccts:[],updatedAt:new Date().toISOString()};
+  CRM[name]=cr;return cr;
+}
+/* 배분 확인 모달 — 선택 결과는 각 고객 kisAccts에 저장(다음 업로드부터 자동). 취소 시 업로드 중단 */
+function openAcctAssign(items){
+  return new Promise(res=>{
+    const groups=kisNameGroups();
+    $('#aaList').innerHTML=items.map((it,i)=>{
+      const cands=(groups[it.name]||[]).slice();
+      const opts=cands.map(cr=>{
+        const info=[cr.birth,cr.company,cr.phone].filter(Boolean).join(' · ')||'정보 없음';
+        return `<label style="display:flex;gap:8px;align-items:center;padding:6px 4px;cursor:pointer"><input type="radio" name="aa${i}" value="${escapeAttr(cr.name)}"><b>${esc(cr.name)}</b><small style="color:var(--sub)">${esc(info)}</small></label>`;
+      }).join('');
+      const baseOpt=cands.some(cr=>cr.name===it.name)?'':`<label style="display:flex;gap:8px;align-items:center;padding:6px 4px;cursor:pointer"><input type="radio" name="aa${i}" value="${escapeAttr(it.name)}"><b>${esc(it.name)}</b><small style="color:var(--sub)">기본 이름 그대로 (영업정보 자동 생성)</small></label>`;
+      return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+        <div style="font-weight:700;margin-bottom:4px">${esc(it.name)} · 종합계좌 ${esc(it.jong)}</div>${opts}${baseOpt}</div>`;
+    }).join('');
+    const md=$('#acctModal');
+    const done=v=>{md.classList.add('hidden');res(v);};
+    $('#aaCancel').onclick=()=>done(false);
+    $('#aaSave').onclick=async()=>{
+      const picks=[];
+      for(let i=0;i<items.length;i++){
+        const sel=document.querySelector(`input[name="aa${i}"]:checked`);
+        if(!sel){toast('모든 계좌의 고객을 선택하세요');return;}
+        picks.push(sel.value);
+      }
+      for(let i=0;i<items.length;i++){
+        const cr=CRM[picks[i]]||ensureKisCrm(picks[i]);
+        cr.kisAccts=[...new Set([...(cr.kisAccts||[]),items[i].jong])];
+        cr.updatedAt=new Date().toISOString();
+        await crmPut(cr);
+      }
+      done(true);
+    };
+    md.classList.remove('hidden');
+  });
+}
 async function doUpload(){
   if(!pendingFiles.length){toast('파일을 먼저 선택하세요');return;}
   const date=$('#snapDate').value||todayStr();
@@ -3154,6 +3342,12 @@ async function doUpload(){
   const buckets=await parseFiles(pendingFiles);
   const found=Object.keys(buckets).filter(k=>k!=='_unknown');
   if(!found.length){toast('인식 가능한 파일이 없습니다');return;}
+  // 동명이인 미배분 계좌가 있으면 확인 후 진행 (취소 시 업로드 중단 — 파일 선택은 유지)
+  const pending=collectKisUnassigned(buckets);
+  if(pending.length){
+    const ok=await openAcctAssign(pending);
+    if(!ok){toast('업로드를 취소했습니다 — 동명이인 계좌 배분이 필요합니다');return;}
+  }
   const snap=buildSnapshot(date,buckets);
   await idbPut(snap);
   // 삭제했던 날짜를 다시 올리면 tombstone 해제(부활 허용)
@@ -4096,7 +4290,7 @@ function goBack(){
   const open=openModalEl();
   if(open){open.classList.add('hidden');return;}
   if($('#sidebar').classList.contains('open')){toggleDrawer(false);return;}
-  if(inDetail){setView('clients');return;}
+  if(inDetail){backFromDetail();return;}
   if(curView!=='home')setView('home');
 }
 let _swX=null,_swY=null;
