@@ -1219,7 +1219,64 @@ async function reload(){DELDATES=normDel(await metaGet('deletedDates'));
     CRM[c.name]=c;
   }
   if(JSON.stringify(CRMDEL)!==cbefore)await metaPut('crmDeleted',CRMDEL);
-  await backfillContractIds();render();}
+  await backfillContractIds();
+  // 동명이인 등록·계좌 배분이 되어 있으면 과거 병합 스냅샷도 소급 분리
+  const nSplit=await splitHomonymSnapshots();
+  if(nSplit){toast('동명이인 자산 분리 완료 · 스냅샷 '+nSplit+'개 재배분');if(syncOn())syncNow(true);}
+  render();}
+
+/* ---------- 동명이인 자산 소급 분리 ----------
+   분리 등록 전에 업로드돼 한 이름으로 합쳐진 스냅샷 자산을,
+   CRM에 등록된 종합계좌번호(kisAccts) 기준으로 각 고객에게 재배분한다.
+   멱등(옮길 항목 없으면 무동작) · uploadedAt 갱신으로 동기화에서 분리본이 이겨 전 기기 전파. */
+function recalcCust(o){
+  o.cats={};let ev=0;
+  (o.products||[]).forEach(p=>{const c=p.category||'기타자산';o.cats[c]=(o.cats[c]||0)+p.eval;ev+=p.eval;});
+  const pr=custPrincipal(o);
+  o.totalEval=ev;o.totalPrincipal=pr;o.totalProfit=ev-pr;o.rate=pr>0?(ev-pr)/pr*100:0;
+  const first=Object.values(o.acctMeta||{})[0];
+  o.acctPrefix=(first&&first.jong)||(o.products&&o.products[0]?parseAcct(o.products[0].account).jong:'')||o.acctPrefix||'';
+}
+function recalcTotals(s){
+  const t={eval:0,principal:0,profit:0,cats:{},branches:{},pbs:{},count:0};
+  Object.values(s.customers).forEach(o=>{
+    t.eval+=o.totalEval||0;t.principal+=o.totalPrincipal||0;
+    Object.entries(o.cats||{}).forEach(([c,v])=>t.cats[c]=(t.cats[c]||0)+v);
+    if(o.branch)t.branches[o.branch]=(t.branches[o.branch]||0)+(o.totalEval||0);
+    if(o.pb)t.pbs[o.pb]=(t.pbs[o.pb]||0)+(o.totalEval||0);
+    if((o.totalEval||0)>0||(o.products||[]).length)t.count++;});
+  t.profit=t.eval-t.principal;s.totals=t;
+}
+function splitCustByAccts(s,base,cands){
+  const o=s.customers[base];if(!o)return false;
+  const route=jong=>{if(!jong)return null;const hit=cands.find(cr=>cr.name!==base&&(cr.kisAccts||[]).some(a=>acctMatch(a,jong)));return hit?hit.name:null;};
+  let moved=false;const parts={};
+  const get=nm=>{if(!parts[nm]){const ex=s.customers[nm];
+    if(ex)parts[nm]=ex;
+    else{const cr=CRM[nm]||{};parts[nm]={name:nm,acctPrefix:'',birth:cr.birth||'',gender:cr.gender||'',riskType:o.riskType||'',regDate:'',products:[],accounts:[],acctMeta:{},cats:{},totalEval:0,totalPrincipal:0,totalProfit:0,rate:0,branch:o.branch||'',pb:o.pb||''};}}
+    return parts[nm];};
+  Object.entries(o.acctMeta||{}).forEach(([k,a])=>{const t=route(a.jong||parseAcct(a.raw||k).jong);if(t){get(t).acctMeta[k]=a;delete o.acctMeta[k];moved=true;}});
+  const keepP=[];(o.products||[]).forEach(p=>{const t=route(parseAcct(p.account).jong);if(t){get(t).products.push(p);moved=true;}else keepP.push(p);});o.products=keepP;
+  const keepA=[];(o.accounts||[]).forEach(a=>{const t=route(parseAcct(a.account).jong);if(t){get(t).accounts.push(a);moved=true;}else keepA.push(a);});o.accounts=keepA;
+  if(!moved)return false;
+  Object.values(parts).forEach(po=>{
+    (po.products||[]).concat(po.accounts||[]).forEach(x=>{const d=dnorm(x.openDate);if(d&&(!po.regDate||d<po.regDate))po.regDate=d;});
+    recalcCust(po);s.customers[po.name]=po;
+  });
+  recalcCust(o);
+  return true;
+}
+async function splitHomonymSnapshots(){
+  const groups=kisNameGroups();
+  const bases=Object.keys(groups);if(!bases.length)return 0;
+  let changed=0;
+  for(const s of SNAPS){
+    let touched=false;
+    for(const b of bases)if(splitCustByAccts(s,b,groups[b]))touched=true;
+    if(touched){recalcTotals(s);s.uploadedAt=new Date().toISOString();await idbPut(s);changed++;}
+  }
+  return changed;
+}
 
 /* ---------- 자산(스냅샷) + CRM(직접입력) 통합 고객 맵 ---------- */
 function blankCust(name){return {name,acctPrefix:'',birth:'',gender:'',riskType:'',regDate:'',products:[],accounts:[],acctMeta:{},cats:{},totalEval:0,totalPrincipal:0,totalProfit:0,rate:0,branch:'',pb:'',crm:null};}
