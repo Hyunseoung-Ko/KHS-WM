@@ -865,7 +865,7 @@ const num=v=>{if(typeof v==='number')return v;const n=parseFloat(String(v||'').r
 const won=v=>Math.round(v).toLocaleString('ko-KR')+'원';
 const eok=v=>{const a=Math.abs(v);if(a>=1e8)return(v/1e8).toFixed(2)+'억';if(a>=1e4)return Math.round(v/1e4).toLocaleString()+'만';return Math.round(v).toLocaleString();};
 const pct=v=>(v>0?'+':'')+v.toFixed(1)+'%';
-const dnorm=s=>{s=String(s||'').trim();if(!s)return '';const m=s.replace(/[.]/g,'/').match(/(\d{4})\/?(\d{1,2})\/?(\d{1,2})?/);if(!m)return s;return m[1]+'-'+String(m[2]).padStart(2,'0')+(m[3]?'-'+String(m[3]).padStart(2,'0'):'');};
+const dnorm=s=>{s=String(s||'').trim().replace(/^[\[\(]+\s*/,'').replace(/\s*[\]\)]+$/,'');if(!s)return '';const m=s.replace(/[.]/g,'/').match(/(\d{4})\/?(\d{1,2})\/?(\d{1,2})?/);if(!m)return s;return m[1]+'-'+String(m[2]).padStart(2,'0')+(m[3]?'-'+String(m[3]).padStart(2,'0'):'');};   // [2016-06-22] 대괄호 표기도 정규화
 /* 날짜 입력칸: 숫자만 받아 YYYY-MM-DD 로 자동 하이픈(연도 4자리 고정) + 붙여넣기(어떤 형식이든 정규화) */
 function fmtDateTyping(v){const d=String(v||'').replace(/\D/g,'').slice(0,8);
   if(d.length<=4)return d;if(d.length<=6)return d.slice(0,4)+'-'+d.slice(4);
@@ -2255,14 +2255,35 @@ function splitInsurerProduct(mid){
   if(sp>0){const first=mid.slice(0,sp);if(INSURER_SUFFIX.test(first))return {insurer:first,product:mid.slice(sp+1).trim()};}
   return {insurer:'',product:mid};
 }
+/* 한 줄형 파싱 — 필수: 날짜·계약자·상품. 피보험자 괄호·보험료 괄호는 선택.
+   허용 예: [2016-06-22] 대괄호 날짜 · (월납 31,000원/20년,3년갱신)처럼 괄호 안 부가정보 ·
+   괄호 뒤 추가 텍스트(thru 인스 등)는 무시. 괄호 안에서 주기·금액·N년납을 알아서 골라 저장 */
 function parseInsManual(t){
   const out=[];
   String(t||'').split(/\r?\n/).forEach(raw=>{
     const line=raw.trim();if(!line)return;
-    const m=line.match(/^(\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2})\s+([^()]+?)\s*\(([^)]+)\)\s*(.+?)\s*\(\s*([^\d)]*?)\s*([\d,]+)\s*원?\s*\)\s*$/);
-    if(!m)return;
-    const sp=splitInsurerProduct(m[4]);
-    out.push(newContract({contractDate:m[1],contractor:m[2],insured:m[3],insurer:sp.insurer,product:sp.product,payCycle:m[5]||'월납',premium:m[6],source:'manual'}));
+    const dm=line.match(/^\[?\s*(\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2})\s*\]?\s*/);
+    if(!dm)return;
+    let rest=line.slice(dm[0].length).trim();if(!rest)return;
+    // 보험료 괄호 = 3자리 이상 금액이 든 괄호. 주기·금액·N년납만 취하고 나머지 부가정보·괄호 뒤 텍스트는 무시
+    let payCycle='',premium='',payYears='';
+    const pm=rest.match(/\(([^()]*\d[\d,]{2,}[^()]*)\)/);
+    if(pm){
+      const c=pm[1];
+      const am=c.match(/(\d[\d,]{2,})\s*원/)||c.match(/(\d[\d,]{2,})/);if(am)premium=am[1];
+      const cy=c.match(/(?<!\d)(일시납|월납|연납|년납|반기납|분기납|6개월납|3개월납)/);if(cy)payCycle=cy[1];   // '15년납'의 년납은 주기 아님(납입년수)
+      const ym=c.match(/(\d{1,3})\s*년\s*납/)||c.match(/(?:^|[\/,·\s])(\d{1,3})\s*년(?!\s*갱신)/);if(ym)payYears=ym[1];
+      rest=rest.slice(0,pm.index).trim();
+    }
+    if(!rest)return;
+    // 계약자[(피보험자)] — 피보험자 괄호는 2~4자 한글 이름일 때만 ((무배당)·(무) 상품 접두어와 구분)
+    let contractor='',insured='',mid='';
+    const im=rest.match(/^([^\s()]+)\s*\(\s*(?!무배당\s*\))([가-힣]{2,4})\s*\)\s*/);
+    if(im){contractor=im[1];insured=im[2];mid=rest.slice(im[0].length).trim();}
+    else{const sp=rest.split(/\s+/);contractor=sp[0];mid=sp.slice(1).join(' ');}
+    if(!contractor||!mid)return;
+    const spd=splitInsurerProduct(mid);
+    out.push(newContract({contractDate:dm[1],contractor,insured:insured||contractor,insurer:spd.insurer,product:spd.product,payCycle:payCycle||'월납',premium,payYears,source:'manual'}));
   });
   return out;
 }
