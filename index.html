@@ -233,6 +233,9 @@ input::placeholder,textarea::placeholder{color:#C5CCD6;opacity:1}   /* 예시글
 /* ---------- 일정 (Google Calendar & Tasks) ---------- */
 .gc-card{padding:0;overflow:hidden}
 .gc-topbar{display:flex;align-items:center;gap:7px;padding:10px 12px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+/* 모바일: 툴바가 가로 스크롤로 숨지 않게 두 줄로 감쌈 + 라벨 생략 */
+html.m .gc-topbar{flex-wrap:wrap;overflow-x:visible;row-gap:8px}
+html.m .gc-tlabel{display:none}
 .gc-topbar::-webkit-scrollbar{display:none}
 .gc-topbar>*{flex-shrink:0;white-space:nowrap}
 .gc-mtitle{font-size:17px;font-weight:800;letter-spacing:-.02em}
@@ -442,6 +445,15 @@ html.m body.v-gcal #main{padding-bottom:78px}
 .ins-ct-right{display:flex;align-items:center;gap:8px;white-space:nowrap}
 .ins-ct-prem{font-weight:700;font-size:13px}.ins-ct-right small{color:var(--sub);font-size:11px}
 .ins-sec{margin-top:8px}
+/* 일정 도출 이벤트 상세 팝업 */
+.gci-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin:5px 7px 0 0;flex:0 0 auto}
+#gci_title{display:flex;align-items:flex-start;line-height:1.4;padding-right:26px}
+.gci-date{font-size:13px;color:var(--sub2);font-weight:600;margin:2px 0 12px}
+.gci-list{display:flex;flex-direction:column;gap:8px}
+.gci-ct{background:var(--inset);border-radius:10px;padding:10px 12px}
+.gci-ct-nm{font-weight:700;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.gci-ct-sub{font-size:12.5px;color:var(--sub2);margin-top:3px}
+.gci-desc{font-size:13.5px;color:var(--ink);background:var(--inset);border-radius:10px;padding:10px 12px;line-height:1.55}
 #insDrop{border:2px dashed var(--line);border-radius:12px;padding:20px;text-align:center;color:var(--sub);cursor:pointer;font-size:12.5px}
 #insDrop b{display:block;color:var(--ink);margin-bottom:4px}#insDrop.drag{border-color:var(--accent);background:#F4F8FF}
 .ins-prev{margin-top:10px;font-size:12.5px}
@@ -3244,7 +3256,7 @@ function renderHelp(){
     <div class="card"><h3>🧭 화면별 기능</h3>
       <ul>
         <li><b style="color:var(--ink)">홈</b> — 총자산·원금·손익·관리고객 요약(KPI 4종), 자산구분 도넛, 전체 추이, <b style="color:var(--ink)">오늘 연락할 고객</b> 카드(클릭 → 영업)</li>
-        <li><b style="color:var(--ink)">일정</b> — 대시보드에서 <b style="color:var(--ink)">자동 도출되는 일정</b>(연락 예정 등)과 <code>+ 일정</code>으로 <b style="color:var(--ink)">직접 추가한 일정</b>을 로컬 캘린더로 표시(구글 연동 없음), 주 시작=월요일. <b style="color:var(--ink)">일·3일·주·월 보기</b> + 좌측 사이드바 <b style="color:var(--ink)">일정 목록</b>에서 카테고리별 <b style="color:var(--ink)">색 구분·표시 켜기/끄기</b>(연락 예정 / 가입 90일·1년·2년·상령일=준비 중 / 직접 입력). 도출 일정은 대시보드에서 자동 갱신되어 편집 불가, 직접 추가 일정만 편집·삭제. 향후 구글 캘린더로 내보내기 예정</li>
+        <li><b style="color:var(--ink)">일정</b> — 대시보드에서 <b style="color:var(--ink)">자동 도출되는 일정</b>(연락 예정 등)과 <code>+ 일정</code>으로 <b style="color:var(--ink)">직접 추가한 일정</b>을 로컬 캘린더로 표시(구글 연동 없음), 주 시작=월요일. <b style="color:var(--ink)">일·3일·주·월 보기</b> + 좌측 사이드바 <b style="color:var(--ink)">일정 목록</b>에서 카테고리별 <b style="color:var(--ink)">색 구분·표시 켜기/끄기</b>(연락 예정 / 공휴일 / 가입 90일·1주년·2주년 / 상령일 / 직접 입력). 같은 날 여러 보험을 가입했으면 <b style="color:var(--ink)">기념일 일정 1건으로 합쳐지고</b>, 일정을 <b style="color:var(--ink)">클릭하면 팝업</b>으로 어떤 보험(계약 목록)·연락 사유인지 확인 후 <b style="color:var(--ink)">고객 상세로 바로 이동</b>할 수 있습니다(뒤로가기 <code>‹ 일정</code>으로 복귀). 도출 일정은 자동 갱신되어 편집 불가, 직접 추가 일정만 편집·삭제. 향후 구글 캘린더로 내보내기 예정</li>
         <li><b style="color:var(--ink)">고객</b> — 이름·등록일·자산·수익률 정렬 + 검색. <code>+ 신규 고객</code>으로 자산 없는 잠재고객도 직접 추가</li>
         <li><b style="color:var(--ink)">고객상세</b> — <b style="color:var(--ink)">영업·CRM 정보</b> <code>✏️편집</code>, <b style="color:var(--ink)">운용상품 보유(실계좌 자동연결: ✓계좌 확인 · 색채움=잔고 · 테두리만=0원)</b>, 원금·총액·수익률 추이, 자산구성, 은퇴 시뮬레이션, 보유상품(계좌별 접기/펼침, 0원 계좌 포함)</li>
         <li><b style="color:var(--ink)">자산</b> — 전체 자산 추이 + <b style="color:var(--ink)">영업점별·PB별 자산 분포</b> + <b style="color:var(--ink)">계좌별 고객 / 날짜별 스냅샷 좌우 탭</b>. 계좌별 고객은 유형(주식·CMA·연금저축·IRP·DC) 탭 + <b style="color:var(--ink)">고객 검색</b>, 스냅샷은 <b style="color:var(--ink)">🗑 버튼</b>으로 삭제</li>
@@ -3677,7 +3689,7 @@ function enhanceNavA11y(){
     a.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();a.click();}});
   });
 }
-const MODAL_IDS=['repModal','uploadModal','syncModal','logModal','crmModal','gcEvModal'];
+const MODAL_IDS=['repModal','uploadModal','syncModal','logModal','crmModal','gcEvModal','gcInfoModal'];
 function openModalEl(){return MODAL_IDS.map(id=>document.getElementById(id)).find(m=>m&&!m.classList.contains('hidden'))||null;}
 function bindGlobal(){
   enhanceNavA11y();
@@ -3820,7 +3832,7 @@ function buildContactEvents(){
     id:'contact::'+c.name, summary:'📞 '+dispNameYm(c)+' 연락',
     description:(contactReasons(c)[0]||''), status:'confirmed',
     start:{date:c._dateIso}, end:{date:nextDay(c._dateIso)},
-    _cat:'contact', _derived:true, _name:c.name, _st:c._st}));
+    _cat:'contact', _derived:true, _name:c.name, _cust:c.name, _st:c._st}));
 }
 /* 공휴일 — HOLIDAYS(하드코딩+원격 병합)에서 종일 이벤트로 도출. 표시 범위(현재 년도 ±1) */
 function buildHolidayEvents(){
@@ -3840,15 +3852,26 @@ function buildContractDerived(){
   const addD=(iso,d)=>{const t=new Date(iso+'T00:00:00');t.setDate(t.getDate()+d);return dkey(t);};
   const addY=(iso,yy)=>{const t=new Date(iso+'T00:00:00');t.setFullYear(t.getFullYear()+yy);return dkey(t);};
   const custs=Object.values(curCustomers());
+  const SU_LAB={signup90:['📌','가입 90일'],signup1y:['🎉','가입 1주년'],signup2y:['🎉','가입 2주년']};
   custs.forEach(c=>{
     if(c.crm&&c.crm.dormant)return;
+    // 같은 계약자·같은 날짜에 여러 건 가입해도 이벤트는 1건 — 클릭 팝업에서 계약 목록 확인
+    const grp={};
     ((c.crm&&c.crm.contracts)||[]).filter(insActive).forEach(ct=>{
       if(!/^\d{4}-\d{2}-\d{2}$/.test(ct.contractDate||''))return;
-      const nm=ct.contractor||c.name,sp=shortProd(ct);
-      const push=(cat,iso,lab)=>{if(inR(iso))out[cat].push({id:cat+'::'+ct.id,summary:lab,description:esc((ct.insurer||'')+' '+(ct.product||'')),status:'confirmed',start:{date:iso},end:{date:nextDay(iso)},_cat:cat,_derived:true,_name:nm});};
-      push('signup90',addD(ct.contractDate,90),'📌 '+nm+' 가입 90일 · '+sp);
-      push('signup1y',addY(ct.contractDate,1),'🎉 '+nm+' 가입 1주년 · '+sp);
-      push('signup2y',addY(ct.contractDate,2),'🎉 '+nm+' 가입 2주년 · '+sp);
+      const nm=ct.contractor||c.name;
+      const add=(cat,iso)=>{if(!inR(iso))return;const k=cat+'::'+iso+'::'+nm;(grp[k]=grp[k]||{cat,iso,nm,cts:[]}).cts.push(ct);};
+      add('signup90',addD(ct.contractDate,90));
+      add('signup1y',addY(ct.contractDate,1));
+      add('signup2y',addY(ct.contractDate,2));
+    });
+    Object.values(grp).forEach(g=>{
+      const [ic,word]=SU_LAB[g.cat];
+      const sp=shortProd(g.cts[0])+(g.cts.length>1?' 외 '+(g.cts.length-1)+'건':'');
+      out[g.cat].push({id:g.cat+'::'+c.name+'::'+g.iso+'::'+g.nm,summary:ic+' '+g.nm+' '+word+' · '+sp,
+        description:g.cts.map(ct=>((ct.insurer||'')+' '+(ct.product||'')).trim()).join(', '),
+        status:'confirmed',start:{date:g.iso},end:{date:nextDay(g.iso)},
+        _cat:g.cat,_derived:true,_name:g.nm,_cust:c.name,_cts:g.cts});
     });
   });
   const seen=new Set();
@@ -3859,7 +3882,7 @@ function buildContractDerived(){
     const b=birthMD(c.birth);if(!b)return;
     [y-1,y,y+1].forEach(yy=>{const t=new Date(yy,b.mo-1,b.d);t.setMonth(t.getMonth()+6);const iso=dkey(t);   // 상령일=생일+6개월
       if(!inR(iso))return;const key='age::'+c.name+'::'+iso;if(seen.has(key))return;seen.add(key);
-      out.agechange.push({id:key,summary:'🎂 '+dispNameYm(c)+' 상령일(보험나이 +1)',status:'confirmed',start:{date:iso},end:{date:nextDay(iso)},_cat:'agechange',_derived:true,_name:c.name});});
+      out.agechange.push({id:key,summary:'🎂 '+dispNameYm(c)+' 상령일(보험나이 +1)',description:'생일(+6개월) 기준 보험나이가 1살 올라 신규 가입 보험료가 인상됩니다'+(c.birth?' · 생년월일 '+c.birth:''),status:'confirmed',start:{date:iso},end:{date:nextDay(iso)},_cat:'agechange',_derived:true,_name:c.name,_cust:c.name});});
   });
   return out;
 }
@@ -4017,7 +4040,7 @@ function gcLeftHTML(){
     <div class="gc-sechead" id="gcCalSec"><span>일정 목록</span><span class="chev ${GC._calsClosed?'r':''}">▾</span></div>
     <div id="gcCalWrap" class="${GC._calsClosed?'hidden':''}">
       ${rows||'<p class="msub">카테고리가 없습니다</p>'}
-      <p class="msub" style="margin:8px 2px 0;font-size:11.5px;line-height:1.5">대시보드에서 자동 도출된 일정과 직접 추가한 일정을 색으로 구분합니다. 가입 90일·1년·2년·상령일은 준비 중입니다.</p>
+      <p class="msub" style="margin:8px 2px 0;font-size:11.5px;line-height:1.5">대시보드에서 자동 도출된 일정과 직접 추가한 일정을 색으로 구분합니다. 자동 일정은 클릭하면 상세 팝업에서 계약·사유 확인과 고객 이동이 가능합니다.</p>
     </div>`;
 }
 
@@ -4085,7 +4108,7 @@ function renderGcal(){
    <div class="card gc-card">
     <div class="gc-topbar">
       <button class="gc-ibtn" id="gcLeftBtn" title="일정 목록">☰</button>
-      <span style="font-weight:800;font-size:15px">📅 일정</span>
+      <span class="gc-tlabel" style="font-weight:800;font-size:15px">📅 일정</span>
       <button class="btn ghost sm" id="gcToday">오늘</button>
       <button class="gc-ibtn" id="gcPrev">‹</button>
       <button class="gc-ibtn" id="gcNext">›</button>
@@ -4155,13 +4178,13 @@ function gcBindView(v){
 }
 
 /* ---------- 일정 모달 (수동 일정 추가/편집 · 로컬 저장) ---------- */
-/* 도출 일정(_derived)은 대시보드가 자동 생성 → 편집 불가(클릭 시 안내만). 수동 일정만 편집 */
+/* 도출 일정(_derived)은 대시보드가 자동 생성 → 편집 불가(클릭 시 상세 팝업 gcOpenInfo). 수동 일정만 편집 */
 function gcOpenEv(ref,prefDate,prefTime){
   GC._ev=null;
   if(ref){
     const ev=(GC.events[ref.calId]||[]).find(e=>e.id===ref.evId);
     if(!ev)return toast('일정을 찾을 수 없습니다 — 새로고침하세요');
-    if(ev._derived){const cat=catById(ev._cat);toast((cat?cat.name+' · ':'')+(ev.summary||'')+(ev.description?' — '+ev.description:''));return;}
+    if(ev._derived){gcOpenInfo(ev);return;}
     GC._ev=ev._src||null;   /* 수동 일정 저장 원본 */
   }
   const m=GC._ev,isNew=!m;
@@ -4200,6 +4223,35 @@ function gcDelEv(){if(!GC._ev||!GC._ev.id)return;
   gmetaSave({manualEvents:manualEvents().filter(x=>x.id!==GC._ev.id)});
   $('#gcEvModal').classList.add('hidden');toast('삭제됨');renderGcal();}
 
+/* ---------- 도출 일정 상세 팝업 — 어떤 보험·사유인지 확인 + 고객 상세 이동 ---------- */
+function gcInfoDate(ev){
+  const iso=String((ev.start&&(ev.start.date||ev.start.dateTime))||'').slice(0,10);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return '';
+  const d=new Date(iso+'T00:00:00');
+  return d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+['일','월','화','수','목','금','토'][d.getDay()]+')'+(evTime(ev)?' '+evTime(ev):'');
+}
+function gcOpenInfo(ev){
+  const cat=catById(ev._cat);
+  $('#gci_title').innerHTML=(cat?`<span class="gci-dot" style="background:${cat.color}"></span>`:'')+esc(ev.summary||'일정');
+  $('#gci_date').textContent=[gcInfoDate(ev),cat?cat.name:''].filter(Boolean).join(' · ');
+  let body='';
+  if(ev._cts&&ev._cts.length){
+    body=`<div class="gci-list">`+ev._cts.map(ct=>`
+      <div class="gci-ct"><div class="gci-ct-nm">${esc(ct.product||'-')} ${insStatusTag(ct.status)}</div>
+        <div class="gci-ct-sub">${[esc(ct.insurer||''),ct.contractDate?'계약일 '+esc(ct.contractDate):'',ct.premium?won(ct.premium)+(ct.payCycle?' · '+esc(ct.payCycle):''):''].filter(Boolean).join(' · ')||'-'}</div></div>`).join('')+`</div>`;
+  }else if(ev.description){
+    body=`<div class="gci-desc">${esc(ev.description)}</div>`;
+  }
+  $('#gci_body').innerHTML=body;
+  const cust=(ev._cust&&curCustomers()[ev._cust])?ev._cust:null;
+  $('#gci_btns').innerHTML=
+    (ev._cat==='contact'?`<button class="btn ghost sm" id="gci_strat">📋 연락 목록 보기</button>`:'')+
+    (cust?`<button class="btn primary sm" id="gci_open">👤 ${esc(dispName(cust))} 고객 상세 열기</button>`:'');
+  const ob=$('#gci_open');if(ob)ob.onclick=()=>{$('#gcInfoModal').classList.add('hidden');openClient(cust);};
+  const sb=$('#gci_strat');if(sb)sb.onclick=()=>{$('#gcInfoModal').classList.add('hidden');goStrategyContact();};
+  $('#gcInfoModal').classList.remove('hidden');
+}
+
 /* ---------- 모달 DOM + 정적 바인딩 ---------- */
 document.body.insertAdjacentHTML('beforeend',`
 <div id="gcEvModal" class="modal hidden"><div class="modal-card">
@@ -4211,9 +4263,16 @@ document.body.insertAdjacentHTML('beforeend',`
   <div class="cf2"><div><label>종료</label><input type="date" id="gev_ed"></div><div><label style="visibility:hidden">시간</label><input type="time" id="gev_et"></div></div>
   <label>메모</label><textarea id="gev_memo" rows="3" style="width:100%"></textarea>
   <div class="modal-btns"><button class="btn ghost sm" id="gev_del" style="color:var(--danger)">삭제</button><button class="btn primary sm" id="gev_save">저장</button></div>
+</div></div>
+<div id="gcInfoModal" class="modal hidden"><div class="modal-card">
+  <button class="modal-x" data-gcx="gcInfoModal">✕</button><h3 id="gci_title">일정</h3>
+  <div id="gci_date" class="gci-date"></div>
+  <div id="gci_body"></div>
+  <div class="modal-btns" id="gci_btns"></div>
 </div></div>`);
 document.querySelectorAll('[data-gcx]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.gcx).classList.add('hidden'));
 {const m=document.getElementById('gcEvModal');m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');});}
+{const m=document.getElementById('gcInfoModal');m.addEventListener('click',e=>{if(e.target===m)m.classList.add('hidden');});}
 $('#gev_allday').onchange=gevAllday;
 $('#gev_save').onclick=gcSaveEv;$('#gev_del').onclick=gcDelEv;
 
