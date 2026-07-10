@@ -1748,7 +1748,7 @@ async function insDelete(){
   const cr=CRM[insModalName];
   if(cr){
     const ct=(cr.contracts||[]).find(x=>x.id===insEditId);
-    if(ct){cr.delContracts=cr.delContracts||{};cr.delContracts[contractKey(ct)]=new Date().toISOString();}   // tombstone(삭제 전파)
+    if(ct){cr.delContracts=cr.delContracts||{};cr.delContracts[ct.id?('I:'+ct.id):contractKey(ct)]=new Date().toISOString();}   // tombstone(삭제 전파) — id 표식이라 같은 키의 다른 계약은 안 지움
     cr.contracts=(cr.contracts||[]).filter(x=>x.id!==insEditId);
     cr.updatedAt=new Date().toISOString();await crmPut(cr);if(syncOn())syncNow(true);
   }
@@ -1983,7 +1983,7 @@ function bindCrmForm(){
       updatedAt:new Date().toISOString()};
     await crmPut(rec);CRM[nm]=rec;close();toast(crmEditName?'저장됨':dispName(nm)+' 저장됨');
     if(syncOn())syncNow(true);
-    if(inDetail)openClient(nm);else if(curView==='clients')renderClients();else render();
+    if(inDetail||!crmEditName)openClient(nm);else if(curView==='clients')renderClients();else render();   // 신규 등록은 바로 그 고객 상세로
   };
   $('#cfDelete').onclick=async()=>{
     if(!crmEditName)return;
@@ -2050,11 +2050,27 @@ function mergeCrm(a,b){const m={};[...(a||[]),...(b||[])].forEach(c=>{
   [...(ex.contracts||[]),...(c.contracts||[])].forEach(ct=>{if(!ct)return;
     if(ct.id){const e=byId[ct.id];if(!e||(ct.updatedAt||'')>=(e.updatedAt||''))byId[ct.id]=ct;}else noId.push(ct);});
   // 2) 남은 계약을 매칭키로 통합(기기별로 각각 입력된 동일 실계약 합치기)
-  const cmap={};
-  const pickCt=(ct,e)=>{if(!e)return true;const ci=!!ct.id,ei=!!e.id;if(ci!==ei)return ci;return (ct.updatedAt||'')>=(e.updatedAt||'');};   // id본 우선, 그다음 최신
-  [...Object.values(byId),...noId].forEach(ct=>{const k=contractKey(ct);if(pickCt(ct,cmap[k]))cmap[k]=ct;});
-  Object.keys(cmap).forEach(k=>{const t=tomb[k];if(t&&String(t)>=String(cmap[k].updatedAt||''))delete cmap[k];else if(t)delete tomb[k];}); // 재등록으로 살아난 계약이면 stale tombstone 정리
-  u.contracts=Object.values(cmap);
+  //    단, id가 서로 다른 두 계약은 "내용까지 같을 때만" 접는다 — 같은 키로 오판된 별개 계약
+  //    (같은 날 비슷한 상품·같은 계약자 등)이 동기화 병합에서 사라지지 않게 보존
+  const sameCt=(a,b)=>['insurer','product','policyNo','contractDate','contractor','insured','premium','payCycle','payYears','maturity','agent'].every(f=>String(a[f]==null?'':a[f])===String(b[f]==null?'':b[f]));
+  const groups={};   // 매칭키 → 보존 계약 목록
+  [...Object.values(byId),...noId].forEach(ct=>{
+    const k=contractKey(ct);const arr=groups[k]=groups[k]||[];
+    for(let i=0;i<arr.length;i++){const e=arr[i];
+      if((!e.id||!ct.id)||sameCt(e,ct)){   // 무id 관여(구버전) 또는 내용 동일 → 하나로(id본 우선, 그다음 최신)
+        const pick=(!!ct.id!==!!e.id)?(ct.id?ct:e):(((ct.updatedAt||'')>=(e.updatedAt||''))?ct:e);
+        arr[i]=pick;return;}
+    }
+    arr.push(ct);
+  });
+  // tombstone 적용 — id 표식('I:'+id, 신형) 우선, 없으면 매칭키 표식(구형)으로 확인
+  const outCts=[];
+  Object.entries(groups).forEach(([k,arr])=>{arr.forEach(ct=>{
+    const tk=(ct.id&&tomb['I:'+ct.id]!=null)?('I:'+ct.id):(tomb[k]!=null?k:null);
+    if(tk){if(String(tomb[tk])>=String(ct.updatedAt||''))return;   // 삭제시각 ≥ 계약 갱신 → 삭제 전파
+      delete tomb[tk];}                                            // 그 이후 재등록이면 stale tombstone 정리
+    outCts.push(ct);});});
+  u.contracts=outCts;
   if(Object.keys(tomb).length)u.delContracts=tomb;else delete u.delContracts;
   if(u.history.length){const last=u.history[u.history.length-1];if(!u.lastContact||last>u.lastContact)u.lastContact=last;}
   m[c.name]=u;});
@@ -2158,11 +2174,18 @@ async function saveParsedContracts(list,targetName){
   let added=0,merged=0;const names=[];
   for(const name of Object.keys(byName)){
     const cr=ensureCrm(name);
-    const idx={};cr.contracts.forEach((ct,i)=>{idx[contractKey(ct)]=i;});
+    // 매칭키 → 기존 행 목록. 기존 행 하나는 이번 배치의 계약 1건만 흡수 — 같은 키로 오판된 별개 계약
+    // (같은 날 비슷한 상품 등)이 배치 안에서 서로 합쳐져 사라지지 않게. 미리보기 N건 = 저장 N건 보장.
+    const idx={};cr.contracts.forEach((ct,i)=>{const k=contractKey(ct);(idx[k]=idx[k]||[]).push(i);});
+    const used=new Set();
     byName[name].forEach(nc=>{
       const k=contractKey(nc);
-      if(idx[k]!=null){cr.contracts[idx[k]]=mergeContract(cr.contracts[idx[k]],nc);merged++;}
-      else{cr.contracts.push(nc);idx[k]=cr.contracts.length-1;added++;}
+      const cand=(idx[k]||[]).filter(i=>!used.has(i));
+      // 같은 키 후보 중 상품명·보험료까지 같은 행 우선(재가져오기 시 제자리 병합), 없으면 첫 후보
+      let slot=cand.find(i=>{const e=cr.contracts[i];return String(e.product)===String(nc.product)&&(e.premium||0)===(nc.premium||0);});
+      if(slot==null)slot=cand[0];
+      if(slot!=null){cr.contracts[slot]=mergeContract(cr.contracts[slot],nc);used.add(slot);merged++;}
+      else{cr.contracts.push(nc);const ni=cr.contracts.length-1;(idx[k]=idx[k]||[]).push(ni);used.add(ni);added++;}
     });
     cr.updatedAt=new Date().toISOString();
     await crmPut(cr);names.push(name);
