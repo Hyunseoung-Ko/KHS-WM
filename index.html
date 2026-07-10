@@ -28,6 +28,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
   font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
 button{font-family:inherit;cursor:pointer}
 input{font-family:inherit}
+input::placeholder,textarea::placeholder{color:#C5CCD6;opacity:1}   /* 예시글자는 흐리게 — 입력값과 혼동 방지 */
 .hidden{display:none!important}
 ::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-thumb{background:#C4CCD8;border-radius:8px}
@@ -1647,7 +1648,10 @@ function crmBody(c){
 /* ----- 고객 상세: 가입 보험 계약 카드 ----- */
 function insCtRow(ct,cname){
   if(ct&&!ct.id)ct.id=newCtId();   // 방어: id 없는 계약이 렌더되면 즉시 부여(편집→중복 버그 방지)
-  const sub=[esc(ct.insurer),ct.contractDate,ct.insured&&ct.insured!==cname?'피 '+esc(ct.insured):'',ct.payYears?esc(ct.payYears)+'년납':'',ct.maturity?esc(ct.maturity):'',ct.policyNo?'증권 '+esc(ct.policyNo):'',ct.agent&&norm(ct.agent)!==norm(FC_NAME)?'⚠타설계사 '+esc(ct.agent):''].filter(Boolean).join(' · ');
+  const sub=[esc(ct.insurer),ct.contractDate,
+    ct.contractor&&norm(baseNameOf(ct.contractor))!==norm(baseNameOf(cname))?'계약 '+esc(ct.contractor):'',   // 배우자·법인 등 고객이 관리하는 타명의 계약 표시
+    ct.insured&&norm(baseNameOf(ct.insured))!==norm(baseNameOf(ct.contractor||cname))?'피 '+esc(ct.insured):'',
+    ct.payYears?esc(ct.payYears)+'년납':'',ct.maturity?esc(ct.maturity):'',ct.policyNo?'증권 '+esc(ct.policyNo):'',ct.agent&&norm(ct.agent)!==norm(FC_NAME)?'⚠타설계사 '+esc(ct.agent):''].filter(Boolean).join(' · ');
   return `<div class="ins-ct" data-ctid="${esc(ct.id)}">
     <div class="ins-ct-main"><div class="ins-ct-nm">${esc(ct.product||'-')} ${insStatusTag(ct.status)}</div>
       <div class="ins-ct-sub">${sub||'-'}</div></div>
@@ -1707,8 +1711,8 @@ function insReadForm(){const ctor=$('#if_ctor').value.trim();return {contractor:
 async function insUpdateContract(name,id,base){
   const cr=CRM[name];if(!cr)return;const i=(cr.contracts||[]).findIndex(x=>x.id===id);if(i<0)return;
   const old=cr.contracts[i];const upd=newContract({...old,...base,id:old.id,createdAt:old.createdAt});autoFlagAgent(upd);
-  if(norm(upd.contractor)!==norm(name)){cr.contracts.splice(i,1);cr.updatedAt=new Date().toISOString();await crmPut(cr);await saveParsedContracts([upd]);}
-  else{cr.contracts[i]=upd;cr.updatedAt=new Date().toISOString();await crmPut(cr);if(syncOn())syncNow(true);}
+  // 계약자명이 달라도(배우자·법인 계약) 이 고객 소속 유지 — 이름 기준으로 다른 레코드에 옮기지 않는다
+  cr.contracts[i]=upd;cr.updatedAt=new Date().toISOString();await crmPut(cr);if(syncOn())syncNow(true);
 }
 function refreshInsAfter(){gcBuild();if(inDetail&&currentClientName&&curCustomers()[currentClientName])openClient(currentClientName);else if(curView==='clients')renderClients();else if(curView==='gcal')renderGcal();else render();}
 async function insSave(){
@@ -1717,13 +1721,13 @@ async function insSave(){
     if(!base.contractor){toast('계약자를 입력하세요');return;}
     if(!base.product){toast('보험명을 입력하세요');return;}
     if(insEditId){await insUpdateContract(insModalName,insEditId,base);toast('수정됨');closeInsModal();refreshInsAfter();return;}
-    const r=await saveParsedContracts([newContract(base)]);toast(`저장됨 · 신규 ${r.added} · 통합 ${r.merged}`);
+    const r=await saveParsedContracts([newContract(base)],insModalName);toast(`저장됨 · 신규 ${r.added} · 통합 ${r.merged}`);
     if($('#if_continue').checked){['if_insurer','if_date','if_product','if_prem','if_years','if_maturity','if_policy','if_agent'].forEach(id=>$('#'+id).value='');$('#if_status').value='정상';refreshInsAfter();$('#if_product').focus();return;}
     closeInsModal();refreshInsAfter();return;
   }
   const list=insTab==='paste'?parseInsText($('#insPasteBox').value):insParsed;
   if(!list||!list.length){toast('가져올 계약이 없습니다 — 먼저 분석하세요');return;}
-  const r=await saveParsedContracts(list);closeInsModal();
+  const r=await saveParsedContracts(list,insModalName);closeInsModal();
   toast(`가져오기 완료 · 신규 ${r.added} · 통합 ${r.merged} · 고객 ${r.names.length}명`);refreshInsAfter();
 }
 async function insDelete(){
@@ -2124,10 +2128,21 @@ async function backfillContractIds(){
   for(const cr of changed)await crmPut(cr);
   return changed.length;
 }
-/* 파싱/입력된 계약 목록을 계약자별로 그룹지어 저장(중복은 매칭 통합) */
-async function saveParsedContracts(list){
+/* 계약자명 → 저장할 CRM 키 (모달 고객 지정이 없을 때만 쓰는 예비 라우팅)
+   같은 기본이름의 CRM이 정확히 1명이면 그 키로('김지연(81)' 접미사 키만 있을 때 새 맨이름 레코드 생성 방지), 그 외엔 이름 그대로 */
+function insRouteKey(ctor){
+  const b=baseNameOf(String(ctor||'').trim());
+  if(!CRM[b]){
+    const cands=Object.values(CRM).filter(cr=>cr&&cr.name&&((cr.baseName||baseNameOf(cr.name))===b));
+    if(cands.length===1)return cands[0].name;
+  }
+  return ctor||b;
+}
+/* 파싱/입력된 계약 목록 저장(중복은 매칭 통합)
+   targetName: 계약 추가 모달을 연 고객의 CRM 키 — 배우자·법인 등 계약자명이 달라도 전부 이 고객 밑에 저장(관리 주체 기준, 이름 라우팅 안 함) */
+async function saveParsedContracts(list,targetName){
   const byName={};
-  list.forEach(ct=>{autoFlagAgent(ct);const n=ct.contractor||'(무명)';(byName[n]=byName[n]||[]).push(ct);});
+  list.forEach(ct=>{autoFlagAgent(ct);const n=targetName||insRouteKey(ct.contractor)||'(무명)';(byName[n]=byName[n]||[]).push(ct);});
   let added=0,merged=0;const names=[];
   for(const name of Object.keys(byName)){
     const cr=ensureCrm(name);
