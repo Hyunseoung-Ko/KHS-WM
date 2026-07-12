@@ -2027,9 +2027,20 @@ function bindCrmForm(){
   $('#cfDelete').onclick=async()=>{
     if(!crmEditName)return;
     const nm=crmEditName;const hasAsset=!!(latest()&&latest().customers[nm]);
-    if(!confirm(dispName(nm)+' 고객을 삭제할까요?\n영업정보·보험계약이 삭제되고 다른 기기에서도 삭제됩니다.'+(hasAsset?'\n(한투 자산 스냅샷 기록은 남습니다)':'')))return;
-    CRMDEL[nm]=new Date().toISOString();await metaPut('crmDeleted',CRMDEL);   // 삭제 전파용 tombstone
-    await crmDel(nm);delete CRM[nm];$('#crmModal').classList.add('hidden');toast('삭제됨');
+    // 타명의(가족·법인) 계약 보관 고객 삭제 시 — 각 계약자 고객으로 이전 후 삭제 제안
+    const foreign=foreignContractsOf(nm);
+    let doTransfer=false;
+    if(foreign.length){
+      const ctors=[...new Set(foreign.map(ct=>String(ct.contractor||'').trim()))].join(', ');
+      doTransfer=confirm('이 고객에게 타명의 보험계약 '+foreign.length+'건이 있습니다 (계약자: '+ctors+').\n\n[확인] 계약을 각 계약자 고객으로 이전한 뒤 삭제를 진행합니다 (계약자 고객이 없으면 새로 등록됩니다)\n[취소] 이전하지 않습니다 — 다음 단계에서 계약까지 함께 삭제할지 결정합니다');
+    }
+    if(!confirm(dispName(nm)+' 고객을 삭제할까요?\n영업정보·보험계약이 삭제되고 다른 기기에서도 삭제됩니다.'
+      +(doTransfer?'\n(타명의 계약 '+foreign.length+'건은 계약자 고객으로 이전되어 보존됩니다)':(foreign.length?'\n(타명의 계약 '+foreign.length+'건도 함께 삭제됩니다)':''))
+      +(hasAsset?'\n(한투 자산 스냅샷 기록은 남습니다)':'')))return;
+    let movedMsg='';
+    if(doTransfer){const r=await transferForeignContracts(nm);if(r.moved)movedMsg=' · 계약 '+r.moved+'건 이전 → '+r.targets.map(dispName).join(', ');}
+    CRMDEL[nm]=new Date().toISOString();await metaPut('crmDeleted',CRMDEL);   // 삭제 전파용 tombstone (이전 시각 이후라 이전분과 충돌 없음)
+    await crmDel(nm);delete CRM[nm];$('#crmModal').classList.add('hidden');toast('삭제됨'+movedMsg);
     if(syncOn())syncNow(true);
     if(hasAsset)openClient(nm);else if(inDetail)backFromDetail();else render();
   };
@@ -2233,6 +2244,40 @@ async function saveParsedContracts(list,targetName){
   }
   if(syncOn())syncNow(true);
   return {added,merged,names};
+}
+
+/* ---------- 타명의(가족·법인) 계약 이전 ----------
+   대표 상담자였던 고객을 정리(삭제)할 때, 계약자명이 다른 계약을 각 계약자 고객으로 옮겨 보존한다. */
+/* 이 고객이 보관 중인 타명의 계약 — 계약자 기본이름이 고객 기본이름과 다른 계약 */
+function foreignContractsOf(name){
+  const cr=CRM[name];
+  return ((cr&&cr.contracts)||[]).filter(ct=>{
+    const c0=String(ct.contractor||'').trim();
+    return !!c0&&norm(baseNameOf(c0))!==norm(baseNameOf(name));
+  });
+}
+/* 타명의 계약을 각 계약자 고객으로 이전 (계약자 고객이 없으면 생성 — 동명이인 접미사 키 라우팅).
+   원본에는 tombstone(delContracts)을 남겨 동기화의 옛 사본이 계약을 되살리지 않게 한다. */
+async function transferForeignContracts(name){
+  const cr=CRM[name];if(!cr)return {moved:0,targets:[]};
+  const foreign=foreignContractsOf(name);
+  if(!foreign.length)return {moved:0,targets:[]};
+  const byT={};
+  foreign.forEach(ct=>{const t=insRouteKey(ct.contractor);(byT[t]=byT[t]||[]).push(ct);});
+  const now=new Date().toISOString();
+  for(const t of Object.keys(byT)){
+    const tcr=ensureCrm(t);
+    byT[t].forEach(ct=>{if(!ct.id)ct.id=newCtId();ct.updatedAt=now;tcr.contracts.push(ct);});
+    tcr.updatedAt=now;
+    await crmPut(tcr);CRM[t]=tcr;
+  }
+  const moved=new Set(foreign);
+  cr.delContracts=cr.delContracts||{};
+  foreign.forEach(ct=>{cr.delContracts['I:'+ct.id]=now;});
+  cr.contracts=(cr.contracts||[]).filter(ct=>!moved.has(ct));
+  cr.updatedAt=now;
+  await crmPut(cr);CRM[name]=cr;
+  return {moved:foreign.length,targets:Object.keys(byT)};
 }
 
 /* ---------- 붙여넣기 파서 (자동 판별) ---------- */
@@ -3377,6 +3422,7 @@ function renderHelp(){
         <li><b>고객</b> — 한투·보험 고객을 한 화면에서. 채널 칩(전체/한투/보험/양쪽)으로 필터. 양쪽 고객은 배지 2개.</li>
         <li><b>홈 · 오늘 연락</b> — 한투·보험을 통합한 연락 스케줄(2026-07-13 시작). 기본 주기는 한투 분기(3개월)·보험 반기(6개월) — 보험은 카톡 정보 발송이 별도라 전화 주기를 여유있게 둡니다. <b>고객별 주기</b>는 ✏️편집 또는 패스 창에서 3·6·9개월/1년/2년/연락 거절로 바꿀 수 있습니다(거절은 목록엔 남고 연락일정에서만 빠짐). <b>오늘·밀린 연락 대상만 표시</b>되고, 이번 달 예정 고객은 연락일이 되면 나타납니다. 보험은 고객 상세에서 채널 '보험'을 체크하면 통합 스케줄에 자동 배정(이름순 주기 슬롯·영업일 분산)되고 연락이력이 반영됩니다.</li>
         <li><b>👥 동명이인</b> — 같은 이름이라도 생년월일·전화번호가 다르면 신규 등록 시 <b>별도 고객으로 구분 등록</b>됩니다. 목록·상세에는 같은 이름으로 표시되며 <b>생년월·👥 배지</b>로 구분합니다. 각 고객의 ✏️편집에서 <b>한투 종합계좌번호</b>를 등록하면 자산 업로드 시 계좌번호로 자동 배분되고, 미등록 계좌가 있으면 업로드할 때 배분 확인 창이 뜹니다.</li>
+        <li><b>👨‍👩‍👧 가족 계약 이전</b> — 가족·법인 계약을 대신 보관하던 대표 상담자 고객을 삭제할 때, 타명의 계약을 <b>각 계약자 고객으로 이전한 뒤 삭제</b>할 수 있습니다(✏️편집 → 삭제에서 자동 안내). 계약자 고객이 없으면 새로 등록되고, 동명이인은 접미사 키로 정확히 라우팅됩니다.</li>
         <li><b>리포트</b> — 보장분석/제안/가이드 HTML을 toss-reports에 배포·공유링크 생성. 목록에서 <b>항목을 누르면 바로 열림</b>. 고객 연결은 <b>고객 상세</b>에서 합니다.</li>
         <li><b>최초 1회</b> — 설정·백업의 <b>📥 보험 고객 가져오기</b>로 기존 보험 고객을 통합 CRM으로 이전(이름 기준 한투와 병합).</li>
         <li><b>저장·동기화</b> — 모든 고객정보는 E2EE 암호화로 데이터 repo에 동기화(보험 포함). 리포트/보험가져오기는 toss-reports 토큰 사용.</li>
