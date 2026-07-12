@@ -886,7 +886,7 @@ const num=v=>{if(typeof v==='number')return v;const n=parseFloat(String(v||'').r
 const won=v=>Math.round(v).toLocaleString('ko-KR')+'원';
 const eok=v=>{const a=Math.abs(v);if(a>=1e8)return(v/1e8).toFixed(2)+'억';if(a>=1e4)return Math.round(v/1e4).toLocaleString()+'만';return Math.round(v).toLocaleString();};
 const pct=v=>(v>0?'+':'')+v.toFixed(1)+'%';
-const dnorm=s=>{s=String(s||'').trim().replace(/^[\[\(]+\s*/,'').replace(/\s*[\]\)]+$/,'');if(!s)return '';const m=s.replace(/[.]/g,'/').match(/(\d{4})\/?(\d{1,2})\/?(\d{1,2})?/);if(!m)return s;return m[1]+'-'+String(m[2]).padStart(2,'0')+(m[3]?'-'+String(m[3]).padStart(2,'0'):'');};   // [2016-06-22] 대괄호 표기도 정규화
+const dnorm=s=>{s=String(s||'').trim().replace(/^[\[\(]+\s*/,'').replace(/\s*[\]\)]+$/,'');if(!s)return '';const m=s.replace(/[.\-]/g,'/').match(/(\d{4})\/?(\d{1,2})\/?(\d{1,2})?/);if(!m)return s;return m[1]+'-'+String(m[2]).padStart(2,'0')+(m[3]?'-'+String(m[3]).padStart(2,'0'):'');};   // [2016-06-22] 대괄호 표기 + '2026-7-5' 하이픈 한 자리도 정규화
 /* 날짜 입력칸: 숫자만 받아 YYYY-MM-DD 로 자동 하이픈(연도 4자리 고정) + 붙여넣기(어떤 형식이든 정규화) */
 function fmtDateTyping(v){const d=String(v||'').replace(/\D/g,'').slice(0,8);
   if(d.length<=4)return d;if(d.length<=6)return d.slice(0,4)+'-'+d.slice(4);
@@ -1006,6 +1006,17 @@ function dupCrmKey(nm,birth){
   const cand=[];if(yy)cand.push(`${nm}(${yy})`);for(let i=2;i<10;i++)cand.push(`${nm}(${i})`);
   const taken=k=>CRM[k]||(latest()&&latest().customers[k]);
   return cand.find(k=>!taken(k))||`${nm}(${Date.now()%1000})`;
+}
+/* 엑셀·외부 가져오기의 이름 → 기존 CRM 키 라우팅 — 맨이름 레코드가 없고 동명이인 접미사 레코드만 있으면
+   그쪽으로 보냄(중복 맨이름 레코드 생성 방지). 여럿이면 생년월로 식별, 식별 불가면 이름 그대로 */
+function routeCrmName(nm,birth){
+  if(CRM[nm])return nm;
+  const sibs=Object.values(CRM).filter(cr=>cr&&cr.name!==nm&&(cr.baseName||baseNameOf(cr.name))===nm);
+  if(!sibs.length)return nm;
+  if(sibs.length===1)return sibs[0].name;
+  const bk=ymKey(birth);
+  if(bk){const hits=sibs.filter(cr=>cr.birth&&ymKey(cr.birth)===bk);if(hits.length===1)return hits[0].name;}
+  return nm;
 }
 /* 표시 이름 — 내부 키의 (78) 접미사를 숨기고, 동명이인은 생년월을 곁들여 구분 */
 function dispName(n){return baseNameOf(String(n||''))||String(n||'');}
@@ -1516,6 +1527,10 @@ function buildAccounts(c){
     if(p.category==='현금성자산')a.cash+=p.eval;
   });
   const arr=Object.values(accts);
+  // 퇴직연금 등 계약별 파일이 있는 계좌는 납입원금(a)을 원금으로 사용 — 상품별 매입원금 합은
+  // 매매·재투자로 부풀려져 계좌 수익률을 왜곡함 (custPrincipal의 고객 총계와 동일 기준)
+  const cpr={};(c.accounts||[]).forEach(x=>{const k=parseAcct(x.account).key;if(!k)return;cpr[k]=(cpr[k]||0)+(x.principal||0);});
+  arr.forEach(a=>{if(cpr[a.key]!=null)a.principal=cpr[a.key];});
   // 상품계좌명 확정 — 코드 우선, 없으면 대표(최대) 상품의 카테고리로 추론
   arr.forEach(a=>{
     const top=a.products.slice().sort((x,y)=>y.eval-x.eval)[0];
@@ -1778,6 +1793,7 @@ async function insDelete(){
 }
 function bindInsModal(){
   const md=$('#insModal');if(!md||md._bound)return;md._bound=1;
+  md._esc=closeInsModal;   // ESC·스와이프 뒤로가기도 취소로 처리(임시 파일·파싱 상태 정리)
   $('#insClose').onclick=$('#insCancel').onclick=closeInsModal;
   bindDateInput($('#if_date'));
   $('#insTabs').querySelectorAll('button').forEach(b=>b.onclick=()=>setInsTab(b.dataset.it));
@@ -1787,7 +1803,7 @@ function bindInsModal(){
   drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag');};
   drop.ondragleave=()=>drop.classList.remove('drag');
   drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');for(const f of e.dataTransfer.files)insPendingFiles.push(f);insShowChips();insParseFiles();};
-  $('#insFileInput').onchange=e=>{for(const f of e.target.files)insPendingFiles.push(f);insShowChips();insParseFiles();};
+  $('#insFileInput').onchange=e=>{for(const f of e.target.files)insPendingFiles.push(f);e.target.value='';insShowChips();insParseFiles();};
   $('#insSave').onclick=insSave;$('#insDelete').onclick=insDelete;
 }
 function openInsModal(name,editId){
@@ -1927,7 +1943,7 @@ function openCrmForm(name){
   crmEditName=name||null;const cr=name?CRM[name]:null;const c=name?curCustomers()[name]:null;
   $('#cfTitle').textContent=name?dispName(name)+' · 정보 편집':'신규 고객 추가';
   const nf=$('#cf_name');nf.value=name?dispName(name):'';nf.readOnly=!!name;nf.style.background=name?'#F8F9FA':'';
-  const bd=(cr&&cr.birth)||(c&&/^\d{4}-\d{2}-\d{2}/.test(c.birth||'')?(c.birth||'').slice(0,10):'')||'';
+  const bd=(cr&&cr.birth)||((c&&/^\d{4}-\d{2}-\d{2}/.test(c.birth||''))?(c.birth||'').slice(0,10):'')||'';   // 괄호 필수 — a||b?x:y 는 (a||b)?x:y 로 파싱됨
   $('#cf_birth').value=/^\d{4}-\d{2}(-\d{2})?$/.test(bd)?bd:'';   // YYYY-MM(일 없음)도 다시 표시
   $('#cf_gender').value=(cr&&cr.gender)||(c&&c.gender)||'';
   $('#cf_phone').value=cr?cr.phone||'':'';
@@ -2036,10 +2052,12 @@ async function importCrmExcel(file){
   let n=0;
   for(const r of rows.slice(2)){
     const nm=String(cell(r,I.name)||'').trim();if(!nm)continue;
-    const ex=CRM[nm]||{};const pe=ex.prod||{};
+    const key=routeCrmName(nm,I.birth>=0?fmtDate(cell(r,I.birth)):'');   // 동명이인 접미사 키로 라우팅(맨이름 중복 레코드 방지)
+    const ex=CRM[key]||{};const pe=ex.prod||{};
     const flag=k=>I[k]>=0?truthy(cell(r,I[k])):!!pe[k];
     const sv=(i,fb)=>{const x=String(cell(r,i)||'').trim();return x||fb||'';};
-    const rec={name:nm,birth:I.birth>=0?fmtDate(cell(r,I.birth)):(ex.birth||''),
+    // {...ex} 스프레드로 kisAccts·dormant·baseName·contracts·delContracts 등 기존 필드 보존 — 재실행 시 유실 방지
+    const rec={...ex,name:key,birth:I.birth>=0?fmtDate(cell(r,I.birth)):(ex.birth||''),
       gender:sv(I.gender,ex.gender),phone:sv(I.phone,ex.phone),company:sv(I.company,ex.company),
       sido:sv(I.sido,ex.sido),sigungu:sv(I.sigungu,ex.sigungu),dong:sv(I.dong,ex.dong),
       riskType:sv(I.risk,ex.riskType),pension:flag('pension'),
@@ -2047,7 +2065,7 @@ async function importCrmExcel(file){
       memo:sv(I.memo,ex.memo),lastContact:ex.lastContact||'',cycle:ex.cycle||'',
       channels:[...new Set([...(ex.channels||[]),'한투'])],anchorMonth:ex.anchorMonth||null,history:ex.history||[],passes:ex.passes||[],linkIds:ex.linkIds||[],
       updatedAt:new Date().toISOString()};
-    await crmPut(rec);CRM[nm]=rec;n++;
+    await crmPut(rec);CRM[key]=rec;n++;
   }
   toast('CRM '+n+'명 가져옴 · 보험고객 시트 제외');render();if(syncOn())syncNow(true);
 }
@@ -2578,7 +2596,7 @@ function renderStrategy(){
     desc=started
       ? `기본 한투 분기(3개월)·보험 반기(6개월) 1회 · 고객별 주기 설정 가능(고객 편집) · 영업일 분산 · 오늘·밀린 대상만 표시(예정 ${up.length}명은 연락일에 표시 · 완료 ${done.length}명) · 통화 후 [✓연락완료]`
       : `영업 진행은 2026-07-13(월)부터 시작됩니다 · 한투(분기)+보험(반기) 고객이 영업일 기준으로 자동 배분됩니다`;
-    const md=c=>`${TM}/${c._day}`;
+    const md=c=>{const p=String(c._dateIso||'').split('-');return (+p[1]||TM)+'/'+(+p[2]||c._day);};   // 이월(지난달) 도래분은 그 달로 표기
     const statusTag=c=>c._st==='overdue'?`<span class="tag" style="background:#FDECEE;color:#E0344B">${md(c)} 지남</span>`
       :c._st==='today'?`<span class="tag" style="background:#FCF3E0;color:#C98A0B">오늘 연락</span>`
       :c._st==='upcoming'?`<span class="tag" style="background:#EEF3FF;color:#3182F6">${md(c)} 예정</span>`
@@ -2856,15 +2874,14 @@ function contactCycle(c){
 function cycleLabel(v){return v==='no'?'연락 거절':+v===12?'1년':+v===24?'2년':v?v+'개월':'기본';}
 /* 달력 월의 주기 슬롯(0~cyc-1) — 2026-07을 0으로 기준 */
 function monthSlot(y,m,cyc){const idx=(y-2026)*12+(m-1)-6;return ((idx%cyc)+cyc)%cyc;}
-/* 고객별 주기 슬롯 — 유효 주기(기본: 한투3·보험6, 고객별 설정 우선)별로 균등 배분(이름순·안정) */
+/* 고객별 주기 슬롯 — 이름 해시 기반 고정 슬롯.
+   (구버전 이름순 인덱스 배분은 고객 추가·삭제·주기 변경이 다른 모든 고객의 슬롯을 밀어
+    방금 연락한 고객이 조기 재도래하거나 최대 2배 주기로 벌어지는 문제가 있었음) */
+function nameSlot(name,cyc){let h=0;for(const ch of String(name))h=(h*31+ch.charCodeAt(0))>>>0;return h%cyc;}
 function customerSlots(){
-  const all=Object.values(curCustomers()).filter(c=>c.crm&&!c.crm.dormant&&contactCycle(c)!=null);
-  const byCyc={};
-  all.forEach(c=>{const cyc=contactCycle(c);(byCyc[cyc]=byCyc[cyc]||[]).push(c);});
   const map={};
-  Object.entries(byCyc).forEach(([cyc,list])=>{
-    list.sort((a,b)=>a.name.localeCompare(b.name,'ko')).forEach((c,i)=>{map[c.name]=i%(+cyc);});
-  });
+  Object.values(curCustomers()).filter(c=>c.crm&&!c.crm.dormant&&contactCycle(c)!=null)
+    .forEach(c=>{map[c.name]=nameSlot(c.name,contactCycle(c));});
   return map;
 }
 function unifiedLastContact(c){const a=insLastContact(c)||'',b=(c.crm&&c.crm.lastContact)||'';return a>b?a:b;}
@@ -2894,6 +2911,28 @@ function unifiedDue(){
     c._passed=passedRecently&&!contactedRecently;   // 실접촉 없이 패스만 있으면 '패스'로 표시
     c._doneCycle=contactedRecently||passedRecently;
     c._st=c._doneCycle?'done':c._dateIso<TODAY?'overdue':c._dateIso===TODAY?'today':'upcoming';
+  });
+  // 지난 슬롯 월을 놓친 고객 이월 — 주기 내 접촉·패스가 없으면 overdue로 계속 노출
+  // (기존엔 그 달이 지나면 목록·홈 카운터에서 사라져 다음 주기(최대 24개월)까지 실종됐음)
+  const dueSet=new Set(ordered.map(c=>c.name));
+  all.forEach(c=>{
+    if(dueSet.has(c.name))return;
+    const cyc=contactCycle(c);
+    const delta=(monthSlot(TY,TM,cyc)-slot[c.name]+cyc)%cyc;
+    if(delta===0)return;                                        // 이번 달 코호트(위에서 처리)
+    const dm=new Date(TY,TM-1-delta,1);
+    if(insIso(dm).slice(0,7)<PROGRAM_START.slice(0,7))return;   // 프로그램 시작 전 도래분 제외
+    const cycleFrom=addMonths(TODAY,-cyc);
+    const lc=unifiedLastContact(c);
+    if(lc&&lc>=cycleFrom)return;
+    if((c.crm.passes||[]).some(p=>p.date>=cycleFrom))return;
+    const my=dm.getFullYear(),mm=dm.getMonth()+1;
+    let mbd=insBizDaysOfMonth(my,mm).filter(day=>insIso(new Date(my,mm-1,day))>=PROGRAM_START);
+    if(!mbd.length)mbd=insBizDaysOfMonth(my,mm);
+    const day=mbd.length?mbd[mbd.length-1]:new Date(my,mm,0).getDate();   // 그 달 마지막 영업일로 표기
+    c._day=day;c._dateIso=insIso(new Date(my,mm-1,day));
+    c._passed=false;c._doneCycle=false;c._st='overdue';
+    ordered.push(c);
   });
   return ordered;
 }
@@ -3305,7 +3344,7 @@ async function clnRun(){
       REP_CATS.forEach(c=>{if(Array.isArray(d[c]))d[c]=d[c].filter(x=>!done.includes(x));});
       await tossPutRetry('reports.json',utf8ToB64(JSON.stringify(d,null,2)),'reports.json: -'+done.length,j.sha);log('✓ reports.json 갱신','ok');
     }catch(e){log('✗ reports.json — '+(e.message||e),'err');}
-    let changed=false;Object.values(CRM).forEach(cr=>{if(cr.linkIds&&cr.linkIds.some(x=>done.includes(x))){cr.linkIds=cr.linkIds.filter(x=>!done.includes(x));cr.updatedAt=new Date().toISOString();crmPut(cr);changed=true;}});
+    let changed=false;for(const cr of Object.values(CRM)){if(cr.linkIds&&cr.linkIds.some(x=>done.includes(x))){cr.linkIds=cr.linkIds.filter(x=>!done.includes(x));cr.updatedAt=new Date().toISOString();await crmPut(cr);changed=true;}}
     if(changed&&syncOn())syncNow(true);
   }
   card.innerHTML+=`<div class="modal-btns"><button class="btn primary sm" onclick="closeRepModal();reportsLoaded=false;if(curView==='reports')renderReports()">완료</button></div>`;
@@ -3321,7 +3360,7 @@ async function repDelete(file,type){
     REP_CATS.forEach(c=>{if(Array.isArray(d[c]))d[c]=d[c].filter(x=>x!==file);});
     await tossPutRetry('reports.json',utf8ToB64(JSON.stringify(d,null,2)),'reports.json: -'+file,j.sha);
     // 고객 연결 해제
-    let changed=false;Object.values(CRM).forEach(cr=>{if(cr.linkIds&&cr.linkIds.includes(file)){cr.linkIds=cr.linkIds.filter(x=>x!==file);cr.updatedAt=new Date().toISOString();crmPut(cr);changed=true;}});
+    let changed=false;for(const cr of Object.values(CRM)){if(cr.linkIds&&cr.linkIds.includes(file)){cr.linkIds=cr.linkIds.filter(x=>x!==file);cr.updatedAt=new Date().toISOString();await crmPut(cr);changed=true;}}
     if(changed&&syncOn())syncNow(true);
     toast('삭제됨');reportsLoaded=false;renderReports();
   }catch(e){toast('삭제 실패: '+(e.message||e));}
@@ -3461,7 +3500,7 @@ function bindUpload(){
   drop.ondragover=e=>{e.preventDefault();drop.classList.add('drag');};
   drop.ondragleave=()=>drop.classList.remove('drag');
   drop.ondrop=e=>{e.preventDefault();drop.classList.remove('drag');addFiles(e.dataTransfer.files);};
-  $('#fileInput').onchange=e=>addFiles(e.target.files);
+  $('#fileInput').onchange=e=>{addFiles(e.target.files);e.target.value='';};   // 값 초기화 — 같은 파일 재선택 시 change 미발화 방지
   $('#btnReset').onclick=()=>{pendingFiles=[];showChips();};
   $('#btnUpload').onclick=doUpload;
   const ux=$('#upClose');if(ux)ux.onclick=()=>$('#uploadModal').classList.add('hidden');
@@ -3518,6 +3557,7 @@ function openAcctAssign(items){
     }).join('');
     const md=$('#acctModal');
     const done=v=>{md.classList.add('hidden');res(v);};
+    md._esc=()=>done(false);   // ESC·뒤로가기 = 배분 취소(업로드 중단) — 대기 Promise 방치 방지
     $('#aaCancel').onclick=()=>done(false);
     $('#aaSave').onclick=async()=>{
       const picks=[];
@@ -3751,11 +3791,13 @@ async function migrateInsurance(){
   let added=0,merged=0;
   for(const ic of data.customers){
     const nm=String(ic.name||'').trim();if(!nm)continue;
-    const ex=CRM[nm]||null;
+    const key=routeCrmName(nm,ic.birth||'');   // 동명이인 접미사 키로 라우팅
+    const ex=CRM[key]||null;
     const channels=new Set((ex&&ex.channels)||[]);channels.add('보험');
     const ih=Array.isArray(hist[ic.id])?hist[ic.id]:[];
     const mergedHist=[...new Set([...((ex&&ex.history)||[]),...ih])].sort();
-    const rec={name:nm,
+    // {...ex} 스프레드로 kisAccts·baseName 등 기존 필드 보존 — 재실행 시 유실 방지
+    const rec={...(ex||{}),name:key,
       birth:(ex&&ex.birth)||ic.birth||'',
       gender:(ex&&ex.gender)||ic.gender||'',
       phone:(ex&&ex.phone)||ic.phone||'',
@@ -3771,7 +3813,7 @@ async function migrateInsurance(){
       linkIds:(ex&&ex.linkIds)||[],contracts:(ex&&ex.contracts)||[],delContracts:(ex&&ex.delContracts)||{},dormant:!!(ex&&ex.dormant),
       updatedAt:new Date().toISOString()};
     if(ex)merged++;else added++;
-    await crmPut(rec);CRM[nm]=rec;
+    await crmPut(rec);CRM[key]=rec;
   }
   toast(`보험 고객 ${added}명 추가 · ${merged}명 병합(한투 고객과 통합)`);
   if(syncOn())syncNow(true);
@@ -3796,7 +3838,7 @@ function enhanceNavA11y(){
     a.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();a.click();}});
   });
 }
-const MODAL_IDS=['repModal','uploadModal','syncModal','logModal','crmModal','gcEvModal','gcInfoModal'];
+const MODAL_IDS=['repModal','uploadModal','syncModal','logModal','crmModal','insModal','acctModal','gcEvModal','gcInfoModal'];
 function openModalEl(){return MODAL_IDS.map(id=>document.getElementById(id)).find(m=>m&&!m.classList.contains('hidden'))||null;}
 function bindGlobal(){
   enhanceNavA11y();
@@ -3812,7 +3854,7 @@ function bindGlobal(){
   document.addEventListener('keydown',e=>{
     if(e.key!=='Escape')return;
     const open=openModalEl();
-    if(open){open.classList.add('hidden');return;}
+    if(open){if(open._esc)open._esc();else open.classList.add('hidden');return;}   // _esc = 모달별 취소 훅(대기 Promise·임시상태 정리)
     if($('#sidebar').classList.contains('open'))toggleDrawer(false);
   });
   $('#footToggle').onclick=()=>{const nowHidden=$('#footGroup').classList.toggle('hidden');$('#footToggle').classList.toggle('open',!nowHidden);};
@@ -3825,7 +3867,7 @@ function bindGlobal(){
   $('#repModal').addEventListener('click',e=>{if(e.target.id==='repModal')closeRepModal();});
   $('#crmFileInput').onchange=e=>{const f=e.target.files[0];if(f)importCrmExcel(f);e.target.value='';};
   $('#btnImport').onclick=()=>$('#importInput').click();
-  $('#importInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;
+  $('#importInput').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
     try{const data=JSON.parse(await f.text());if(!data.snapshots&&!data.crm)throw 0;
       DELDATES=mergeDelMap(DELDATES,data.deleted);await metaPut('deletedDates',DELDATES);
       CRMDEL=mergeDelMap(CRMDEL,data.crmDeleted);await metaPut('crmDeleted',CRMDEL);
@@ -3833,7 +3875,14 @@ function bindGlobal(){
       for(const c of (data.crm||[]))await crmPut(c);
       toast('복원 완료 · 스냅샷 '+(data.snapshots||[]).length+'개 · CRM '+(data.crm||[]).length+'명');reload();}
     catch(err){toast('복원 실패: 파일 형식 오류');}};
-  $('#btnWipe').onclick=async()=>{if(confirm('모든 스냅샷 + CRM(직접입력 영업정보)을 삭제합니다. 되돌릴 수 없습니다. (백업 권장)\n계속할까요?')){await idbClear();await new Promise(res=>{const t=db.transaction('crm','readwrite').objectStore('crm').clear();t.onsuccess=()=>res();});await metaClear();DELDATES={};CRMDEL={};toast('전체 삭제됨');reload();}};
+  $('#btnWipe').onclick=async()=>{
+    const wasSync=syncOn();
+    // 동기화가 켜진 채 로컬만 지우면 다음 동기화 때 원격 사본이 전부 복원됨 → 자동으로 꺼서 조용한 부활 방지
+    const syncNote=wasSync?'\n\n※ 동기화가 켜져 있어 원격(store.enc) 사본은 남습니다. 삭제 후 동기화는 자동으로 꺼지며, 다시 켜면 원격 데이터가 복원됩니다.':'';
+    if(!confirm('모든 스냅샷 + CRM(직접입력 영업정보)을 이 기기에서 삭제합니다. (백업 권장)'+syncNote+'\n계속할까요?'))return;
+    await idbClear();await new Promise(res=>{const t=db.transaction('crm','readwrite').objectStore('crm').clear();t.onsuccess=()=>res();});await metaClear();DELDATES={};CRMDEL={};
+    if(wasSync){const c=syncCfg()||{};c.enabled=false;localStorage.setItem(SYNC_KEY,JSON.stringify(c));setSyncDot('');}
+    toast('전체 삭제됨'+(wasSync?' · 동기화 꺼짐':''));reload();};
 }
 
 /* =========================================================
@@ -3855,7 +3904,23 @@ function gmeta(){if(!GMETA){try{GMETA=JSON.parse(localStorage.getItem(GMETA_KEY)
 function gmetaSave(patch){const m=gmeta();Object.assign(m,patch);m.updatedAt=new Date().toISOString();
   localStorage.setItem(GMETA_KEY,JSON.stringify(m));
   if(syncOn()){clearTimeout(gmetaSave._t);gmetaSave._t=setTimeout(()=>syncNow(true),1500);}}
-function mergeGmeta(a,b){if(!a)return b||null;if(!b)return a;return ((a.updatedAt||'')>=(b.updatedAt||''))?a:b;}
+/* gmeta 병합 — hiddenCals 등 설정은 updatedAt 최신 승리, 수동 일정(manualEvents)은 id 단위
+   union(항목별 up 최신 승리) + delEvents tombstone 적용. 구버전(객체 통째 최신 승리)은
+   두 기기에서 각각 일정을 추가하면 한쪽이 통째로 유실됐음 */
+function mergeGmeta(a,b){
+  if(!a)return b||null;if(!b)return a;
+  const newer=((a.updatedAt||'')>=(b.updatedAt||''))?a:b,older=newer===a?b:a;
+  const out={...newer};
+  const del={...(older.delEvents||{})};
+  Object.entries(newer.delEvents||{}).forEach(([k,ts])=>{if(!del[k]||ts>del[k])del[k]=ts;});
+  const m={};
+  [...(older.manualEvents||[]),...(newer.manualEvents||[])].forEach(ev=>{
+    if(!ev||!ev.id)return;const ex=m[ev.id];
+    if(!ex||(ev.up||'')>=(ex.up||''))m[ev.id]=ev;});
+  out.manualEvents=Object.values(m).filter(ev=>{const t=del[ev.id];return !(t&&t>=(ev.up||''));});   // 삭제시각 ≥ 항목 갱신시각이면 삭제 전파
+  if(Object.keys(del).length)out.delEvents=del;
+  return out;
+}
 function gmetaApplyRemote(r){const w=mergeGmeta(gmeta(),r);
   if(w&&w!==GMETA){GMETA=w;localStorage.setItem(GMETA_KEY,JSON.stringify(w));}return gmeta();}
 
@@ -4341,6 +4406,7 @@ function gcSaveEv(){
   if(!allday){const st=$('#gev_st').value||'09:00';let et=$('#gev_et').value||'';
     if(!et||(ed===sd&&et<=st))et=String(Math.min(23,+st.slice(0,2)+1)).padStart(2,'0')+st.slice(2);
     rec.st=st;rec.et=et;}
+  rec.up=new Date().toISOString();   // 항목별 갱신시각 — 기기 간 병합(union)에서 최신본 판별용
   const list=manualEvents().slice();
   if(GC._ev&&GC._ev.id){rec.id=GC._ev.id;const i=list.findIndex(x=>x.id===GC._ev.id);if(i>=0)list[i]=rec;else list.push(rec);}
   else rec.id='m'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -4350,7 +4416,8 @@ function gcSaveEv(){
 }
 function gcDelEv(){if(!GC._ev||!GC._ev.id)return;
   if(!confirm('이 일정을 삭제할까요?'))return;
-  gmetaSave({manualEvents:manualEvents().filter(x=>x.id!==GC._ev.id)});
+  const del={...(gmeta().delEvents||{})};del[GC._ev.id]=new Date().toISOString();   // tombstone — 병합 union이 삭제 일정을 되살리지 않게
+  gmetaSave({manualEvents:manualEvents().filter(x=>x.id!==GC._ev.id),delEvents:del});
   $('#gcEvModal').classList.add('hidden');toast('삭제됨');renderGcal();}
 
 /* ---------- 도출 일정 상세 팝업 — 어떤 보험·사유인지 확인 + 고객 상세 이동 ---------- */
@@ -4561,7 +4628,7 @@ window.addEventListener('scroll',()=>{const bn=$('#bottomNav');if(!bn)return;con
 /* 왼쪽 엣지에서 오른쪽으로 스와이프 = 뒤로가기 */
 function goBack(){
   const open=openModalEl();
-  if(open){open.classList.add('hidden');return;}
+  if(open){if(open._esc)open._esc();else open.classList.add('hidden');return;}
   if($('#sidebar').classList.contains('open')){toggleDrawer(false);return;}
   if(inDetail){backFromDetail();return;}
   if(curView!=='home')setView('home');
