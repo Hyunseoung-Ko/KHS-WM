@@ -870,6 +870,36 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
     </div>
   </div>
 </div>
+<div id="workModal" class="modal hidden">
+  <div class="modal-card" style="max-width:470px">
+    <button class="modal-x" id="wkClose">✕</button>
+    <h3>업무 제외일 · 일정 재배정</h3>
+    <p class="msub" style="margin:0 0 14px">공휴일 외에 휴가·교육·경조사 등으로 연락 업무를 못 하는 날/기간을 지정하면, 그날 배정된 고객이 그 달 남은 영업일로 자동 순연됩니다.</p>
+
+    <label style="margin-top:0">업무 제외 기간 추가</label>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="wkStart" inputmode="numeric" placeholder="시작 YYYY-MM-DD" maxlength="10" autocomplete="off" style="flex:1;min-width:130px">
+      <span style="color:var(--sub);font-weight:700">~</span>
+      <input id="wkEnd" inputmode="numeric" placeholder="종료(선택·하루면 비움)" maxlength="10" autocomplete="off" style="flex:1;min-width:130px">
+    </div>
+    <input id="wkReason" placeholder="사유(선택) · 예: 여름휴가, 집합교육, 경조사" style="margin-top:8px" autocomplete="off">
+    <button class="btn primary sm" id="wkAdd" style="margin-top:10px;width:100%">+ 제외일 추가</button>
+    <div id="wkList" style="margin-top:12px"></div>
+
+    <hr style="border:none;border-top:1px solid var(--line);margin:18px 0 0">
+    <label>전체 재배정 — 이 날짜부터 다시 시작</label>
+    <p class="msub" style="margin:2px 0 8px">밀린 일정을 접고 지정한 날짜부터 모든 고객을 새로 배분합니다. 지정일 이전 도래분(밀림)은 표시되지 않습니다.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input id="wkRestart" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off" style="flex:1;min-width:130px">
+      <button class="btn primary sm" id="wkRestartSet">적용</button>
+      <button class="btn ghost sm" id="wkRestartClear">해제</button>
+    </div>
+
+    <div class="modal-btns">
+      <button class="btn ghost sm" id="wkDone">닫기</button>
+    </div>
+  </div>
+</div>
 <input type="file" id="reportFileInput" accept=".html,.htm" multiple class="hidden">
 <input type="file" id="insFileInput" accept=".xlsx,.xls,.csv" multiple class="hidden">
 
@@ -2718,6 +2748,19 @@ function srow(c,extra,tags){
   return `<div class="row" data-name="${esc(c.name)}"><div><div class="nm">${nameHtml(c)} <small>${c.acctPrefix||''}</small></div>
     <div class="tags">${tags||''}</div></div><div class="right">${extra||''}</div><span class="chev">›</span></div>`;
 }
+/* 오늘연락 탭 상단 도구줄 — 업무 제외일·재배정 요약 + 설정 진입 */
+function contactToolsBar(){
+  const offs=workOffRanges().filter(r=>(r.ed||r.sd)>=todayStr()).sort((a,b)=>String(a.sd).localeCompare(String(b.sd)));
+  const rs=String((gmeta().contactRestart)||'').trim();
+  const chips=[];
+  if(rs&&rs>PROGRAM_START)chips.push(`<span class="tag" style="background:#EAF1FE;color:#1B64DA;font-weight:700">↻ ${rs}부터 재시작</span>`);
+  offs.slice(0,3).forEach(r=>chips.push(`<span class="tag" style="background:#F1F3F5;color:#4E5968">🚫 ${r.sd.slice(5)}${(r.ed&&r.ed!==r.sd)?'~'+r.ed.slice(5):''}${r.reason?' '+esc(r.reason):''}</span>`));
+  if(offs.length>3)chips.push(`<span class="tag">외 ${offs.length-3}건</span>`);
+  return `<div class="card" style="padding:9px 12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:12px">
+    <span style="font-size:12.5px;font-weight:700;color:var(--sub2)">📅 업무 제외일·재배정</span>
+    ${chips.join('')||'<span class="tag">설정 없음</span>'}
+    <button class="btn ghost sm" id="btnWorkOff" style="margin-left:auto">설정 ›</button></div>`;
+}
 function renderStrategy(){
   const v=$('#view');const custs=curCustomers();const all=Object.values(custs);
   if(!all.length){v.innerHTML=emptyView();return;}
@@ -2726,7 +2769,8 @@ function renderStrategy(){
 
   if(stratTab==='contact'){
     const NOW=new Date();const TM=NOW.getMonth()+1;
-    const started=todayStr()>=PROGRAM_START;
+    const ES=effStart();
+    const started=todayStr()>=ES;
     const items=unifiedDue();
     const over=items.filter(c=>c._st==='overdue').sort((a,b)=>a._dateIso.localeCompare(b._dateIso));
     const tod=items.filter(c=>c._st==='today');
@@ -2736,7 +2780,7 @@ function renderStrategy(){
     const dueList=[...over,...tod];
     desc=started
       ? `기본 한투 분기(3개월)·보험 반기(6개월) 1회 · 고객별 주기 설정 가능(고객 편집) · 영업일 분산 · 오늘·밀린 대상만 표시(예정 ${up.length}명은 연락일에 표시 · 완료 ${done.length}명) · 통화 후 [✓연락완료]`
-      : `영업 진행은 2026-07-13(월)부터 시작됩니다 · 한투(분기)+보험(반기) 고객이 영업일 기준으로 자동 배분됩니다`;
+      : `영업 진행은 ${ES}부터 시작됩니다 · 한투(분기)+보험(반기) 고객이 영업일 기준으로 자동 배분됩니다`;
     const md=c=>{const p=String(c._dateIso||'').split('-');return (+p[1]||TM)+'/'+(+p[2]||c._day);};   // 이월(지난달) 도래분은 그 달로 표기
     const statusTag=c=>c._st==='overdue'?`<span class="tag" style="background:#FDECEE;color:#E0344B">${md(c)} 지남</span>`
       :c._st==='today'?`<span class="tag" style="background:#FCF3E0;color:#C98A0B">오늘 연락</span>`
@@ -2773,7 +2817,7 @@ function renderStrategy(){
         +(todRows?hdr(`📞 오늘 연락 (${todayN}명)`)+todRows:'');
     if(!rows)rows=dueList.length
       ?'<div class="empty" style="padding:10px">위 고객만 남음</div>'
-      :`<div class="empty">${started?`오늘·밀린 연락 대상이 없습니다${up.length?` · 이번 달 예정 ${up.length}명은 연락일에 표시됩니다`:''}${done.length?` · 완료 ${done.length}명`:''}`:'영업 진행은 2026-07-13(월)부터 시작됩니다'}</div>`;
+      :`<div class="empty">${started?`오늘·밀린 연락 대상이 없습니다${up.length?` · 이번 달 예정 ${up.length}명은 연락일에 표시됩니다`:''}${done.length?` · 완료 ${done.length}명`:''}`:`영업 진행은 ${ES}부터 시작됩니다`}</div>`;
   }
   else if(stratTab==='gap'){
     desc='현금성 자산 보유 고객(현금 많은 순) = 투자 권유 기회 · LMS = 권유문자 발송가능';
@@ -2878,9 +2922,11 @@ function renderStrategy(){
     <div class="ch-fls">${STRAT_GROUPS.map(([g])=>`<button class="ch-fl${sg[0]===g?' on':''}" data-sg="${g}">${g}${g==='연락'?`<span class="cfn${dueN>0?' hot':''}">${dueN}</span>`:''}</button>`).join('')}</div>
     ${sg[1].length>1?`<div class="toolbar"><div class="seg">${sg[1].map(t=>`<button data-t="${t}" class="${stratTab===t?'on':''}">${STRAT_TAB_LABEL[t]}</button>`).join('')}</div></div>`:''}
     <p class="page-sub">${desc}</p>
+    ${stratTab==='contact'?contactToolsBar():''}
     ${lead||''}
     <div class="card" style="padding:8px 14px"><div class="list">${rows||'<div class="empty">해당 고객 없음</div>'}</div></div>
   </div>`;
+  const bwo=$('#btnWorkOff');if(bwo)bwo.onclick=openWorkModal;
   v.querySelectorAll('.ch-fl').forEach(b=>b.onclick=()=>{const g=STRAT_GROUPS.find(x=>x[0]===b.dataset.sg);if(g){stratTab=g[1][0];renderStrategy();}});
   v.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{stratTab=b.dataset.t;renderStrategy();});
   v.querySelectorAll('.btn-contacted').forEach(b=>b.onclick=e=>{e.stopPropagation();contactDone(b.dataset.name);});
@@ -3005,6 +3051,19 @@ function insLastContact(c){const h=insHistory(c);return h.length?h[h.length-1]:n
 const PROGRAM_START='2026-07-13';
 const CYCLE_KIS=3,CYCLE_INS=6;   // 기본 연락 주기(개월) — 한투 분기 · 보험 반기
 const CYCLE_OPTS=[3,6,9,12,24];  // 고객별 설정 가능 주기
+/* ===== 업무 제외일(공휴일 외 개인 사정: 휴가·교육·경조사 등) + 전체 재배정 시작일 =====
+   gmeta.workOff = [{sd,ed,reason}] (단일일은 ed=sd) · gmeta.contactRestart = 'YYYY-MM-DD'
+   두 값 모두 store.enc(gmeta)로 기기 간 동기화. 연락 배정 시 제외일을 영업일 목록에서
+   빼면 그 자리 고객이 그 달 남은 영업일로 자동 순연된다. 재배정 시작일을 지정하면
+   그 날짜부터 다시 배분하고 이전 도래분(밀림)은 표시하지 않는다. */
+function workOffRanges(){const a=(gmeta().workOff)||[];return Array.isArray(a)?a.filter(r=>r&&r.sd):[];}
+function isWorkOff(iso){return workOffRanges().some(r=>iso>=r.sd&&iso<=(r.ed||r.sd));}
+function workOffReason(iso){const r=workOffRanges().find(r=>iso>=r.sd&&iso<=(r.ed||r.sd));return r?(r.reason||'업무 제외'):'';}
+/* 연락 배정용 영업일 = (주말·공휴일 제외) + 사용자 지정 업무 제외일 제외 */
+function contactBizDay(d){return insBizDay(d)&&!isWorkOff(insIso(d));}
+function contactBizDaysOfMonth(y,m){const out=[],last=new Date(y,m,0).getDate();for(let day=1;day<=last;day++){const d=new Date(y,m-1,day);if(contactBizDay(d))out.push(day);}return out;}
+/* 유효 연락 시작일 = 고정 시작(PROGRAM_START)과 사용자 재배정 시작일 중 나중 */
+function effStart(){const r=String((gmeta().contactRestart)||'').trim();return (r&&r>PROGRAM_START)?r:PROGRAM_START;}
 /* 고객의 유효 연락 주기(개월) — 거절('no')이면 null */
 function contactCycle(c){
   const v=c.crm&&c.crm.cycle;
@@ -3029,7 +3088,8 @@ function unifiedLastContact(c){const a=insLastContact(c)||'',b=(c.crm&&c.crm.las
 function unifiedDue(){
   const NOW=new Date();NOW.setHours(0,0,0,0);
   const TODAY=insIso(NOW);
-  if(TODAY<PROGRAM_START)return [];   // 영업 진행은 2026-07부터
+  const ES=effStart();                // 재배정 시작일 지정 시 그 날짜, 아니면 PROGRAM_START
+  if(TODAY<ES)return [];              // 시작(또는 재배정 시작) 전엔 대상 없음
   const TY=NOW.getFullYear(),TM=NOW.getMonth()+1,monthFirst=`${TY}-${insPad(TM)}-01`;
   const slot=customerSlots();
   const all=Object.values(curCustomers()).filter(c=>c.crm&&!c.crm.dormant&&contactCycle(c)!=null);
@@ -3038,8 +3098,11 @@ function unifiedDue(){
   const kis=due.filter(c=>hasChannel(c,'한투')).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   const ins=due.filter(c=>!hasChannel(c,'한투')).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   const ordered=[];for(let i=0;i<Math.max(kis.length,ins.length);i++){if(i<kis.length)ordered.push(kis[i]);if(i<ins.length)ordered.push(ins[i]);}
-  // 시작월(2026-07)은 PROGRAM_START(7/13 월) 이전 영업일 제외 — 그 전 날짜로 배정되지 않게
-  let bd=insBizDaysOfMonth(TY,TM).filter(day=>insIso(new Date(TY,TM-1,day))>=PROGRAM_START);
+  // 배정 영업일: 시작일 이후 + 업무 제외일(휴가 등) 제외 → 제외일 자리 고객은 그 달 남은 영업일로 순연
+  // (제외 후 남는 날이 없으면 공휴일만 제외한 영업일 → 그래도 없으면 전체 영업일로 폴백)
+  const inMonth=(days)=>days.filter(day=>insIso(new Date(TY,TM-1,day))>=ES);
+  let bd=inMonth(contactBizDaysOfMonth(TY,TM));
+  if(!bd.length)bd=inMonth(insBizDaysOfMonth(TY,TM));
   if(!bd.length)bd=insBizDaysOfMonth(TY,TM);
   const N=ordered.length;
   ordered.forEach((c,i)=>{
@@ -3062,13 +3125,15 @@ function unifiedDue(){
     const delta=(monthSlot(TY,TM,cyc)-slot[c.name]+cyc)%cyc;
     if(delta===0)return;                                        // 이번 달 코호트(위에서 처리)
     const dm=new Date(TY,TM-1-delta,1);
-    if(insIso(dm).slice(0,7)<PROGRAM_START.slice(0,7))return;   // 프로그램 시작 전 도래분 제외
+    if(insIso(dm).slice(0,7)<ES.slice(0,7))return;   // 시작(재배정) 월 이전 도래분 제외
     const cycleFrom=addMonths(TODAY,-cyc);
     const lc=unifiedLastContact(c);
     if(lc&&lc>=cycleFrom)return;
     if((c.crm.passes||[]).some(p=>p.date>=cycleFrom))return;
     const my=dm.getFullYear(),mm=dm.getMonth()+1;
-    let mbd=insBizDaysOfMonth(my,mm).filter(day=>insIso(new Date(my,mm-1,day))>=PROGRAM_START);
+    const inM=(days)=>days.filter(day=>insIso(new Date(my,mm-1,day))>=ES);
+    let mbd=inM(contactBizDaysOfMonth(my,mm));
+    if(!mbd.length)mbd=inM(insBizDaysOfMonth(my,mm));
     if(!mbd.length)mbd=insBizDaysOfMonth(my,mm);
     const day=mbd.length?mbd[mbd.length-1]:new Date(my,mm,0).getDate();   // 그 달 마지막 영업일로 표기
     c._day=day;c._dateIso=insIso(new Date(my,mm-1,day));
@@ -3095,6 +3160,58 @@ async function contactPass(name,reason){
   if(syncOn())syncNow(true);render();
 }
 window.contactPass=contactPass;
+/* ----- 업무 제외일 · 재배정 모달 ----- */
+function openWorkModal(){
+  bindDateInput($('#wkStart'));bindDateInput($('#wkEnd'));bindDateInput($('#wkRestart'));
+  $('#wkStart').value='';$('#wkEnd').value='';$('#wkReason').value='';
+  const rs=String((gmeta().contactRestart)||'').trim();
+  $('#wkRestart').value=(rs&&rs>PROGRAM_START)?rs:'';
+  renderWorkList();
+  $('#workModal').classList.remove('hidden');
+}
+window.openWorkModal=openWorkModal;
+function renderWorkList(){
+  const el=$('#wkList');if(!el)return;
+  const list=workOffRanges().slice().sort((a,b)=>String(a.sd).localeCompare(String(b.sd)));
+  if(!list.length){el.innerHTML='<div class="empty" style="padding:8px 4px">등록된 업무 제외일이 없습니다</div>';return;}
+  const t=todayStr();
+  el.innerHTML=list.map(r=>{const past=(r.ed||r.sd)<t;
+    return `<div class="row" style="cursor:default${past?';opacity:.5':''}"><div style="min-width:0">
+      <div class="nm" style="font-size:13.5px">${r.sd}${(r.ed&&r.ed!==r.sd)?' ~ '+r.ed:''}${past?' <span class="tag">지남</span>':''}</div>
+      ${r.reason?`<div style="font-size:12px;color:var(--sub);margin-top:2px">${esc(r.reason)}</div>`:''}</div>
+      <div class="right"><button class="btn ghost sm wk-del" data-sd="${esc(r.sd)}" data-ed="${esc(r.ed||r.sd)}" style="color:var(--rise)" aria-label="삭제">🗑</button></div></div>`;}).join('');
+  el.querySelectorAll('.wk-del').forEach(b=>b.onclick=()=>{
+    const sd=b.dataset.sd,ed=b.dataset.ed;
+    const next=workOffRanges().filter(r=>!(r.sd===sd&&(r.ed||r.sd)===ed));
+    gmetaSave({workOff:next});renderWorkList();afterScheduleChange();
+  });
+}
+/* 스케줄 설정 변경 후 관련 화면 갱신(모달은 그대로 유지) */
+function afterScheduleChange(){gcRefresh(true);if(['strategy','home','gcal'].includes(curView))render();}
+function bindWorkModal(){
+  const close=()=>$('#workModal').classList.add('hidden');
+  $('#wkClose').onclick=close;$('#wkDone').onclick=close;
+  bindDateInput($('#wkStart'));bindDateInput($('#wkEnd'));bindDateInput($('#wkRestart'));
+  $('#wkAdd').onclick=()=>{
+    let sd=dnorm($('#wkStart').value),ed=dnorm($('#wkEnd').value);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(sd)){toast('시작일을 YYYY-MM-DD로 입력하세요');return;}
+    if(ed&&!/^\d{4}-\d{2}-\d{2}$/.test(ed)){toast('종료일 형식을 확인하세요');return;}
+    if(ed&&ed<sd){const tmp=sd;sd=ed;ed=tmp;}   // 순서 뒤집힘 → 교정
+    const rng={sd,ed:ed||sd,reason:$('#wkReason').value.trim()};
+    const list=workOffRanges().filter(r=>!(r.sd===rng.sd&&(r.ed||r.sd)===rng.ed));   // 같은 기간 중복 방지
+    list.push(rng);
+    gmetaSave({workOff:list});
+    $('#wkStart').value='';$('#wkEnd').value='';$('#wkReason').value='';
+    toast('업무 제외일 추가됨 · 해당일 연락은 순연됩니다');renderWorkList();afterScheduleChange();
+  };
+  $('#wkRestartSet').onclick=()=>{
+    const d=dnorm($('#wkRestart').value);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){toast('재시작일을 YYYY-MM-DD로 입력하세요');return;}
+    if(d<PROGRAM_START){toast('재시작일은 '+PROGRAM_START+' 이후여야 합니다');return;}
+    gmetaSave({contactRestart:d});toast(d+'부터 전체 재배정');afterScheduleChange();
+  };
+  $('#wkRestartClear').onclick=()=>{gmetaSave({contactRestart:''});$('#wkRestart').value='';toast('재배정 해제 · 기본 일정으로 복귀');afterScheduleChange();};
+}
 /* 접촉 이력의 마지막 패스(사유) — 다음 연락 때 참고용 표시 */
 function lastPass(cr){const p=(cr&&cr.passes)||[];return p.length?p[p.length-1]:null;}
 function passTag(cr){const p=lastPass(cr);if(!p)return '';const r=p.reason?' · '+esc(p.reason):'';return `<span class="tag" style="background:#F2EEFB;color:#7C5CD6" title="패스 ${esc(p.date)}${r}">⏭ 패스 ${esc(p.date)}${r}</span>`;}
@@ -4000,7 +4117,7 @@ function bindGlobal(){
     if($('#sidebar').classList.contains('open'))toggleDrawer(false);
   });
   $('#footToggle').onclick=()=>{const nowHidden=$('#footGroup').classList.toggle('hidden');$('#footToggle').classList.toggle('open',!nowHidden);};
-  bindSync();bindCrmForm();bindLogModal();bindUpload();if(syncOn())setSyncDot('ok');
+  bindSync();bindCrmForm();bindLogModal();bindWorkModal();bindUpload();if(syncOn())setSyncDot('ok');
   $('#btnExport').onclick=doExport;
   $('#btnSecurity').onclick=doSecurity;
   $('#btnCrmImport').onclick=()=>$('#crmFileInput').click();
@@ -4042,7 +4159,7 @@ const GC_API='https://www.googleapis.com/calendar/v3';
 /* ---------- gmeta (대시보드 전용 메타 · updatedAt 최신 승리로 병합) ---------- */
 let GMETA=null;
 function gmeta(){if(!GMETA){try{GMETA=JSON.parse(localStorage.getItem(GMETA_KEY)||'null');}catch(e){GMETA=null;}
-  if(!GMETA)GMETA={v:1,updatedAt:'',hiddenCals:{},manualEvents:[]};}return GMETA;}
+  if(!GMETA)GMETA={v:1,updatedAt:'',hiddenCals:{},manualEvents:[],workOff:[],contactRestart:''};}return GMETA;}
 function gmetaSave(patch){const m=gmeta();Object.assign(m,patch);m.updatedAt=new Date().toISOString();
   localStorage.setItem(GMETA_KEY,JSON.stringify(m));
   if(syncOn()){clearTimeout(gmetaSave._t);gmetaSave._t=setTimeout(()=>syncNow(true),1500);}}
@@ -4111,6 +4228,7 @@ function gcBuild(){
   GC.cals=CAL_CATS.map(c=>({id:c.id,summary:c.name,backgroundColor:c.color,primary:false,selected:true,accessRole:c.derived?'reader':'owner',_derived:c.derived}));
   const evs={};CAL_CATS.forEach(c=>evs[c.id]=[]);
   buildContactEvents().forEach(e=>evs.contact.push(e));
+  buildWorkOffEvents().forEach(e=>evs.workoff.push(e));
   buildHolidayEvents().forEach(e=>evs.holiday.push(e));
   const cd=buildContractDerived();
   ['signup90','signup1y','signup2y','agechange','insmat'].forEach(k=>{(cd[k]||[]).forEach(e=>evs[k].push(e));});
@@ -4131,6 +4249,7 @@ function evTime(ev){if(!(ev.start&&ev.start.dateTime))return '';const d=new Date
    signup90/1y/2y·agechange·insmat(만기 1개월 전+당일) = 계약 기반 자동 도출(buildContractDerived) */
 const CAL_CATS=[
   {id:'contact',  name:'연락 예정',   color:'#3182F6', derived:true},
+  {id:'workoff',  name:'업무 제외',   color:'#94A3B8', derived:true},
   {id:'holiday',  name:'공휴일',      color:'#F04452', derived:true},
   {id:'signup90', name:'가입 90일',   color:'#15B370', derived:true},
   {id:'signup1y', name:'가입 후 1년', color:'#F7B23B', derived:true},
@@ -4163,6 +4282,16 @@ function buildContactEvents(){
       _cat:'contact', _derived:true, _name:c.name, _cust:c.name, _st:c._st});
   });
   return out;
+}
+/* 업무 제외일(휴가 등) — gmeta.workOff에서 연속 종일 바로 도출. 연락 배정 제외일 시각화 */
+function buildWorkOffEvents(){
+  const y=gcDate.getFullYear(),lo=(y-1)+'-01-01',hi=(y+2)+'-01-01';
+  return workOffRanges().filter(r=>r.sd<hi&&(r.ed||r.sd)>=lo).map(r=>({
+    id:'workoff::'+r.sd+'::'+(r.ed||r.sd),
+    summary:'🚫 업무 제외'+(r.reason?' · '+r.reason:''),
+    description:'연락 배정에서 제외되는 날입니다'+(r.reason?' · 사유: '+r.reason:''),
+    status:'confirmed', start:{date:r.sd}, end:{date:nextDay(r.ed||r.sd)},
+    _cat:'workoff', _derived:true}));
 }
 /* 공휴일 — HOLIDAYS(하드코딩+원격 병합)에서 종일 이벤트로 도출. 표시 범위(현재 년도 ±1) */
 function buildHolidayEvents(){
