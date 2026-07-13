@@ -196,6 +196,13 @@ input::placeholder,textarea::placeholder{color:#C5CCD6;opacity:1}   /* 예시글
 .acct-head .arate small{font-weight:600;font-size:10.5px;color:var(--sub)}
 .acct-head .acaret{color:var(--faint);font-size:12px;transition:transform .2s}
 .acct-head.open .acaret{transform:rotate(180deg)}
+.acct-head .acol{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:0}
+.acct-head .al1{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.acct-head .apl{font-size:11px;font-weight:600;color:var(--sub);white-space:nowrap}
+.acct-head .apl b{font-weight:700}
+/* 날짜별 스냅샷 — 원금 차액 클릭 시 고객별 변동 내역 */
+.snap-pd{background:var(--inset);border-radius:12px;margin:2px 0 8px;padding:2px 10px 6px}
+.snap-pd .row{padding:9px 4px}
 .acct-body{padding:2px 12px 6px}
 .acct-body.collapsed{display:none}
 .acct-empty{color:var(--sub);font-size:12.5px;padding:12px 4px}
@@ -388,7 +395,8 @@ html.m .gc-dn{width:18px;height:18px;font-size:10.5px}
 .gc-full .gc-center{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .gc-full .gc-mv{flex:1;display:flex;flex-direction:column;min-height:0}
 .gc-full .gc-mrow{flex:1 1 0;min-height:0}
-.gc-full .gc-mcell{overflow-y:auto}
+/* PC: 셀 최소높이 해제(행이 창 높이에 맞춰 줄어들 수 있게) + 넘침 숨김 — 노출량은 gcFitMonthCells가 결정 */
+html:not(.m) .gc-full .gc-mcell{min-height:0;overflow:hidden}
 .gc-full .gc-tg{flex:1;display:flex;flex-direction:column;min-height:0}
 .gc-full .gc-tg-body{flex:1;max-height:none;min-height:0}
 body.v-gcal #main{padding-bottom:0}
@@ -982,13 +990,18 @@ function acctName(code,sampleCat){
    동명이인은 CRM에 '이름(78)'처럼 접미사 키로 등록되고 baseName에 원래 이름을 보관.
    한투 엑셀에는 이름만 나오므로, CRM에 등록한 종합계좌번호(kisAccts)·생년월로 각 사람에게 배분한다. */
 function baseNameOf(n){return String(n||'').replace(/\s*\([^()]*\)\s*$/,'').trim();}
-/* 종합계좌번호 비교 — 마스킹(*)은 어느 쪽이든 와일드카드로 취급 */
+/* 종합계좌번호 비교 — 마스킹(*)은 어느 쪽이든 와일드카드로 취급.
+   길이가 달라도(부분 등록·형식 차이) 짧은 쪽 뒤를 와일드카드로 보고 비교 —
+   기존엔 길이가 다르면 무조건 불일치라 8자리 미만으로 등록된 계좌의 동명이인 배분이 조용히 실패했음.
+   오배정 방지를 위해 최소 5자는 있어야 함 */
 function acctMatch(a,b){
   a=String(a||'').trim();b=String(b||'').trim();
   if(!a||!b)return false;
   if(a===b)return true;
-  if(a.length!==b.length)return false;
-  for(let i=0;i<a.length;i++){if(a[i]!==b[i]&&a[i]!=='*'&&b[i]!=='*')return false;}
+  if(Math.min(a.length,b.length)<5)return false;
+  const n=Math.max(a.length,b.length);
+  a=a.padEnd(n,'*');b=b.padEnd(n,'*');
+  for(let i=0;i<n;i++){if(a[i]!==b[i]&&a[i]!=='*'&&b[i]!=='*')return false;}
   return true;
 }
 /* 생년 비교키(YYMM) — YYYY로 시작하면 세기 잘라내고, YYMMDD·YYMM은 앞 4자리 (형식이 달라도 연·월로 비교) */
@@ -1096,7 +1109,10 @@ function buildSnapshot(date, files){
     bump(o.branchCount,g(r,'관리점'));
     regAcct(o,g(r,'계좌번호'),'주식',{branch:g(r,'관리점'),openDate:dnorm(g(r,'신규일'))});
     const stock=num(g(r,'증권자산')),cash=num(g(r,'예수금'));
-    if(stock>0)o.products.push({category:'주식',name:'증권 위탁자산',code:'',eval:stock,principal:stock,profit:0,rate:0,account:String(g(r,'계좌번호')||''),branch:String(g(r,'관리점')||''),pb:'',openDate:dnorm(g(r,'신규일')),maturity:'',deposit:stock});
+    // 위탁 파일에 매입/손익/수익률 컬럼이 있으면 주식 원금·수익률 실계산 (없으면 원금=평가액, 수익률 표시 안 함)
+    const sPr=num(g(r,'매입금액'))||num(g(r,'매수금액')),sPf=num(g(r,'평가손익'))||num(g(r,'손익')),sRt=num(g(r,'수익률(%)'))||num(g(r,'수익률'));
+    const stPr=sPr>0?sPr:(sPf!==0?stock-sPf:(sRt!==0&&sRt>-100?stock/(1+sRt/100):stock));
+    if(stock>0)o.products.push({category:'주식',name:'증권 위탁자산',code:'',eval:stock,principal:Math.round(stPr),profit:Math.round(stock-stPr),rate:stPr>0?(stock-stPr)/stPr*100:0,account:String(g(r,'계좌번호')||''),branch:String(g(r,'관리점')||''),pb:'',openDate:dnorm(g(r,'신규일')),maturity:'',deposit:stock});
     if(cash>0)o.products.push({category:'현금성자산',name:'위탁 예수금',code:'',eval:cash,principal:cash,profit:0,rate:0,account:String(g(r,'계좌번호')||''),branch:String(g(r,'관리점')||''),pb:'',openDate:dnorm(g(r,'신규일')),maturity:'',deposit:cash});
   });});
   const isSummary=c=>!c||/합계|소계|총계|total/i.test(c);
@@ -1535,6 +1551,10 @@ function buildAccounts(c){
   arr.forEach(a=>{
     const top=a.products.slice().sort((x,y)=>y.eval-x.eval)[0];
     a.name=acctName(a.code,top?top.category:'');
+    // 원금정보 없는 위탁 주식(원금=평가액 자리표시)만 있는 계좌 → 수익률 0% 대신 '원금정보 없음' 표기용
+    const isPh=p=>p.category==='주식'&&!p.profit&&p.principal===p.eval;
+    const isCash=p=>p.category==='현금성자산';
+    a.noBasis=a.products.some(isPh)&&a.products.every(p=>isPh(p)||isCash(p));
   });
   // 같은 상품계좌명이 둘 이상(=종합계좌번호가 다른 별도 계좌)이면 대표 상품명을 덧붙여 구분
   const cnt={};arr.forEach(a=>{cnt[a.name]=(cnt[a.name]||0)+1;});
@@ -1557,12 +1577,15 @@ function acctBlock(a,idx,sdate){
   const amt=a.eval>0?`<span class="aamt">${won(a.eval)}</span>`:`<span class="azero">0원 계좌</span>`;
   const acctNo=a.jong?(a.jong+(a.code?'-'+a.code:'')):String(a.raw||'').trim();
   const sub=[acctNo,a.label||'',a.openDate?'개설 '+a.openDate:''].filter(Boolean).join(' · ');
-  // 계좌별 수익률(누적) + 연환산(개설일~기준일). 잔고·원금 있을 때만.
-  let rateHtml='';
-  if(a.eval>0&&a.principal>0){
-    const rate=(a.eval-a.principal)/a.principal*100;
+  // 계좌별 수익률(누적) + 연환산(개설일~기준일) + 투입원금·평가손익. 잔고·원금 있을 때만.
+  let rateHtml='',plHtml='';
+  if(a.eval>0&&a.principal>0&&!a.noBasis){
+    const rate=(a.eval-a.principal)/a.principal*100,pf=a.eval-a.principal;
     const ann=annualize(rate,yearsBetween(a.openDate,sdate));
     rateHtml=`<span class="arate ${rate>=0?'up':'down'}">${pct(rate)}${ann!=null?`<small>연환산 ${(ann>=0?'+':'')+ann.toFixed(1)}%</small>`:''}</span>`;
+    plHtml=`<span class="apl">원금 ${won(a.principal)} · 손익 <b class="${pf>=0?'up':'down'}">${pf>=0?'+':''}${won(pf)}</b></span>`;
+  }else if(a.eval>0){
+    plHtml=`<span class="apl" title="위탁계좌 파일에 매입금액·평가손익 컬럼이 없어 수익률을 계산할 수 없습니다">원금정보 없음</span>`;
   }
   const prods=a.products.length
     ? a.products.slice().sort((x,y)=>y.eval-x.eval).map(p=>prodCard(p)).join('')
@@ -1570,7 +1593,7 @@ function acctBlock(a,idx,sdate){
   return `<div class="acct" style="border-left:3px solid ${acctColor(a.name)}">
     <div class="acct-head" data-target="${bodyId}">
       <span class="aname">${esc(a.name)}${sub?`<small>${esc(sub)}</small>`:''}</span>
-      <span class="aright">${amt}${rateHtml}<span class="acaret">▾</span></span>
+      <span class="aright"><span class="acol"><span class="al1">${amt}${rateHtml}</span>${plHtml}</span><span class="acaret">▾</span></span>
     </div>
     <div id="${bodyId}" class="acct-body collapsed">${prods}</div>
   </div>`;
@@ -2527,6 +2550,26 @@ let acctViewTab='';
 let assetTab='acct';      // 좌우 탭: acct=계좌별 고객 · snap=날짜별 스냅샷 (스크롤 압박 방지)
 let acctCustQuery='';     // 계좌별 고객 — 상품 탭별 고객 검색어
 const ACCT_VIEW_ORDER=['주식','CMA','연금저축','IRP','DC','비과세종합저축','선물옵션','해외선물','기타'];
+/* 두 스냅샷 사이 고객별 투입원금 변동 내역 — 원금 차액 클릭 시 표시 */
+function snapPrDiffRows(prev,s){
+  const a=(prev&&prev.customers)||{},b=s.customers||{};
+  const names=[...new Set([...Object.keys(a),...Object.keys(b)])];
+  const list=[];
+  names.forEach(n=>{
+    const p0=(a[n]&&a[n].totalPrincipal)||0,p1=(b[n]&&b[n].totalPrincipal)||0,d=p1-p0;
+    if(Math.abs(d)>=1)list.push({n,d,p0,p1,tag:!a[n]?'신규':!b[n]?'제외':''});
+  });
+  if(!list.length)return '<div class="empty" style="padding:10px">고객별 원금 변동 없음</div>';
+  list.sort((x,y)=>Math.abs(y.d)-Math.abs(x.d));
+  const inc=list.reduce((t,x)=>t+(x.d>0?x.d:0),0),dec=list.reduce((t,x)=>t+(x.d<0?-x.d:0),0);
+  return `<div style="font-size:12px;color:var(--sub2);font-weight:700;padding:8px 8px 4px">${prev.date} → ${s.date} 투입원금 변동 ${list.length}명
+      · <span class="up">증가 +${eok(inc)}</span>${dec?` · <span class="down">감소 -${eok(dec)}</span>`:''} · 순변동 <span class="${inc-dec>=0?'up':'down'}">${inc-dec>=0?'+':''}${eok(inc-dec)}</span></div>`
+    +list.map(x=>`<div class="row snap-pd-row" data-name="${esc(x.n)}">
+      <div style="min-width:0"><div class="nm" style="font-size:13.5px">${nameHtml({name:x.n})}${x.tag?` <span class="tag">${x.tag}</span>`:''}</div>
+        <div style="font-size:11.5px;color:var(--sub);margin-top:2px">${won(x.p0)} → ${won(x.p1)}</div></div>
+      <div class="right"><span class="rate ${x.d>=0?'up':'down'}">${x.d>=0?'▲':'▼'}${won(Math.abs(x.d))}</span></div>
+      <span class="chev">›</span></div>`).join('');
+}
 function renderAssets(){
   const v=$('#view');
   if(!SNAPS.length){v.innerHTML=emptyView();return;}
@@ -2534,32 +2577,53 @@ function renderAssets(){
   const snap=latest();
   const byType={};
   Object.values(snap.customers).forEach(c=>{buildAccounts(c).forEach(a=>{
-    (byType[a.name]=byType[a.name]||[]).push({cname:c.name,eval:a.eval,acct:a.jong?(a.jong+(a.code?'-'+a.code:'')):String(a.raw||'').trim()});});});
+    (byType[a.name]=byType[a.name]||[]).push({cname:c.name,eval:a.eval,principal:a.principal||0,noBasis:!!a.noBasis,openDate:a.openDate||'',acct:a.jong?(a.jong+(a.code?'-'+a.code:'')):String(a.raw||'').trim()});});});
   const types=Object.keys(byType).sort((x,y)=>{let ix=ACCT_VIEW_ORDER.indexOf(x),iy=ACCT_VIEW_ORDER.indexOf(y);if(ix<0)ix=99;if(iy<0)iy=99;return ix-iy||x.localeCompare(y,'ko');});
   if(!acctViewTab||!byType[acctViewTab])acctViewTab=types[0]||'';
   const alist=(byType[acctViewTab]||[]).slice().sort((a,b)=>b.eval-a.eval);
   const asum=alist.reduce((s,x)=>s+x.eval,0);
+  const apsum=alist.reduce((s,x)=>s+((x.eval>0&&x.principal>0&&!x.noBasis)?x.principal:0),0);
+  const afsum=alist.reduce((s,x)=>s+((x.eval>0&&x.principal>0&&!x.noBasis)?x.eval-x.principal:0),0);
   const acctRowsOf=q=>{
-    const rows=alist.filter(x=>!q||x.cname.includes(q)).map(x=>`<div class="row" data-name="${esc(x.cname)}">
-      <div><div class="nm">${nameHtml({name:x.cname})} <small>${esc(x.acct)}</small></div></div>
+    const rows=alist.filter(x=>!q||x.cname.includes(q)).map(x=>{
+      // 계좌별 원금·손익·수익률(누적)+연환산 — 고객상세 계좌 블록과 동일 기준
+      let sub='';
+      if(x.eval>0&&x.principal>0&&!x.noBasis){
+        const pf=x.eval-x.principal,rate=pf/x.principal*100;
+        const ann=annualize(rate,yearsBetween(x.openDate,snap.date));
+        sub=`<div class="tags"><span class="tag">원금 ${eok(x.principal)}</span>
+          <span class="tag" style="${pf>=0?'color:var(--rise);background:#FDECEE':'color:var(--fall);background:#EBF2FE'}">손익 ${pf>=0?'+':''}${eok(pf)}</span>
+          <span class="tag">수익률 <b class="${rate>=0?'up':'down'}">${pct(rate)}</b>${ann!=null?` · 연환산 <b class="${ann>=0?'up':'down'}">${(ann>=0?'+':'')+ann.toFixed(1)}%</b>`:''}</span></div>`;
+      }else if(x.eval>0){
+        sub=`<div class="tags"><span class="tag" title="위탁계좌 파일에 매입금액·평가손익 컬럼이 없어 수익률을 계산할 수 없습니다">원금정보 없음</span></div>`;
+      }
+      return `<div class="row" data-name="${esc(x.cname)}">
+      <div style="min-width:0"><div class="nm">${nameHtml({name:x.cname})} <small>${esc(x.acct)}</small></div>${sub}</div>
       <div class="right">${x.eval>0?`<span class="amt">${won(x.eval)}</span>`:'<span class="tag">0원 계좌</span>'}</div>
-      <span class="chev">›</span></div>`).join('');
+      <span class="chev">›</span></div>`;}).join('');
     return rows||(alist.length?'<div class="empty">검색 결과 없음</div>':'<div class="empty">해당 계좌 보유 고객 없음</div>');
   };
   // 좌우 탭 본문
   let tabBody='';
   if(assetTab==='acct'){
-    tabBody=`<div class="card"><h3>계좌별 고객<span class="meta">${esc(acctViewTab)} ${alist.length}좌 · ${eok(asum)}</span></h3>
+    tabBody=`<div class="card"><h3>계좌별 고객<span class="meta">${esc(acctViewTab)} ${alist.length}좌 · 평가 ${eok(asum)}${apsum>0?` · 원금 ${eok(apsum)} · 손익 <b class="${afsum>=0?'up':'down'}">${afsum>=0?'+':''}${eok(afsum)}</b>`:''}</span></h3>
       <div class="toolbar"><div class="seg" id="acctSeg">
         ${types.map(t=>`<button data-a="${esc(t)}" class="${t===acctViewTab?'on':''}"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${acctColor(t)};margin-right:5px"></span>${esc(t)}<span style="font-weight:500;font-size:11px;margin-left:4px;color:var(--sub)">${byType[t].length}</span></button>`).join('')}
       </div></div>
       <div class="search" style="margin-bottom:10px"><span>🔍</span><input id="acctSearch" placeholder="${esc(acctViewTab)} 보유 고객 검색" value="${esc(acctCustQuery)}"></div>
       <div class="list" id="acctCustList">${acctRowsOf(acctCustQuery)}</div></div>`;
   }else{
-    tabBody=`<div class="card"><h3>날짜별 스냅샷<span class="meta">🗑 버튼으로 삭제</span></h3><div class="list" id="snapList">
+    tabBody=`<div class="card"><h3>날짜별 스냅샷<span class="meta">원금 차액 ▲▼ 클릭 = 고객별 변동 내역 · 🗑 삭제</span></h3><div class="list" id="snapList">
     ${SNAPS.slice().reverse().map(s=>{const i=SNAPS.indexOf(s);const prev=SNAPS[i-1];const d=prev?s.totals.eval-prev.totals.eval:0;
-      return `<div class="row" data-date="${s.date}" style="cursor:default"><div class="nm" style="font-size:14px">${s.date}</div>
-        <div class="right" style="display:flex;gap:10px;align-items:center"><span class="amt">${won(s.totals.eval)}</span>${prev?`<span class="rate ${d>=0?'up':'down'}">${d>=0?'▲':'▼'}${eok(Math.abs(d))}</span>`:''}<button class="btn ghost sm snap-del" data-date="${s.date}" style="color:var(--rise)" aria-label="${s.date} 스냅샷 삭제">🗑</button></div></div>`;}).join('')}
+      const pr=s.totals.principal||0,pf=(s.totals.profit!=null)?s.totals.profit:(s.totals.eval-pr);
+      const dp=prev?pr-(prev.totals.principal||0):0;
+      const pdBtn=prev?`<button class="rate ${dp>=0?'up':'down'} snap-pdbtn" data-date="${s.date}" title="어떤 고객의 원금 변동인지 보기" style="border:1px solid var(--line);background:var(--card);border-radius:8px;padding:2px 7px;margin-left:0;cursor:pointer">${dp>=0?'▲':'▼'}${eok(Math.abs(dp))} ›</button>`:'';
+      return `<div class="row" data-date="${s.date}" style="cursor:default;flex-wrap:wrap">
+        <div style="min-width:0;flex:1 1 200px"><div class="nm" style="font-size:14px">${s.date}</div>
+          <div class="tags" style="margin-top:4px;align-items:center"><span class="tag">원금 ${eok(pr)}</span>${pdBtn}
+            <span class="tag" style="${pf>=0?'color:var(--rise);background:#FDECEE':'color:var(--fall);background:#EBF2FE'}">평가손익 ${pf>=0?'+':''}${eok(pf)}</span></div></div>
+        <div class="right" style="display:flex;gap:10px;align-items:center"><span class="amt">${won(s.totals.eval)}</span>${prev?`<span class="rate ${d>=0?'up':'down'}">${d>=0?'▲':'▼'}${eok(Math.abs(d))}</span>`:''}<button class="btn ghost sm snap-del" data-date="${s.date}" style="color:var(--rise)" aria-label="${s.date} 스냅샷 삭제">🗑</button></div></div>
+      <div class="snap-pd hidden" id="pd_${s.date}">${prev?snapPrDiffRows(prev,s):''}</div>`;}).join('')}
     </div></div>`;
   }
   v.innerHTML=`<div class="wrap"><h1 class="page-title">자산</h1><p class="page-sub">전체 자산 누적 추이 · 영업점·PB별 분포 · 계좌별 고객 · 날짜별 스냅샷</p>
@@ -2586,6 +2650,12 @@ function renderAssets(){
     s.oninput=()=>{acctCustQuery=s.value.trim();$('#acctCustList').innerHTML=acctRowsOf(acctCustQuery);bindRows();};
     bindRows();
   }else{
+    v.querySelectorAll('#snapList .snap-pdbtn').forEach(b=>b.onclick=e=>{
+      e.stopPropagation();
+      const el=document.getElementById('pd_'+b.dataset.date);
+      if(el)el.classList.toggle('hidden');
+    });
+    v.querySelectorAll('#snapList .snap-pd-row').forEach(r=>r.onclick=()=>openClient(r.dataset.name));
     v.querySelectorAll('#snapList .snap-del').forEach(b=>b.onclick=async(e)=>{
       e.stopPropagation();
       const d=b.dataset.date;
@@ -4071,13 +4141,28 @@ const CAL_CATS=[
 ];
 function catById(id){return CAL_CATS.find(c=>c.id===id)||null;}
 function nextDay(k){const d=new Date(k+'T00:00:00');d.setDate(d.getDate()+1);return dkey(d);}
-/* 연락 예정 — unifiedDue()(한투 분기·보험 반기 도래 고객)에서 도출, 종일 이벤트(재생성마다 최신) */
+/* 연락 예정 — unifiedDue()(한투 분기·보험 반기 도래 고객)에서 도출, 종일 이벤트(재생성마다 최신)
+   이번 주기 완료·패스 고객은 '연락 대상'에서 제외 — 실제 연락한 날(프로그램 시작 이후)에만 ✅로 표시
+   (기존엔 완료 고객도 배정일에 📞로 남아 달력의 오늘 연락 인원이 영업 탭보다 부풀려 보였음) */
 function buildContactEvents(){
-  return unifiedDue().map(c=>({
-    id:'contact::'+c.name, summary:'📞 '+dispNameYm(c)+' 연락',
-    description:(contactReasons(c)[0]||''), status:'confirmed',
-    start:{date:c._dateIso}, end:{date:nextDay(c._dateIso)},
-    _cat:'contact', _derived:true, _name:c.name, _cust:c.name, _st:c._st}));
+  const out=[];
+  unifiedDue().forEach(c=>{
+    if(c._doneCycle){
+      const lc=unifiedLastContact(c);
+      if(!c._passed&&lc&&lc>=PROGRAM_START)out.push({
+        id:'contact::'+c.name, summary:'✅ '+dispNameYm(c)+' 연락완료',
+        description:'이번 주기 연락 완료 ('+lc+')', status:'confirmed',
+        start:{date:lc}, end:{date:nextDay(lc)},
+        _cat:'contact', _derived:true, _name:c.name, _cust:c.name, _st:'done'});
+      return;
+    }
+    out.push({
+      id:'contact::'+c.name, summary:'📞 '+dispNameYm(c)+' 연락',
+      description:(contactReasons(c)[0]||''), status:'confirmed',
+      start:{date:c._dateIso}, end:{date:nextDay(c._dateIso)},
+      _cat:'contact', _derived:true, _name:c.name, _cust:c.name, _st:c._st});
+  });
+  return out;
 }
 /* 공휴일 — HOLIDAYS(하드코딩+원격 병합)에서 종일 이벤트로 도출. 표시 범위(현재 년도 ±1) */
 function buildHolidayEvents(){
@@ -4351,15 +4436,38 @@ function gcMonthHTML(){
       const d=new Date(y,m,1-off+w*7+i),k=dkey(d),out=d.getMonth()!==m,dow=d.getDay(),hol=isHoliday(k);
       const cell=cellMap[k]||{evs:[],tks:[]};
       cell.evs.sort((a,b)=>evTime(a.ev).padStart(5,'0').localeCompare(evTime(b.ev).padStart(5,'0')));
-      const evHtml=cell.evs.slice(0,MAXE).map(x=>{const bg=calColor(x.cal);
-        return `<div class="gc-echip" data-gev="${esc(x.cal.id)}~~${esc(x.ev.id)}" style="background:${bg};color:${txtOn(bg)}">${evTime(x.ev)?`<b>${evTime(x.ev)}</b> `:''}${esc(x.ev.summary||'(제목 없음)')}</div>`;}).join('')
-        +(cell.evs.length>MAXE?`<div class="gc-more">+${cell.evs.length-MAXE}개</div>`:'');
+      /* PC(전체높이 레이아웃): 칩을 전부 렌더한 뒤 gcFitMonthCells()가 셀 높이에 맞춰 노출량 결정
+         (기존 고정 3개 제한은 셀에 여백이 남아도 +N개로 잘렸음) · 모바일(자연 높이)은 기존 2개 제한 유지 */
+      const evHtml=mob
+        ? cell.evs.slice(0,MAXE).map(x=>{const bg=calColor(x.cal);
+            return `<div class="gc-echip" data-gev="${esc(x.cal.id)}~~${esc(x.ev.id)}" style="background:${bg};color:${txtOn(bg)}">${evTime(x.ev)?`<b>${evTime(x.ev)}</b> `:''}${esc(x.ev.summary||'(제목 없음)')}</div>`;}).join('')
+          +(cell.evs.length>MAXE?`<div class="gc-more">+${cell.evs.length-MAXE}개</div>`:'')
+        : cell.evs.map(x=>{const bg=calColor(x.cal);
+            return `<div class="gc-echip" data-gev="${esc(x.cal.id)}~~${esc(x.ev.id)}" style="background:${bg};color:${txtOn(bg)}">${evTime(x.ev)?`<b>${evTime(x.ev)}</b> `:''}${esc(x.ev.summary||'(제목 없음)')}</div>`;}).join('')
+          +`<div class="gc-more" style="display:none"></div>`;
       cells+=`<div class="gc-mcell ${out?'out':''} ${k===todayK?'today':''}" data-gdaygo="${k}">
         <div class="gc-dnw"><span class="gc-dn ${dow===0||hol?'sun':dow===6?'sat':''}" ${hol?`title="${esc(holidayName(k))}"`:''}>${d.getDate()}</span></div>
         ${nl?`<div style="height:${nl*LH}px;flex:none"></div>`:''}
         ${evHtml}</div>`;}
-    html+=`<div class="gc-mrow" style="min-height:${MH+nl*LH}px">${cells}${barsHtml}</div>`;}
+    /* PC는 최소높이를 날짜+연속바+칩1줄까지 낮춰 창이 낮아도 주(행)가 잘리지 않게 — 남는 높이는 flex가 채움 */
+    html+=`<div class="gc-mrow" style="min-height:${mob?(MH+nl*LH):(24+nl*LH+LH+8)}px">${cells}${barsHtml}</div>`;}
   return `<div class="gc-mv">${html}</div>`;
+}
+/* PC 월간 뷰: 셀 높이에 맞춰 이벤트 칩 노출 수를 동적으로 결정 — 넘치는 만큼만 +N개 */
+function gcFitMonthCells(){
+  if(isMobile())return;
+  document.querySelectorAll('.gc-full .gc-mcell').forEach(cell=>{
+    const chips=[...cell.querySelectorAll('.gc-echip')],more=cell.querySelector('.gc-more');
+    if(!chips.length){if(more)more.style.display='none';return;}
+    chips.forEach(ch=>{ch.style.display='';});
+    if(more)more.style.display='none';
+    const fits=()=>cell.scrollHeight<=cell.clientHeight+1;
+    if(fits())return;
+    if(more)more.style.display='';
+    let hid=0;
+    for(let i=chips.length-1;i>=0&&!fits();i--){chips[i].style.display='none';hid++;}
+    if(more)more.textContent='+'+hid+'개';
+  });
 }
 
 /* ---------- 렌더 ---------- */
@@ -4399,6 +4507,7 @@ function renderGcal(){
    <div id="gcShellBk" class="gc-shellbk ${mob&&GC._leftOpen?'open':''}"></div>
   </div>`;
   gcBindView(v);
+  if(view==='month')gcFitMonthCells();   /* 레이아웃 확정 후 셀별 노출량 재계산 */
   const tb=$('#gcTgBody');
   if(tb){
     if(GC._tgScroll!=null)tb.scrollTop=GC._tgScroll;
@@ -4673,6 +4782,8 @@ function onViewportChange(){clearTimeout(_rzT);_rzT=setTimeout(()=>{applyMobileC
     GC._leftOpen=!isMobile();   /* 캘린더 좌측 목록: 모바일=닫힘 · PC=열림 */
     rerenderCurrent();}
   _wasM=isMobile();
+  /* 창 크기 변경 시 월간 뷰 셀별 이벤트 노출량 재계산 (재렌더 없이) */
+  if(curView==='gcal'&&gcCurView()==='month'&&!$('#app').classList.contains('hidden'))gcFitMonthCells();
   Object.values(charts).forEach(c=>{try{c.resize();}catch(e){}});},70);}
 window.addEventListener('resize',onViewportChange);
 if(window.visualViewport)window.visualViewport.addEventListener('resize',onViewportChange);
