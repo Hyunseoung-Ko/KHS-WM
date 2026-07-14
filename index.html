@@ -444,6 +444,12 @@ html.m body.v-gcal #main{padding-bottom:78px}
 .cf-paste[open] summary::before{content:'▾ '}
 .cf-paste textarea{width:100%;box-sizing:border-box;font-size:13px;line-height:1.5}
 .cf-pen input{width:auto!important;accent-color:var(--primary)}
+.cf-quickdays{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.cf-quickdays .cf-dq{border:1px solid var(--line);background:#fff;color:var(--sub2);padding:5px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;transition:.1s}
+.cf-quickdays .cf-dq:hover{border-color:var(--primary);color:var(--primary)}
+.cf-quickdays .cf-dq.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.cf-quickdays .cf-dq-clear{color:var(--sub)}
+.cf-quickdays .cf-dq-clear:hover{border-color:var(--rise);color:var(--rise)}
 .ins-tag{color:#0F9D58;background:#E5F8EE;font-weight:700}
 .row.dormant{opacity:.55}
 .ins-ct{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line)}
@@ -741,7 +747,14 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
     </div>
     <div class="cf2">
       <div><label>투자성향 <span style="font-weight:500;color:var(--sub)">· 한투</span></label><select id="cf_risk"><option value="">-</option><option>안정형</option><option>안정추구형</option><option>위험중립형</option><option>적극투자형</option><option>공격투자형</option></select></div>
-      <div><label>최근접촉일 <span style="font-weight:500;color:var(--sub)">· 연락 주기 기준</span></label><input id="cf_contact" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off"></div>
+      <div><label>최근접촉일 <span style="font-weight:500;color:var(--sub)">· 연락 주기 기준</span></label><input id="cf_contact" inputmode="numeric" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off">
+        <div class="cf-quickdays">
+          <button type="button" class="cf-dq" data-days="0">오늘</button>
+          <button type="button" class="cf-dq" data-days="1">어제</button>
+          <button type="button" class="cf-dq" data-days="2">2일 전</button>
+          <button type="button" class="cf-dq" data-days="3">3일 전</button>
+          <button type="button" class="cf-dq cf-dq-clear" data-days="">지움</button>
+        </div></div>
     </div>
     <label>연락 주기 <span style="font-weight:500;color:var(--sub)">· 자주 연락받기 싫어하는 고객은 길게, 거절 고객은 연락일정에서만 제외</span></label>
     <select id="cf_cycle">
@@ -2006,6 +2019,8 @@ function openCrmForm(name){
   $('#cf_dong').value=cr?cr.dong||'':'';
   $('#cf_risk').value=(cr&&cr.riskType)||(c&&c.riskType)||'';
   $('#cf_contact').value=cr?cr.lastContact||'':'';
+  document.querySelectorAll('#crmModal .cf-dq').forEach(b=>{const d=b.dataset.days;
+    b.classList.toggle('on',d!==''&&$('#cf_contact').value===daysAgoStr(+d));});   // 빠른선택 하이라이트 동기화
   $('#cf_cycle').value=(cr&&cr.cycle)||'';
   $('#cf_pension').checked=!!(cr&&cr.pension);
   $('#cf_dormant').checked=!!(cr&&cr.dormant);
@@ -2032,6 +2047,15 @@ function bindCrmForm(){
   $('#cfClose').onclick=close;$('#cfCancel').onclick=close;
   const pf=$('#cfPasteFill');if(pf)pf.onclick=cfFillFromText;
   bindDateInput($('#cf_birth'));bindDateInput($('#cf_contact'));
+  // 최근접촉일 빠른 선택(오늘·어제·N일 전·지움) — 직접 입력 없이 최근 날짜 지정
+  const syncQuickDays=()=>{const v=$('#cf_contact').value.trim();
+    document.querySelectorAll('#crmModal .cf-dq').forEach(b=>{const d=b.dataset.days;
+      b.classList.toggle('on',d!==''&&v===daysAgoStr(+d));});};
+  document.querySelectorAll('#crmModal .cf-dq').forEach(b=>b.onclick=()=>{
+    const d=b.dataset.days;
+    $('#cf_contact').value=(d==='')?'':daysAgoStr(+d);
+    syncQuickDays();});
+  $('#cf_contact').addEventListener('input',syncQuickDays);
   $('#cfSave').onclick=async()=>{
     let nm=crmEditName||$('#cf_name').value.trim();
     if(!nm){toast('이름을 입력하세요');return;}
@@ -3752,6 +3776,8 @@ function drawBar(id,obj,color){const ctx=$('#'+id);if(!ctx)return;
    UPLOAD binding
    ========================================================= */
 function todayStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+/* n일 전 날짜(YYYY-MM-DD) — 최근접촉일 빠른 선택용 */
+function daysAgoStr(n){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-(+n||0));return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function bindUpload(){
   const drop=$('#drop');if(!drop)return;
   drop.onclick=()=>$('#fileInput').click();
