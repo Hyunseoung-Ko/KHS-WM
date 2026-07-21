@@ -969,6 +969,8 @@ function catList(obj){return Object.keys(obj).filter(k=>obj[k]>0).sort((a,b)=>{l
 const $=s=>document.querySelector(s);
 const norm=s=>String(s==null?'':s).replace(/\s+/g,'');
 const num=v=>{if(typeof v==='number')return v;const n=parseFloat(String(v||'').replace(/[^0-9.\-]/g,''));return isNaN(n)?0:n;};
+/* 'ISA 중개형' 등 플래그 컬럼 참 판정 — Y/O/가입/중개형/계좌번호는 보유, N/일반/공란은 미보유 */
+const isaTrue=v=>{const s=String(v==null?'':v).trim();if(!s)return false;if(/^(n|no|x|0|미가입|없음|해당없음|일반|일반형|아니오|false|-)$/i.test(s))return false;return /[0-9]/.test(s)||/^(y|o|가입|보유|isa|중개형?|유|1|true)/i.test(s);};
 const won=v=>Math.round(v).toLocaleString('ko-KR')+'원';
 const eok=v=>{const a=Math.abs(v);if(a>=1e8)return(v/1e8).toFixed(2)+'억';if(a>=1e4)return Math.round(v/1e4).toLocaleString()+'만';return Math.round(v).toLocaleString();};
 const pct=v=>(v>0?'+':'')+v.toFixed(1)+'%';
@@ -1165,6 +1167,13 @@ function buildSnapshot(date, files){
   const setPrefix=(o,acct)=>{const j=parseAcct(acct).jong;if(j&&!o.acctPrefix)o.acctPrefix=j;};
   const minDate=(a,b)=>{b=dnorm(b);if(!b)return a;if(!a)return b;return b<a?b:a;};
   const bump=(m,k)=>{k=String(k||'').trim();if(k)m[k]=(m[k]||0)+1;};
+  /* 연금 세액공제 메타 슬롯 — '연금저축'(FC유치 연금) · 'IRP'(계약별 퇴직연금 개인형IRP) */
+  const pmSlot=(o,key)=>{const m=o.pensionMeta=o.pensionMeta||{};return m[key]=m[key]||{annualPaid:0,annualLimit:0,startDate:'',started:false};};
+  const pmAccrue=(slot,paidK,limitK,startedK,startK,g,r)=>{
+    slot.annualPaid+=num(g(r,paidK));slot.annualLimit+=num(g(r,limitK));
+    const sd=dnorm(g(r,startK));if(sd&&(!slot.startDate||sd<slot.startDate))slot.startDate=sd;
+    const yn=String(g(r,startedK)||'').trim().toUpperCase();if(yn==='Y'||yn.includes('개시'))slot.started=true;
+  };
   /* 계좌(상품계좌) 등록 — 0원이라도 계좌 존재 자체를 기록(해지 비교·0원 표시용) */
   const regAcct=(o,rawAcct,cat,extra)=>{const raw=String(rawAcct==null?'':rawAcct).trim();if(!raw)return null;
     const pa=parseAcct(raw);const k=pa.key;if(!k)return null;
@@ -1185,6 +1194,7 @@ function buildSnapshot(date, files){
   // 위탁계좌 (주식/현금성, 등록일)
   (files.trust||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
     const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    if(isaTrue(g(r,'ISA 중개형')))o.isaHolder=true;
     o.regDate=minDate(o.regDate,g(r,'유치등록일')||g(r,'신규일'));
     bump(o.branchCount,g(r,'관리점'));
     regAcct(o,g(r,'계좌번호'),'주식',{branch:g(r,'관리점'),openDate:dnorm(g(r,'신규일'))});
@@ -1206,8 +1216,10 @@ function buildSnapshot(date, files){
     regAcct(o,g(r,'계좌번호'),cat,{branch:g(r,'계좌관리점명'),pb:g(r,'계좌관리자명'),openDate:dnorm(g(r,'계좌개설일'))});
     const principal=num(g(r,'납입원금(a)')),ev=num(g(r,'평가금액(b)'));
     o.accounts.push({category:cat,account:String(g(r,'계좌번호')||'').trim(),contractName:String(g(r,'계약명')||''),
-      principal,eval:ev,profit:num(g(r,'수익금(c=b-a)'))||(ev-principal),rate:num(g(r,'단순수익률(c/a)%')),
+      principal,eval:ev,profit:num(g(r,'수익금(c=b-a)'))||(ev-principal),rate:num(g(r,'단순수익률(c/a)%')),fssRate:num(g(r,'금감원 수익률')),
       riskType:String(g(r,'투자성향')||''),openDate:dnorm(g(r,'계좌개설일')),branch:String(g(r,'계좌관리점명')||''),pb:String(g(r,'계좌관리자명')||'')});
+    // 개인형IRP = 퇴직금 이전 외 개인납입분이 세액공제 대상(연금저축과 합산 900만) → 연간 납입·한도·연금개시 흡수
+    if(/IRP/i.test(cat)||/개인형/.test(cat))pmAccrue(pmSlot(o,'IRP'),'연간 납입금액','연간 한도금액','연금 개시여부','연금수령개시(예정)일',g,r);
   });});
   // 퇴직연금 상품별 (상품/비중)
   (files.pensionProduct||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
@@ -1219,7 +1231,7 @@ function buildSnapshot(date, files){
     if(ev===0&&principal===0)return;
     o.products.push({category:cat,name:String(g(r,'상품명')||'').trim(),code:String(g(r,'상품코드')||''),
       eval:ev,principal,profit:num(g(r,'수익금(c=b-a)'))||(ev-principal),rate:num(g(r,'단순수익률(c/a)%')),
-      ratio:num(g(r,'현재투자비중(%)')),account:String(g(r,'계좌번호')||'').trim(),
+      ratio:num(g(r,'현재투자비중(%)')),baseRatio:num(g(r,'기본투자비율(%)')),irregRatio:num(g(r,'부정기투자비율(%)')),account:String(g(r,'계좌번호')||'').trim(),
       branch:String(g(r,'계좌관리점명')||''),pb:String(g(r,'계좌관리자명')||''),openDate:'',maturity:'',deposit:0});
   });});
   // 펀드/CMA/신탁
@@ -1233,10 +1245,13 @@ function buildSnapshot(date, files){
     // 연금저축(개인 세제적격, 계좌코드 22 / 세금감면유형=연금저축계좌) 투자상품은 '펀드'가 아니라 '연금저축' 카테고리로 분리
     let fcat=fundCategory(g(r,'상품명'));
     if(fcat==='펀드'&&(/연금저축/.test(String(g(r,'세금감면유형')||''))||parseAcct(g(r,'계좌번호')).code==='22'))fcat='연금저축';
+    if(isaTrue(g(r,'ISA 중개형')))o.isaHolder=true;
     o.products.push({category:fcat,name:String(g(r,'상품명')||'').trim(),code:String(g(r,'상품코드')||''),
       eval:ev,principal:principal||num(g(r,'입금-출금누계액')),profit:num(g(r,'수익금')),rate:num(g(r,'수익률(%)')),
       account:String(g(r,'계좌번호')||'').trim(),branch:String(g(r,'계좌관리점')||''),pb:String(g(r,'계좌관리자')||''),
-      openDate:dnorm(g(r,'계좌개설일')),maturity:dnorm(g(r,'만기일')),deposit:num(g(r,'입금누계액'))});
+      openDate:dnorm(g(r,'계좌개설일')),maturity:dnorm(g(r,'만기일')),deposit:num(g(r,'입금누계액')),
+      savingType:String(g(r,'저축구분')||'').trim(),
+      autoPay:{amount:num(g(r,'이체금액')),start:String(g(r,'이체기간 시작년월')||'').trim(),end:String(g(r,'이체기간 종료년월')||'').trim(),canceled:dnorm(g(r,'자동납부해지일'))}});
   });});
   // 채권/ELS (FC유치 계좌리스트 - 채권_ELS)
   (files.bondels||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
@@ -1250,6 +1265,7 @@ function buildSnapshot(date, files){
     o.products.push({category:cat,name:String(g(r,'종목명')||'').trim()||cat,code:String(g(r,'종목코드')||''),
       eval:ev,principal:principal||ev,profit:ev-(principal||ev),rate:principal>0?(ev-principal)/principal*100:0,
       account:String(g(r,'계좌번호')||'').trim(),branch:String(g(r,'계좌관리점')||''),pb:String(g(r,'계좌관리자')||''),
+      issueDate:dnorm(g(r,'발행일')),feeType:String(g(r,'선후취구분')||'').trim(),
       openDate:dnorm(g(r,'매수일자')),maturity:dnorm(g(r,'만기일')),deposit:0});
   });});
   // 확장 자동수용: 알 수 없는 새 자산파일도 고객명+평가금액 기준으로 흡수
@@ -1272,10 +1288,7 @@ function buildSnapshot(date, files){
   // 연금저축 메타 (FC유치 연금) — 자산금액은 기준일 일치를 위해 6개 파일로만 평가하고, 여기선 세액공제·연금개시 정보만 흡수(products/eval 추가 안 함)
   (files.pensionMeta||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
     const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
-    const pm=o.pensionMeta=o.pensionMeta||{annualPaid:0,annualLimit:0,startDate:'',started:false};
-    pm.annualPaid+=num(g(r,'연납입금액'));pm.annualLimit+=num(g(r,'연한도금액'));
-    const sd=dnorm(g(r,'연금수령개시(예정)일'));if(sd&&(!pm.startDate||sd<pm.startDate))pm.startDate=sd;
-    const yn=String(g(r,'연금개시여부')||'').trim().toUpperCase();if(yn==='Y'||yn.includes('개시'))pm.started=true;
+    pmAccrue(pmSlot(o,'연금저축'),'연납입금액','연한도금액','연금개시여부','연금수령개시(예정)일',g,r);
   });});
 
   // aggregate per customer
@@ -1636,8 +1649,9 @@ function buildAccounts(c){
   const arr=Object.values(accts);
   // 퇴직연금 등 계약별 파일이 있는 계좌는 납입원금(a)을 원금으로 사용 — 상품별 매입원금 합은
   // 매매·재투자로 부풀려져 계좌 수익률을 왜곡함 (custPrincipal의 고객 총계와 동일 기준)
-  const cpr={};(c.accounts||[]).forEach(x=>{const k=parseAcct(x.account).key;if(!k)return;cpr[k]=(cpr[k]||0)+(x.principal||0);});
-  arr.forEach(a=>{if(cpr[a.key]!=null)a.principal=cpr[a.key];});
+  const cpr={},cfss={};(c.accounts||[]).forEach(x=>{const k=parseAcct(x.account).key;if(!k)return;cpr[k]=(cpr[k]||0)+(x.principal||0);
+    if(x.fssRate){const t=cfss[k]=cfss[k]||{sum:0,w:0};const w=Math.max(x.eval||0,1);t.sum+=x.fssRate*w;t.w+=w;}});
+  arr.forEach(a=>{if(cpr[a.key]!=null)a.principal=cpr[a.key];if(cfss[a.key]&&cfss[a.key].w)a.fssRate=cfss[a.key].sum/cfss[a.key].w;});
   // 상품계좌명 확정 — 코드 우선, 없으면 대표(최대) 상품의 카테고리로 추론
   arr.forEach(a=>{
     const top=a.products.slice().sort((x,y)=>y.eval-x.eval)[0];
@@ -1674,7 +1688,7 @@ function acctBlock(a,idx,sdate){
     const rate=(a.eval-a.principal)/a.principal*100,pf=a.eval-a.principal;
     const ann=annualize(rate,yearsBetween(a.openDate,sdate));
     rateHtml=`<span class="arate ${rate>=0?'up':'down'}">${pct(rate)}${ann!=null?`<small>연환산 ${(ann>=0?'+':'')+ann.toFixed(1)}%</small>`:''}</span>`;
-    plHtml=`<span class="apl">원금 ${won(a.principal)} · 손익 <b class="${pf>=0?'up':'down'}">${pf>=0?'+':''}${won(pf)}</b></span>`;
+    plHtml=`<span class="apl">원금 ${won(a.principal)} · 손익 <b class="${pf>=0?'up':'down'}">${pf>=0?'+':''}${won(pf)}</b>${a.fssRate!=null?` · 금감원 <b class="${a.fssRate>=0?'up':'down'}">${pct(a.fssRate)}</b>`:''}</span>`;
   }else if(a.eval>0){
     plHtml=`<span class="apl" title="위탁계좌 파일에 매입금액·평가손익 컬럼이 없어 수익률을 계산할 수 없습니다">원금정보 없음</span>`;
   }
@@ -1753,21 +1767,29 @@ function bindShots(scope){
 }
 
 /* ----- CLIENT DETAIL ----- */
-/* 연금저축 세액공제·연금개시 정보 카드 (FC유치 연금 파일에서 흡수한 메타) */
+/* 연금저축·IRP 세액공제·연금개시 정보 카드 (FC유치 연금 + 계약별 퇴직연금에서 흡수한 메타) */
 function pensionMetaCard(c){
-  const m=c.pensionMeta;if(!m)return '';
-  if(!m.annualPaid&&!m.annualLimit&&!m.startDate&&!m.started)return '';
-  const DEDUCT_LIMIT=6000000;   // 연금저축 세액공제 대상 납입한도 연 600만원(소득세법 §59조의3)
-  const room=Math.max(0,DEDUCT_LIMIT-m.annualPaid);
-  return `<div class="card"><h3>연금저축 <span class="meta">세액공제 · 연금개시</span></h3>
-    <div class="crmgrid">
-      <div class="crmrow"><span>연 납입액</span><b>${won(m.annualPaid)}</b></div>
-      ${m.annualLimit?`<div class="crmrow"><span>연 납입한도</span><b>${won(m.annualLimit)}</b></div>`:''}
-      <div class="crmrow"><span>세액공제 추가여력</span><b class="${room>0?'up':''}">${room>0?won(room)+' 추가납입 가능':'한도(600만) 소진'}</b></div>
-      ${m.startDate?`<div class="crmrow"><span>연금수령 개시(예정)일</span><b>${m.startDate}</b></div>`:''}
-      <div class="crmrow"><span>연금개시</span><b class="${m.started?'up':''}">${m.started?'개시':'미개시'}</b></div>
-    </div>
-    <p class="page-sub" style="margin-top:8px">* 연금저축 세액공제 대상 납입한도 연 600만원(연금계좌 IRP 합산 시 900만원) 기준 · 소득세법 §59조의3</p></div>`;
+  const pm=c.pensionMeta;if(!pm)return '';
+  const ps=pm['연금저축'],irp=pm['IRP'];
+  const psP=ps?ps.annualPaid:0,irpP=irp?irp.annualPaid:0;
+  const startDate=(ps&&ps.startDate)||(irp&&irp.startDate)||'';
+  const started=!!((ps&&ps.started)||(irp&&irp.started));
+  if(!psP&&!irpP&&!startDate&&!started&&!(ps&&ps.annualLimit)&&!(irp&&irp.annualLimit))return '';
+  const PS_LIMIT=6000000,TOT_LIMIT=9000000;   // 연금저축 600만 · 연금계좌(연금저축+IRP) 합산 900만 (소득세법 §59조의3)
+  const psCredit=Math.min(psP,PS_LIMIT);
+  const totCredit=Math.min(psCredit+irpP,TOT_LIMIT);
+  const room=Math.max(0,TOT_LIMIT-totCredit);
+  const rows=[];
+  if(ps)rows.push(`<div class="crmrow"><span>연금저축 연 납입</span><b>${won(psP)}<small style="color:var(--sub);font-weight:500"> / 한도 600만</small></b></div>`);
+  if(irp)rows.push(`<div class="crmrow"><span>IRP 연 납입</span><b>${won(irpP)}</b></div>`);
+  rows.push(`<div class="crmrow"><span>합산 세액공제 대상</span><b>${won(totCredit)}<small style="color:var(--sub);font-weight:500"> / 900만</small></b></div>`);
+  rows.push(`<div class="crmrow"><span>추가 납입 여력</span><b class="${room>0?'up':''}">${room>0?won(room)+' 가능':'한도 소진'}</b></div>`);
+  if(totCredit>0)rows.push(`<div class="crmrow"><span>예상 절세액</span><b class="up">${won(Math.round(totCredit*0.132))} ~ ${won(Math.round(totCredit*0.165))}</b></div>`);
+  if(startDate)rows.push(`<div class="crmrow"><span>연금수령 개시(예정)일</span><b>${startDate}</b></div>`);
+  rows.push(`<div class="crmrow"><span>연금개시</span><b class="${started?'up':''}">${started?'개시':'미개시'}</b></div>`);
+  return `<div class="card"><h3>연금저축·IRP <span class="meta">세액공제 · 연금개시</span></h3>
+    <div class="crmgrid">${rows.join('')}</div>
+    <p class="page-sub" style="margin-top:8px">* 세액공제 대상 납입한도 연금저축 600만 · IRP 합산 900만원 · 예상 절세액=대상액×13.2~16.5%(총급여 5,500만원 이하 16.5%) · 소득세법 §59조의3</p></div>`;
 }
 function openClient(name){killCharts();
   if(!inDetail)detailFrom=VIEW_TITLES[curView]?curView:'clients';   // 상세 내 재렌더 시엔 원 출발 화면 유지
@@ -1789,7 +1811,7 @@ function openClient(name){killCharts();
 
   v.innerHTML=`<div class="wrap">
     <button class="back" onclick="backFromDetail()">‹ ${esc(backLabel)}</button>
-    <h1 class="page-title">${esc(dispName(name))} <span style="font-size:14px;color:var(--sub);font-weight:600">${c.acctPrefix||''}</span> ${homTag}</h1>
+    <h1 class="page-title">${esc(dispName(name))} <span style="font-size:14px;color:var(--sub);font-weight:600">${c.acctPrefix||''}</span> ${homTag}${c.isaHolder?` <span class="tag" style="background:#FCE7F3;color:#DB2777;font-weight:700" title="ISA 중개형 계좌 보유">ISA</span>`:''}</h1>
     <p class="page-sub">${[c.branch,c.pb?c.pb+' PB':'',c.riskType,c.gender,c.birth].filter(Boolean).join(' · ')||'-'}${homs.length?` · <b style="color:#C98A0B">동명이인: ${esc(homInfo)}</b>`:''}</p>
 
     ${crmCard}
@@ -1823,7 +1845,7 @@ function openClient(name){killCharts();
 
     <div class="card"><h3 class="collapser" data-target="simBody">은퇴 시뮬레이션<span class="meta">▾ 펼치기</span></h3><div id="simBody" class="collapse-body collapsed"><div id="sim" class="sim"></div></div></div>
 
-    <div class="card"><h3>보유 상품 (계좌별)<span class="meta">계좌 ${accounts.length}개 · 상품 ${c.products.length}건</span></h3>${acctHtml||'<div class="empty">보유 계좌 없음</div>'}</div>
+    <div class="card"><h3>보유 상품 (계좌별)<span class="meta">계좌 ${accounts.length}개 · 상품 ${c.products.length}건${(()=>{const on=c.products.filter(p=>p.autoPay&&p.autoPay.amount>0&&!p.autoPay.canceled).length,off=c.products.filter(p=>p.autoPay&&p.autoPay.canceled).length;return (on?` · 🔄 적립중 ${on}`:'')+(off?` · ⏸ 적립해지 ${off}`:'');})()}</span></h3>${acctHtml||'<div class="empty">보유 계좌 없음</div>'}</div>
     </div>
   </div>`;
 
@@ -2628,10 +2650,23 @@ function insSummary(c){
   const mon=act.filter(x=>x.payCycle==='월납').reduce((s,x)=>s+(x.premium||0),0);
   return {n:act.length,mon};
 }
+/* 자동적립(정기이체) 배지 — 적립중 🔄 / 해지 ⏸ */
+function autoPayBadge(ap){
+  if(!ap)return '';
+  if(ap.canceled)return ` <span class="tag" style="background:#EBF2FE;color:var(--fall);font-weight:700" title="자동적립 해지 ${ap.canceled}">⏸ 적립해지</span>`;
+  if(ap.amount>0)return ` <span class="tag" style="background:#E9F7EF;color:#15803d;font-weight:700" title="매월 자동적립 중">🔄 적립중</span>`;
+  return '';
+}
+function autoPayDetail(ap){
+  if(!ap)return '';
+  if(ap.canceled)return `<div>자동적립 <b class="down">⏸ 해지 (${ap.canceled})</b></div>`;
+  if(ap.amount>0){const per=[ap.start,ap.end].filter(Boolean).join(' ~ ');return `<div>자동적립 <b class="up">🔄 월 ${won(ap.amount)}</b>${per?` <span style="color:var(--sub)">${esc(per)}</span>`:''}</div>`;}
+  return '';
+}
 function prodCard(p){
   const cat=p.category||'기타자산';
   return `<div class="prod"><div class="pmain">
-    <div class="pname"><span class="pdot" style="background:${catColor(cat)}"></span>${esc(p.name||'-')}<span class="pcat">${esc(cat)}</span></div>
+    <div class="pname"><span class="pdot" style="background:${catColor(cat)}"></span>${esc(p.name||'-')}<span class="pcat">${esc(cat)}</span>${autoPayBadge(p.autoPay)}</div>
     <div class="pamt">${won(p.eval)}</div>
     <div class="prate ${p.rate>=0?'up':'down'}">${p.rate?pct(p.rate):'-'}</div></div>
     <div class="pdetail hidden">
@@ -2640,8 +2675,13 @@ function prodCard(p){
       <div>손익 <b class="${p.profit>=0?'up':'down'}">${p.profit>=0?'+':''}${won(p.profit)}</b></div>
       <div>수익률 <b>${p.rate?pct(p.rate):'-'}</b></div>
       ${p.ratio?`<div>계좌내 비중 <b>${p.ratio.toFixed(1)}%</b></div>`:''}
+      ${(p.baseRatio||p.irregRatio)?`<div>투자비율 <b>기본 ${(p.baseRatio||0).toFixed(0)}%${p.irregRatio?` · 부정기 ${p.irregRatio.toFixed(0)}%`:''}</b></div>`:''}
+      ${p.savingType?`<div>저축구분 <b>${esc(p.savingType)}</b></div>`:''}
+      ${autoPayDetail(p.autoPay)}
       ${p.account?`<div>계좌 <b>${esc(p.account)}</b></div>`:''}
       ${p.openDate?`<div>개설일 <b>${p.openDate}</b></div>`:''}
+      ${p.issueDate?`<div>발행일 <b>${p.issueDate}</b></div>`:''}
+      ${p.feeType?`<div>선후취 <b>${esc(p.feeType)}</b></div>`:''}
       ${p.maturity&&p.maturity.indexOf('9999')<0?`<div>만기일 <b>${p.maturity}</b></div>`:''}
     </div></div>`;
 }
