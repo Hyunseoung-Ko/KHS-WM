@@ -1017,6 +1017,8 @@ function detectType(headers){const H=headers.map(norm);const has=k=>H.includes(n
   if(has('상품유형')&&has('총평가금액'))return 'fund';
   if(has('종목코드')&&has('시가평가액'))return 'bondels';
   if(has('월회전율')||has('HTS가입여부'))return 'trust';
+  // FC유치 연금 = 연금저축 메타(연납입·연한도·연금개시). 자산금액은 펀드파일과 100% 중복이라 합산 제외, 세액공제·연금개시 정보만 흡수
+  if(has('연한도금액')&&has('연납입금액')&&has('펀드명'))return 'pensionMeta';
   // 확장: 고객명 + 평가금액류 컬럼이 있으면 새 자산파일로 자동 수용
   if(has('고객명')&&hasAny(EVAL_KEYS))return 'generic';
   return null;}
@@ -1228,7 +1230,10 @@ function buildSnapshot(date, files){
     regAcct(o,g(r,'계좌번호'),fundCategory(g(r,'상품명')),{branch:g(r,'계좌관리점'),pb:g(r,'계좌관리자'),openDate:dnorm(g(r,'계좌개설일'))});
     const ev=num(g(r,'총평가금액')),principal=num(g(r,'매입금액'));
     if(ev===0&&principal===0&&num(g(r,'입금누계액'))===0)return;
-    o.products.push({category:fundCategory(g(r,'상품명')),name:String(g(r,'상품명')||'').trim(),code:String(g(r,'상품코드')||''),
+    // 연금저축(개인 세제적격, 계좌코드 22 / 세금감면유형=연금저축계좌) 투자상품은 '펀드'가 아니라 '연금저축' 카테고리로 분리
+    let fcat=fundCategory(g(r,'상품명'));
+    if(fcat==='펀드'&&(/연금저축/.test(String(g(r,'세금감면유형')||''))||parseAcct(g(r,'계좌번호')).code==='22'))fcat='연금저축';
+    o.products.push({category:fcat,name:String(g(r,'상품명')||'').trim(),code:String(g(r,'상품코드')||''),
       eval:ev,principal:principal||num(g(r,'입금-출금누계액')),profit:num(g(r,'수익금')),rate:num(g(r,'수익률(%)')),
       account:String(g(r,'계좌번호')||'').trim(),branch:String(g(r,'계좌관리점')||''),pb:String(g(r,'계좌관리자')||''),
       openDate:dnorm(g(r,'계좌개설일')),maturity:dnorm(g(r,'만기일')),deposit:num(g(r,'입금누계액'))});
@@ -1264,6 +1269,14 @@ function buildSnapshot(date, files){
         branch:brK?String(g(r,brK)||''):'',pb:pbK?String(g(r,pbK)||''):'',
         openDate:opK?dnorm(g(r,opK)):'',maturity:mtK?dnorm(g(r,mtK)):'',deposit:0});
     });});
+  // 연금저축 메타 (FC유치 연금) — 자산금액은 기준일 일치를 위해 6개 파일로만 평가하고, 여기선 세액공제·연금개시 정보만 흡수(products/eval 추가 안 함)
+  (files.pensionMeta||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
+    const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    const pm=o.pensionMeta=o.pensionMeta||{annualPaid:0,annualLimit:0,startDate:'',started:false};
+    pm.annualPaid+=num(g(r,'연납입금액'));pm.annualLimit+=num(g(r,'연한도금액'));
+    const sd=dnorm(g(r,'연금수령개시(예정)일'));if(sd&&(!pm.startDate||sd<pm.startDate))pm.startDate=sd;
+    const yn=String(g(r,'연금개시여부')||'').trim().toUpperCase();if(yn==='Y'||yn.includes('개시'))pm.started=true;
+  });});
 
   // aggregate per customer
   const totals={eval:0,principal:0,profit:0,cats:{},branches:{},pbs:{},count:0};
@@ -1740,6 +1753,22 @@ function bindShots(scope){
 }
 
 /* ----- CLIENT DETAIL ----- */
+/* 연금저축 세액공제·연금개시 정보 카드 (FC유치 연금 파일에서 흡수한 메타) */
+function pensionMetaCard(c){
+  const m=c.pensionMeta;if(!m)return '';
+  if(!m.annualPaid&&!m.annualLimit&&!m.startDate&&!m.started)return '';
+  const DEDUCT_LIMIT=6000000;   // 연금저축 세액공제 대상 납입한도 연 600만원(소득세법 §59조의3)
+  const room=Math.max(0,DEDUCT_LIMIT-m.annualPaid);
+  return `<div class="card"><h3>연금저축 <span class="meta">세액공제 · 연금개시</span></h3>
+    <div class="crmgrid">
+      <div class="crmrow"><span>연 납입액</span><b>${won(m.annualPaid)}</b></div>
+      ${m.annualLimit?`<div class="crmrow"><span>연 납입한도</span><b>${won(m.annualLimit)}</b></div>`:''}
+      <div class="crmrow"><span>세액공제 추가여력</span><b class="${room>0?'up':''}">${room>0?won(room)+' 추가납입 가능':'한도(600만) 소진'}</b></div>
+      ${m.startDate?`<div class="crmrow"><span>연금수령 개시(예정)일</span><b>${m.startDate}</b></div>`:''}
+      <div class="crmrow"><span>연금개시</span><b class="${m.started?'up':''}">${m.started?'개시':'미개시'}</b></div>
+    </div>
+    <p class="page-sub" style="margin-top:8px">* 연금저축 세액공제 대상 납입한도 연 600만원(연금계좌 IRP 합산 시 900만원) 기준 · 소득세법 §59조의3</p></div>`;
+}
 function openClient(name){killCharts();
   if(!inDetail)detailFrom=VIEW_TITLES[curView]?curView:'clients';   // 상세 내 재렌더 시엔 원 출발 화면 유지
   currentClientName=name;
@@ -1789,6 +1818,8 @@ function openClient(name){killCharts();
           <div class="nm" style="font-size:13.5px">${x.date}</div>
           <div class="right"><span class="amt">${won(x.c.totalEval)}</span><span class="rate ${x.c.rate>=0?'up':'down'}">${pct(x.c.rate)}</span></div></div>`).join('')||'<div class="empty">-</div>'}</div></div>
     </div>
+
+    ${pensionMetaCard(c)}
 
     <div class="card"><h3 class="collapser" data-target="simBody">은퇴 시뮬레이션<span class="meta">▾ 펼치기</span></h3><div id="simBody" class="collapse-body collapsed"><div id="sim" class="sim"></div></div></div>
 
@@ -3778,7 +3809,7 @@ function renderHelp(){
       <p style="margin:0;color:var(--sub)">매주 한투 HTS/MTS에서 엑셀을 내려받아 <b style="color:var(--ink)">도구 → 한투자산 업로드</b>에서 드래그·업로드하면 끝. 스냅샷이 쌓일수록 변화 추이가 정확해집니다.</p></div>
 
     <div class="card"><h3>🗓️ 주간 업데이트 (매주 반복)</h3>
-      <div class="step"><div class="num">1</div><div><b>엑셀 내려받기</b><p>한투에서 고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS 등 엑셀(.xls) 다운로드</p></div></div>
+      <div class="step"><div class="num">1</div><div><b>엑셀 내려받기</b><p>한투에서 고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS 등 엑셀(.xls) 다운로드. <b>FC유치 연금</b>도 함께 올리면 연금저축의 <b>세액공제·연금개시 정보</b>가 채워집니다(자산금액은 펀드CMA신탁 파일 기준으로만 집계 — 중복 계상 없음)</p></div></div>
       <div class="step"><div class="num">2</div><div><b>업로드 창 열기</b><p>사이드바 <code>도구 → 한투자산 업로드</code>(데이터가 없으면 홈의 <code>📤 한투자산 업로드</code> 버튼)를 열고 점선 박스에 파일을 모두 끌어다 놓기 (또는 <code>파일 선택</code>)</p></div></div>
       <div class="step"><div class="num">3</div><div><b>기준일 확인</b><p><code>기준일</code>을 데이터 기준일로 맞추기 (기본값=오늘). 같은 날짜로 다시 올리면 덮어쓰기됩니다</p></div></div>
       <div class="step"><div class="num">4</div><div><b>업로드</b><p><code>업로드</code> 클릭 → 자동 분석·누적. 하단에 인식된 파일 종류가 표시됩니다</p></div></div>
