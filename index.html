@@ -3532,7 +3532,7 @@ function linkedCustomersFor(file){return Object.values(CRM).filter(cr=>(cr.linkI
 function reportsForCustomer(name){const cr=CRM[name];return cr&&cr.linkIds?cr.linkIds.slice():[];}
 
 /* repo 루트가 아닌 실제 배포 리포트가 아닌 시스템/도구 파일 */
-const REP_EXCLUDE=new Set(['dashboard.html','customers.html','checklist.html','checklist2.html','CRM_가입설계_입력변환.html','test.html','index.html']);
+const REP_EXCLUDE=new Set(['dashboard.html','customers.html','checklist2.html','CRM_가입설계_입력변환.html','test.html','index.html']);
 async function loadReports(){
   reportsErr='';
   try{
