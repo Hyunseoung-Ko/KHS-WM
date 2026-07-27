@@ -712,8 +712,8 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
   <div class="modal-card">
     <button class="modal-x" id="upClose">✕</button>
     <h3>📤 한투자산 업로드</h3>
-    <p class="msub">한투 HTS 엑셀 6종을 올리면 자동 분석·누적됩니다 · 고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS</p>
-    <div id="drop"><b>이곳으로 엑셀 파일을 드래그하세요</b>고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS (.xls)</div>
+    <p class="msub">한투 HTS 엑셀 7종을 올리면 자동 분석·누적됩니다 · 고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS · 연금상세</p>
+    <div id="drop"><b>이곳으로 엑셀 파일을 드래그하세요</b>고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS · 연금상세 (.xls)</div>
     <div class="filechips" id="fileChips"></div>
     <div class="up-row">
       <label style="font-size:13px;color:var(--sub);font-weight:600">기준일</label>
@@ -1020,6 +1020,8 @@ function detectType(headers){const H=headers.map(norm);const has=k=>H.includes(n
   if(has('상품유형')&&has('총평가금액'))return 'fund';
   if(has('종목코드')&&has('시가평가액'))return 'bondels';
   if(has('월회전율')||has('HTS가입여부'))return 'trust';
+  // FC유치 연금상세 = 연금저축 상세 메타. 해당년도 순납입(중도인출 차감) · 계좌 단위 누적 납입/인출/평가를 담고 있어 아래 'FC유치 연금'의 상위호환 → 먼저 판정
+  if(has('연한도금액')&&has('해당년도 순납입금액(a-b)'))return 'pensionDetail';
   // FC유치 연금 = 연금저축 메타(연납입·연한도·연금개시). 자산금액은 펀드파일과 100% 중복이라 합산 제외, 세액공제·연금개시 정보만 흡수
   if(has('연한도금액')&&has('연납입금액')&&has('펀드명'))return 'pensionMeta';
   // 확장: 고객명 + 평가금액류 컬럼이 있으면 새 자산파일로 자동 수용
@@ -1168,7 +1170,9 @@ function buildSnapshot(date, files){
   const setPrefix=(o,acct)=>{const j=parseAcct(acct).jong;if(j&&!o.acctPrefix)o.acctPrefix=j;};
   const minDate=(a,b)=>{b=dnorm(b);if(!b)return a;if(!a)return b;return b<a?b:a;};
   const bump=(m,k)=>{k=String(k||'').trim();if(k)m[k]=(m[k]||0)+1;};
-  /* 연금 세액공제 메타 슬롯 — '연금저축'(FC유치 연금) · 'IRP'(계약별 퇴직연금 개인형IRP) */
+  /* 연금 세액공제 메타 슬롯 — '연금저축'(FC유치 연금/연금상세) · 'IRP'(계약별 퇴직연금 개인형IRP)
+     src==='detail' = FC유치 연금상세에서 채워진 슬롯 → annualPaid가 총납입(a)이 아니라 순납입(a-b) 기준이고
+     누적 납입/인출(cumPaid·cumOut)·계좌 평가(acctTotal)까지 들어있음 */
   const pmSlot=(o,key)=>{const m=o.pensionMeta=o.pensionMeta||{};return m[key]=m[key]||{annualPaid:0,annualLimit:0,startDate:'',started:false};};
   const pmAccrue=(slot,paidK,limitK,startedK,startK,g,r)=>{
     slot.annualPaid+=num(g(r,paidK));slot.annualLimit+=num(g(r,limitK));
@@ -1241,6 +1245,8 @@ function buildSnapshot(date, files){
     o.regDate=minDate(o.regDate,g(r,'계좌개설일'));
     bump(o.branchCount,g(r,'계좌관리점'));bump(o.pbCount,g(r,'계좌관리자'));
     regAcct(o,g(r,'계좌번호'),fundCategory(g(r,'상품명')),{branch:g(r,'계좌관리점'),pb:g(r,'계좌관리자'),openDate:dnorm(g(r,'계좌개설일'))});
+    // 연금저축(22) 출금누계 보조집계 — 연금상세의 '출금/이체된금액'이 과거 연도 인출을 0으로 주는 케이스 보정용 (아래 집계 루프에서 큰 값 채택)
+    if(parseAcct(g(r,'계좌번호')).code==='22')o.psFundOut=(o.psFundOut||0)+num(g(r,'출금누계액'));
     const ev=num(g(r,'총평가금액')),principal=num(g(r,'매입금액'));
     if(ev===0&&principal===0&&num(g(r,'입금누계액'))===0)return;
     // 연금저축(개인 세제적격, 계좌코드 22 / 세금감면유형=연금저축계좌) 투자상품은 '펀드'가 아니라 '연금저축' 카테고리로 분리
@@ -1291,10 +1297,33 @@ function buildSnapshot(date, files){
     const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
     pmAccrue(pmSlot(o,'연금저축'),'연납입금액','연한도금액','연금개시여부','연금수령개시(예정)일',g,r);
   });});
+  // 연금저축 상세 (FC유치 연금상세) — 'FC유치 연금'의 상위호환. 자산금액(평가금액·연금총자산금액)은 펀드CMA신탁과 100% 중복이라 여기서도 합산 제외.
+  // ① 세액공제 대상액을 총납입(a)이 아닌 '해당년도 순납입금액(a-b)'(중도인출 차감)으로 잡고 ② 계좌 단위 누적 납입·인출·평가를 흡수(인출로 인한 가짜 손실 제거용)
+  (files.pensionDetail||[]).forEach(f=>{const g=rowGetter(f.headers);f.rows.forEach(r=>{
+    const o=ensure(g(r,'고객명'),g(r,'계좌번호'));if(!o)return;setPrefix(o,g(r,'계좌번호'));
+    const s=pmSlot(o,'연금저축');
+    // 상세 우선: 'FC유치 연금'이 먼저 채운 총납입(a)·한도 누계를 순납입 기준으로 갈아끼운다 (첫 행에서 1회)
+    if(s.src!=='detail'){s.src='detail';s.annualPaid=0;s.annualLimit=0;s.annualGross=0;s.annualOut=0;s.cumPaid=0;s.cumOutRaw=0;s.cumOut=0;s.acctTotal=0;}
+    s.annualPaid+=num(g(r,'해당년도 순납입금액(a-b)'));   // 음수(인출만 한 해) 가능 → 세액공제 계산 시 0으로 클램프
+    s.annualGross+=num(g(r,'해당년도 납입금액(a)'));
+    s.annualOut+=num(g(r,'해당년도 인출/이체금액(b)'));
+    s.annualLimit+=num(g(r,'연한도금액'));
+    s.cumPaid+=num(g(r,'연금납입금액'));                  // 계좌 실납입 누계(펀드 매수누계와 다른 값)
+    s.cumOutRaw+=num(g(r,'출금/이체된금액'));
+    s.acctTotal+=num(g(r,'연금총자산금액'));
+    const sd=dnorm(g(r,'연금수령개시일'))||dnorm(g(r,'연금개시신청일'));
+    if(sd&&(!s.startDate||sd<s.startDate))s.startDate=sd;
+    const yn=String(g(r,'연금개시여부')||'').trim().toUpperCase();if(yn==='Y'||yn.includes('개시'))s.started=true;
+  });});
 
   // aggregate per customer
   const totals={eval:0,principal:0,profit:0,cats:{},branches:{},pbs:{},count:0};
   Object.values(cust).forEach(o=>{
+    // 연금저축 누적 인출 확정 — 연금상세 값과 펀드CMA신탁 출금누계(22계좌) 중 큰 값.
+    // 상세는 과거 연도에 정리된 계좌의 인출을 0으로 주고, 펀드파일은 계좌 내 이동분까지 잡아서 서로를 보완한다.
+    {const s=o.pensionMeta&&o.pensionMeta['연금저축'];
+     if(s&&s.src==='detail')s.cumOut=Math.max(s.cumOutRaw||0,o.psFundOut||0);}
+    delete o.psFundOut;
     o.cats={};
     let ev=0;
     o.products.forEach(p=>{const c=p.category||'기타자산';o.cats[c]=(o.cats[c]||0)+p.eval;ev+=p.eval;});
@@ -1767,29 +1796,63 @@ function bindShots(scope){
 }
 
 /* ----- CLIENT DETAIL ----- */
-/* 연금저축·IRP 세액공제·연금개시 정보 카드 (FC유치 연금 + 계약별 퇴직연금에서 흡수한 메타) */
+/* 연금저축 상세(FC유치 연금상세)가 있을 때만 계산되는 계좌 단위 실질 수익률.
+   (평가액 + 누적 인출 − 누적 납입) / 누적 납입 — 중도인출·타사이전 금액을 손실로 오인하지 않게 한다. */
+function pensionAcctRate(ps){
+  if(!ps||ps.src!=='detail'||!(ps.cumPaid>0))return null;
+  return (ps.acctTotal+ps.cumOut-ps.cumPaid)/ps.cumPaid*100;
+}
+/* 연금저축이 사실상 비워진 계좌 — 1천만원 이상 납입했는데 잔고가 납입액의 1% 미만.
+   투자손실이 아니라 인출·타사이전으로 빠져나간 것이므로 '손실'과 분리해 재유치 대상으로 다룬다. */
+function pensionDrained(c){
+  const ps=c.pensionMeta&&c.pensionMeta['연금저축'];
+  if(!ps||ps.src!=='detail')return null;
+  if(!(ps.cumPaid>=10000000)||ps.acctTotal>=ps.cumPaid*0.01)return null;
+  return {paid:ps.cumPaid,left:ps.acctTotal};
+}
+/* 고객 전체 수익률 — 연금저축 상세가 있으면 그 계좌만 '납입 대비' 기준으로 갈아끼운 실질 수익률.
+   상세 파일이 없는(과거) 스냅샷은 기존 c.rate 그대로 반환. */
+function realRate(c){
+  const ps=c.pensionMeta&&c.pensionMeta['연금저축'];
+  if(!ps||ps.src!=='detail'||!(ps.cumPaid>0))return c.rate;
+  let psEv=0,psPr=0;
+  (c.products||[]).forEach(p=>{if(parseAcct(p.account).code==='22'){psEv+=p.eval;psPr+=p.principal;}});
+  const ev=c.totalEval-psEv+ps.acctTotal+ps.cumOut, pr=c.totalPrincipal-psPr+ps.cumPaid;
+  return pr>0?(ev-pr)/pr*100:c.rate;
+}
+/* 연금저축·IRP 세액공제·연금개시 정보 카드 (FC유치 연금(상세) + 계약별 퇴직연금에서 흡수한 메타) */
 function pensionMetaCard(c){
   const pm=c.pensionMeta;if(!pm)return '';
   const ps=pm['연금저축'],irp=pm['IRP'];
-  const psP=ps?ps.annualPaid:0,irpP=irp?irp.annualPaid:0;
+  const psRaw=ps?ps.annualPaid:0,irpP=irp?irp.annualPaid:0;
+  const psP=Math.max(0,psRaw);   // 순납입이 음수(그 해 인출만) → 세액공제 대상 0
   const startDate=(ps&&ps.startDate)||(irp&&irp.startDate)||'';
   const started=!!((ps&&ps.started)||(irp&&irp.started));
-  if(!psP&&!irpP&&!startDate&&!started&&!(ps&&ps.annualLimit)&&!(irp&&irp.annualLimit))return '';
+  if(!psP&&!irpP&&!startDate&&!started&&!(ps&&ps.annualLimit)&&!(irp&&irp.annualLimit)&&!(ps&&ps.cumPaid))return '';
   const PS_LIMIT=6000000,TOT_LIMIT=9000000;   // 연금저축 600만 · 연금계좌(연금저축+IRP) 합산 900만 (소득세법 §59조의3)
   const psCredit=Math.min(psP,PS_LIMIT);
   const totCredit=Math.min(psCredit+irpP,TOT_LIMIT);
   const room=Math.max(0,TOT_LIMIT-totCredit);
   const rows=[];
-  if(ps)rows.push(`<div class="crmrow"><span>연금저축 연 납입</span><b>${won(psP)}<small style="color:var(--sub);font-weight:500"> / 한도 600만</small></b></div>`);
+  const detail=!!(ps&&ps.src==='detail'),acctRate=pensionAcctRate(ps);
+  if(ps)rows.push(`<div class="crmrow"><span>연금저축 연 납입${detail?' <small style="color:var(--sub);font-weight:500">순납입</small>':''}</span><b>${won(psP)}<small style="color:var(--sub);font-weight:500"> / 한도 600만</small></b></div>`);
+  if(detail&&ps.annualOut>0)rows.push(`<div class="crmrow"><span>올해 인출·이체</span><b class="down">−${won(ps.annualOut)}<small style="color:var(--sub);font-weight:500"> / 납입 ${won(ps.annualGross)}</small></b></div>`);
   if(irp)rows.push(`<div class="crmrow"><span>IRP 연 납입</span><b>${won(irpP)}</b></div>`);
   rows.push(`<div class="crmrow"><span>합산 세액공제 대상</span><b>${won(totCredit)}<small style="color:var(--sub);font-weight:500"> / 900만</small></b></div>`);
   rows.push(`<div class="crmrow"><span>추가 납입 여력</span><b class="${room>0?'up':''}">${room>0?won(room)+' 가능':'한도 소진'}</b></div>`);
   if(totCredit>0)rows.push(`<div class="crmrow"><span>예상 절세액</span><b class="up">${won(Math.round(totCredit*0.132))} ~ ${won(Math.round(totCredit*0.165))}</b></div>`);
+  if(detail&&ps.cumPaid>0){
+    rows.push(`<div class="crmrow"><span>연금저축 누적 납입</span><b>${won(ps.cumPaid)}</b></div>`);
+    if(ps.cumOut>0)rows.push(`<div class="crmrow"><span>연금저축 누적 인출</span><b class="down">−${won(ps.cumOut)}</b></div>`);
+    rows.push(`<div class="crmrow"><span>연금저축 계좌 평가</span><b>${won(ps.acctTotal)}</b></div>`);
+    if(acctRate!=null)rows.push(`<div class="crmrow"><span>연금저축 계좌 수익률</span><b class="${acctRate<0?'down':'up'}">${pct(acctRate)}</b></div>`);
+  }
   if(startDate)rows.push(`<div class="crmrow"><span>연금수령 개시(예정)일</span><b>${startDate}</b></div>`);
   rows.push(`<div class="crmrow"><span>연금개시</span><b class="${started?'up':''}">${started?'개시':'미개시'}</b></div>`);
   return `<div class="card"><h3>연금저축·IRP <span class="meta">세액공제 · 연금개시</span></h3>
     <div class="crmgrid">${rows.join('')}</div>
-    <p class="page-sub" style="margin-top:8px">* 세액공제 대상 납입한도 연금저축 600만 · IRP 합산 900만원 · 예상 절세액=대상액×13.2~16.5%(총급여 5,500만원 이하 16.5%) · 소득세법 §59조의3</p></div>`;
+    <p class="page-sub" style="margin-top:8px">* 세액공제 대상 납입한도 연금저축 600만 · IRP 합산 900만원 · 예상 절세액=대상액×13.2~16.5%(총급여 5,500만원 이하 16.5%) · 소득세법 §59조의3
+    ${detail?`<br>* 연 납입은 <b>순납입(납입−인출)</b> 기준 · 계좌 수익률=(평가+누적인출−누적납입)/누적납입 — 타사 계약이전은 인출로 안 잡힐 수 있어 실제보다 낮게 보일 수 있습니다`:''}</p></div>`;
 }
 function openClient(name){killCharts();
   if(!inDetail)detailFrom=VIEW_TITLES[curView]?curView:'clients';   // 상세 내 재렌더 시엔 원 출발 화면 유지
@@ -2919,7 +2982,9 @@ function contactReasons(c){
     const m=ctMaturityIso(ct);
     if(m&&m>=t&&m<=addMonths(t,1))r.push('🔔 '+shortProd(ct)+' 보험만기('+m+') — 갱신·재가입 안내');
   });
-  if(c.rate<0)r.push('📉 평가손실('+pct(c.rate)+') — 보유상품 점검·리밸런싱');
+  {const dr=pensionDrained(c),rr=realRate(c);
+   if(dr)r.push('🚪 연금저축 소진(누적 '+won(dr.paid)+' 납입 / 잔고 '+won(dr.left)+') — 재유치 상담');
+   else if(rr<0)r.push('📉 평가손실('+pct(rr)+') — 보유상품 점검·리밸런싱');}
   if(total>0&&cash/total>=0.3)r.push('💰 예수금 비중 '+(cash/total*100).toFixed(0)+'% — 연금·펀드 운용 제안');
   else if(cash>=1e7)r.push('💰 예수금 '+eok(cash)+' — 추가 운용 제안');
   if(age!=null&&age>=54&&age<=56&&((cats['개인형IRP']||0)>0||(cats['연금저축']||0)>0))r.push('🎂 만 '+age+'세 — 연금개시 설계 안내');
@@ -3067,13 +3132,16 @@ function renderStrategy(){
         <div class="right"><span class="amt">${eok(e.eval)}</span></div><span class="chev">›</span></div>`;}).join('');
   }
   else if(stratTab==='care'){
-    desc='손실(-) · 전 스냅샷 대비 20%↓ 급감 · 전 데이터 대비 현금성 자산 증대 = 케어·재투자 기회';
+    desc='손실(-) · 전 스냅샷 대비 20%↓ 급감 · 전 데이터 대비 현금성 자산 증대 · 연금 이탈(납입 대비 잔고 소진) = 케어·재투자 기회';
     const prevSnap=SNAPS.length>1?SNAPS[SNAPS.length-2]:null;
     const cand=[];
     all.forEach(c=>{
       if(!(c.totalEval>0))return;
       const tags=[];let cashUp=0;
-      if(c.rate<0)tags.push(`<span class="tag b">손실 ${pct(c.rate)}</span>`);
+      const rr=realRate(c);   // 연금저축 중도인출을 손실로 오인하지 않게 보정 (상세 파일 있을 때만)
+      const dr=pensionDrained(c);
+      if(dr)tags.push(`<span class="tag" style="background:#FCF3E0;color:#C98A0B">연금 이탈 ${eok(dr.paid)} 납입 · 잔고 ${won(dr.left)}</span>`);
+      else if(rr<0)tags.push(`<span class="tag b">손실 ${pct(rr)}</span>`);
       if(prevSnap){const p=prevSnap.customers[c.name];
         if(p&&p.totalEval>0){const d=(c.totalEval-p.totalEval)/p.totalEval;
           if(d<=-0.2)tags.push(`<span class="tag" style="background:#FDECEE;color:#E0344B">급감 ${(d*100).toFixed(0)}%</span>`);}
@@ -3081,8 +3149,8 @@ function renderStrategy(){
           if(cc-pc>=1e6){cashUp=cc-pc;tags.push(`<span class="tag" style="background:#FCF3E0;color:#C98A0B">현금↑ +${eok(cashUp)}</span>`);}}}
       if(tags.length)cand.push({c,tags,cashUp});
     });
-    cand.sort((a,b)=>(b.cashUp-a.cashUp)||(a.c.rate-b.c.rate));
-    rows=cand.map(({c,tags})=>srow(c,`<span class="amt">${won(c.totalEval)}</span><span class="rate ${c.rate<0?'down':'flat'}">${pct(c.rate)}</span>`,
+    cand.sort((a,b)=>(b.cashUp-a.cashUp)||(realRate(a.c)-realRate(b.c)));
+    rows=cand.map(({c,tags})=>srow(c,`<span class="amt">${won(c.totalEval)}</span><span class="rate ${realRate(c)<0?'down':'flat'}">${pct(realRate(c))}</span>`,
       tags.join('')+(c.pb?`<span class="tag">${esc(c.pb)} PB</span>`:''))).join('');
   }
   else if(stratTab==='zero'){
@@ -3849,7 +3917,7 @@ function renderHelp(){
       <p style="margin:0;color:var(--sub)">매주 한투 HTS/MTS에서 엑셀을 내려받아 <b style="color:var(--ink)">도구 → 한투자산 업로드</b>에서 드래그·업로드하면 끝. 스냅샷이 쌓일수록 변화 추이가 정확해집니다.</p></div>
 
     <div class="card"><h3>🗓️ 주간 업데이트 (매주 반복)</h3>
-      <div class="step"><div class="num">1</div><div><b>엑셀 내려받기</b><p>한투에서 고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS 등 엑셀(.xls) 다운로드. <b>FC유치 연금</b>도 함께 올리면 연금저축의 <b>세액공제·연금개시 정보</b>가 채워집니다(자산금액은 펀드CMA신탁 파일 기준으로만 집계 — 중복 계상 없음)</p></div></div>
+      <div class="step"><div class="num">1</div><div><b>엑셀 내려받기</b><p>한투에서 고객리스트 · 위탁계좌 · 퇴직연금(계약/상품) · 펀드CMA신탁 · 채권/ELS 등 엑셀(.xls) 다운로드. <b>FC유치 연금상세</b>(또는 FC유치 연금)도 함께 올리면 연금저축의 <b>세액공제·연금개시 정보</b>가 채워집니다. 상세본은 <b>순납입(납입−인출)·누적 납입·계좌 수익률</b>까지 잡아 중도인출 고객의 세액공제액과 손실 표시가 정확해집니다(자산금액은 펀드CMA신탁 파일 기준으로만 집계 — 중복 계상 없음)</p></div></div>
       <div class="step"><div class="num">2</div><div><b>업로드 창 열기</b><p>사이드바 <code>도구 → 한투자산 업로드</code>(데이터가 없으면 홈의 <code>📤 한투자산 업로드</code> 버튼)를 열고 점선 박스에 파일을 모두 끌어다 놓기 (또는 <code>파일 선택</code>)</p></div></div>
       <div class="step"><div class="num">3</div><div><b>기준일 확인</b><p><code>기준일</code>을 데이터 기준일로 맞추기 (기본값=오늘). 같은 날짜로 다시 올리면 덮어쓰기됩니다</p></div></div>
       <div class="step"><div class="num">4</div><div><b>업로드</b><p><code>업로드</code> 클릭 → 자동 분석·누적. 하단에 인식된 파일 종류가 표시됩니다</p></div></div>
