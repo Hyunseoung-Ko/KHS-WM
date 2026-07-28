@@ -440,6 +440,8 @@ html.m body.v-gcal #main{padding-bottom:78px}
 .crmgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 18px}
 .crmrow{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;color:var(--sub3);padding:5px 0;border-bottom:1px solid var(--line2)}
 .crmrow b{color:var(--ink);font-weight:600;text-align:right;overflow-wrap:anywhere}
+/* crmgrid 안의 소제목 — 행 전체를 차지해 뒤따르는 항목이 새 행 1열부터 정렬된다 */
+.crmsub{grid-column:1/-1;font-size:11.5px;font-weight:700;color:var(--sub);letter-spacing:-.2px;padding:12px 0 3px}
 .crmmemo{margin-top:10px;background:var(--inset);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--ink);white-space:pre-wrap;line-height:1.5}
 .card h3 .btn.sm{font-weight:700}
 .cf2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -1841,14 +1843,16 @@ function pensionMetaCard(c){
   rows.push(`<div class="crmrow"><span>합산 세액공제 대상</span><b>${won(totCredit)}<small style="color:var(--sub);font-weight:500"> / 900만</small></b></div>`);
   rows.push(`<div class="crmrow"><span>추가 납입 여력</span><b class="${room>0?'up':''}">${room>0?won(room)+' 가능':'한도 소진'}</b></div>`);
   if(totCredit>0)rows.push(`<div class="crmrow"><span>예상 절세액</span><b class="up">${won(Math.round(totCredit*0.132))} ~ ${won(Math.round(totCredit*0.165))}</b></div>`);
-  if(detail&&ps.cumPaid>0){
-    rows.push(`<div class="crmrow"><span>연금저축 누적 납입</span><b>${won(ps.cumPaid)}</b></div>`);
-    if(ps.cumOut>0)rows.push(`<div class="crmrow"><span>연금저축 누적 인출</span><b class="down">−${won(ps.cumOut)}</b></div>`);
-    rows.push(`<div class="crmrow"><span>연금저축 계좌 평가</span><b>${won(ps.acctTotal)}</b></div>`);
-    if(acctRate!=null)rows.push(`<div class="crmrow"><span>연금저축 계좌 수익률</span><b class="${acctRate<0?'down':'up'}">${pct(acctRate)}</b></div>`);
-  }
   if(startDate)rows.push(`<div class="crmrow"><span>연금수령 개시(예정)일</span><b>${startDate}</b></div>`);
   rows.push(`<div class="crmrow"><span>연금개시</span><b class="${started?'up':''}">${started?'개시':'미개시'}</b></div>`);
+  // 계좌 누적은 위쪽(해당년도 세액공제)과 기간이 달라 소제목으로 끊고 맨 아래에 모은다 — 소제목이 한 행을 차지해 2열로 나란히 정렬됨
+  if(detail&&ps.cumPaid>0){
+    rows.push(`<div class="crmsub">연금저축 계좌 누적 · 개설 이후</div>`);
+    rows.push(`<div class="crmrow"><span>누적 납입</span><b>${won(ps.cumPaid)}</b></div>`);
+    if(ps.cumOut>0)rows.push(`<div class="crmrow"><span>누적 인출</span><b class="down">−${won(ps.cumOut)}</b></div>`);
+    rows.push(`<div class="crmrow"><span>계좌 평가</span><b>${won(ps.acctTotal)}</b></div>`);
+    if(acctRate!=null)rows.push(`<div class="crmrow"><span>계좌 수익률</span><b class="${acctRate<0?'down':'up'}">${pct(acctRate)}</b></div>`);
+  }
   return `<div class="card"><h3>연금저축·IRP <span class="meta">세액공제 · 연금개시</span></h3>
     <div class="crmgrid">${rows.join('')}</div>
     <p class="page-sub" style="margin-top:8px">* 세액공제 대상 납입한도 연금저축 600만 · IRP 합산 900만원 · 예상 절세액=대상액×13.2~16.5%(총급여 5,500만원 이하 16.5%) · 소득세법 §59조의3
