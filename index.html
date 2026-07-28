@@ -440,8 +440,12 @@ html.m body.v-gcal #main{padding-bottom:78px}
 .crmgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 18px}
 .crmrow{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;color:var(--sub3);padding:5px 0;border-bottom:1px solid var(--line2)}
 .crmrow b{color:var(--ink);font-weight:600;text-align:right;overflow-wrap:anywhere}
-/* crmgrid 안의 소제목 — 행 전체를 차지해 뒤따르는 항목이 새 행 1열부터 정렬된다 */
-.crmsub{grid-column:1/-1;font-size:11.5px;font-weight:700;color:var(--sub);letter-spacing:-.2px;padding:12px 0 3px}
+/* crmgrid 안의 섹션 소제목 — 행 전체를 차지해 뒤따르는 항목이 새 행 1열부터 정렬된다.
+   .a=해당년도 기준 · .b=개설 이후 누계 기준. 평가 기간이 다른 블록이라 색·구분선으로 끊는다 */
+.crmsub{grid-column:1/-1;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;letter-spacing:-.2px;padding:2px 0 6px}
+.crmsub::before{content:"";width:3px;height:11px;border-radius:2px;background:currentColor}
+.crmsub.a{color:var(--primary-d)}
+.crmsub.b{color:var(--warn-d);margin-top:13px;padding-top:14px;border-top:1px solid var(--line)}
 .crmmemo{margin-top:10px;background:var(--inset);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--ink);white-space:pre-wrap;line-height:1.5}
 .card h3 .btn.sm{font-weight:700}
 .cf2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -1837,6 +1841,9 @@ function pensionMetaCard(c){
   const room=Math.max(0,TOT_LIMIT-totCredit);
   const rows=[];
   const detail=!!(ps&&ps.src==='detail'),acctRate=pensionAcctRate(ps);
+  // 누적 블록이 붙을 때만 섹션을 나눈다 — 한 덩어리뿐이면 소제목이 오히려 군더더기라 기존 모습(h3 부제) 유지
+  const split=detail&&ps.cumPaid>0;
+  if(split)rows.push(`<div class="crmsub a">올해 세액공제 · 연금개시</div>`);
   if(ps)rows.push(`<div class="crmrow"><span>연금저축 연 납입${detail?' <small style="color:var(--sub);font-weight:500">순납입</small>':''}</span><b>${won(psP)}<small style="color:var(--sub);font-weight:500"> / 한도 600만</small></b></div>`);
   if(detail&&ps.annualOut>0)rows.push(`<div class="crmrow"><span>올해 인출·이체</span><b class="down">−${won(ps.annualOut)}<small style="color:var(--sub);font-weight:500"> / 납입 ${won(ps.annualGross)}</small></b></div>`);
   if(irp)rows.push(`<div class="crmrow"><span>IRP 연 납입</span><b>${won(irpP)}</b></div>`);
@@ -1845,15 +1852,15 @@ function pensionMetaCard(c){
   if(totCredit>0)rows.push(`<div class="crmrow"><span>예상 절세액</span><b class="up">${won(Math.round(totCredit*0.132))} ~ ${won(Math.round(totCredit*0.165))}</b></div>`);
   if(startDate)rows.push(`<div class="crmrow"><span>연금수령 개시(예정)일</span><b>${startDate}</b></div>`);
   rows.push(`<div class="crmrow"><span>연금개시</span><b class="${started?'up':''}">${started?'개시':'미개시'}</b></div>`);
-  // 계좌 누적은 위쪽(해당년도 세액공제)과 기간이 달라 소제목으로 끊고 맨 아래에 모은다 — 소제목이 한 행을 차지해 2열로 나란히 정렬됨
-  if(detail&&ps.cumPaid>0){
-    rows.push(`<div class="crmsub">연금저축 계좌 누적 · 개설 이후</div>`);
+  // 계좌 누적은 위쪽(해당년도 세액공제)과 평가 기간이 달라 색 다른 소제목·구분선으로 끊고 맨 아래에 모은다
+  if(split){
+    rows.push(`<div class="crmsub b">계좌 누적 · 개설 이후</div>`);
     rows.push(`<div class="crmrow"><span>누적 납입</span><b>${won(ps.cumPaid)}</b></div>`);
     if(ps.cumOut>0)rows.push(`<div class="crmrow"><span>누적 인출</span><b class="down">−${won(ps.cumOut)}</b></div>`);
     rows.push(`<div class="crmrow"><span>계좌 평가</span><b>${won(ps.acctTotal)}</b></div>`);
     if(acctRate!=null)rows.push(`<div class="crmrow"><span>계좌 수익률</span><b class="${acctRate<0?'down':'up'}">${pct(acctRate)}</b></div>`);
   }
-  return `<div class="card"><h3>연금저축·IRP <span class="meta">세액공제 · 연금개시</span></h3>
+  return `<div class="card"><h3>연금저축·IRP ${split?'':'<span class="meta">세액공제 · 연금개시</span>'}</h3>
     <div class="crmgrid">${rows.join('')}</div>
     <p class="page-sub" style="margin-top:8px">* 세액공제 대상 납입한도 연금저축 600만 · IRP 합산 900만원 · 예상 절세액=대상액×13.2~16.5%(총급여 5,500만원 이하 16.5%) · 소득세법 §59조의3
     ${detail?`<br>* 연 납입은 <b>순납입(납입−인출)</b> 기준 · 계좌 수익률=(평가+누적인출−누적납입)/누적납입 — 타사 계약이전은 인출로 안 잡힐 수 있어 실제보다 낮게 보일 수 있습니다`:''}</p></div>`;
