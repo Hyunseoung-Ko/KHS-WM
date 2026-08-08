@@ -980,7 +980,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
   const KEY = 'gh_pat';
   const LEGACY = ['toss_dashboard_pat', 'ghpat'];   // 옛 평문 키 — 한 번 흡수하고 지운다
   const SESSION_TTL  = 12 * 3600 * 1000;
-  const REMEMBER_TTL = 14 * 24 * 3600 * 1000;
+  const REMEMBER_TTL = 90 * 24 * 3600 * 1000;   // GitHub PAT 권장 유효기간에 맞춘다
   const safe = fn => { try { return fn(); } catch (e) { return null; } };
   const ss = () => safe(() => g.sessionStorage);
   const ls = () => safe(() => g.localStorage);
@@ -1025,6 +1025,7 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
       return true;
     },
     remembered() { return !!read(ls()); },
+    defaultRemember() { return this.get() ? this.remembered() : true; },
     clear() {
       drop(ss()); drop(ls());
       const store = ls();
@@ -4537,12 +4538,14 @@ const TOSS_OWNER='hyunseoung-ko',TOSS_REPO='toss-reports',TOSS_BRANCH='main',TOS
 /* 토큰은 위 GHAuth 블록이 혼자 다룬다 — 저장 키는 여기서 알 필요가 없다.
    토스 대시보드·고객관리·통합연금분석과 같은 값을 본다(오리진이 같아 저장소를 공유한다). */
 function tossPAT(){return window.GHAuth?GHAuth.get():'';}
-/* 토큰을 새로 받아 저장한다. 기본은 이번 세션만 — 이 기기에 남기려면 물어본다.
-   프롬프트 하나로 끝내던 자리라, 보관 기간까지 그 자리에서 정하게 한다. */
+/* 토큰을 새로 받아 저장한다. 이 기기에 90일간 남긴다(GitHub PAT 권장 유효기간).
+   ⚠ 보관 기간을 매번 confirm으로 묻던 자리다. 사실상 1인용 도구라, 토큰을 넣을 때마다
+     확인창이 하나 더 뜨는 것은 얻는 것 없이 번거롭기만 했다. 공용 PC에서 세션 보관이
+     필요하면 토스 대시보드의 토큰 모달에서 '기억'을 끄면 되고, 두 앱이 같은 저장소를
+     보므로 그 선택이 여기에도 그대로 적용된다. */
 function tossSetPAT(t){
   t=String(t||'').trim(); if(!t||!window.GHAuth)return false;
-  const remember=confirm('이 기기에서 14일간 기억할까요?\n\n[확인] 14일간 기억 — 매번 붙여넣지 않아도 됩니다\n[취소] 이번 세션만 — 브라우저를 닫으면 사라집니다 (공용 PC 권장)');
-  return GHAuth.set(t,remember);
+  return GHAuth.set(t,GHAuth.defaultRemember());
 }
 function b64ToUtf8(b64){const bin=atob(String(b64||'').replace(/\s/g,''));const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u);}
 async function fetchTossCRM(token){
