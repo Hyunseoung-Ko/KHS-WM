@@ -960,6 +960,81 @@ html.m .seg button{flex:0 0 auto;padding:10px 12px}
 <script src="lib/xlsx.full.min.js"></script>
 <script src="lib/chart.umd.min.js"></script>
 <script src="lib/html2canvas.min.js"></script>
+<!-- ════════════════════════════════════════════════════════════════
+     GitHub 토큰 보관 — toss-reports/lib/gh-auth.js와 <b>형식이 같은</b> 사본.
+
+     ⚠ 왜 사본인가: GitHub Pages 프로젝트 사이트는 경로만 다르고 오리진이 같다
+       (hyunseoung-ko.github.io/KHS-WM · /toss-reports). localStorage는 오리진
+       단위라 두 앱이 같은 저장소를 본다 — 그래서 토스 쪽 파일을 그대로 불러올
+       수도 있지만, 그러면 이 단일 파일 앱이 다른 저장소의 배포에 묶인다.
+       대신 같은 형식을 여기 인라인한다.
+     ⚠ 한쪽 형식을 바꾸면 반드시 양쪽을 함께 바꿔야 한다. 키·필드·만료 규칙이
+       어긋나면 한 앱이 저장한 토큰을 다른 앱이 못 읽는다.
+     자세한 설계 의도(무엇이 좋아지고 무엇은 그대로인가)는 toss-reports의
+     lib/gh-auth.js 머리주석 참조. 요약: 기본을 세션 보관으로 바꿔 노출 시간을
+     줄일 뿐, XSS 자체를 막지는 못한다.
+     ════════════════════════════════════════════════════════════════ -->
+<script>
+(function (g) {
+  'use strict';
+  const KEY = 'gh_pat';
+  const LEGACY = ['toss_dashboard_pat', 'ghpat'];   // 옛 평문 키 — 한 번 흡수하고 지운다
+  const SESSION_TTL  = 12 * 3600 * 1000;
+  const REMEMBER_TTL = 14 * 24 * 3600 * 1000;
+  const safe = fn => { try { return fn(); } catch (e) { return null; } };
+  const ss = () => safe(() => g.sessionStorage);
+  const ls = () => safe(() => g.localStorage);
+  function read(store) {
+    if (!store) return null;
+    const raw = safe(() => store.getItem(KEY));
+    if (!raw) return null;
+    let o = null;
+    try { o = JSON.parse(raw); } catch (e) { o = null; }
+    if (!o || typeof o.t !== 'string' || !o.t) { safe(() => store.removeItem(KEY)); return null; }
+    if (o.exp && Date.now() > o.exp) { safe(() => store.removeItem(KEY)); return null; }
+    return o;
+  }
+  const write = (store, o) => { if (store) safe(() => store.setItem(KEY, JSON.stringify(o))); };
+  const drop  = store => { if (store) safe(() => store.removeItem(KEY)); };
+  function adoptLegacy() {
+    const store = ls(); if (!store) return null;
+    let found = null;
+    for (const k of LEGACY) {
+      const v = safe(() => store.getItem(k));
+      safe(() => store.removeItem(k));
+      if (!found && typeof v === 'string' && v.trim()) found = v.trim();
+    }
+    return found;
+  }
+  g.GHAuth = {
+    get() {
+      const s = read(ss());
+      if (s) return s.t;
+      const l = read(ls());
+      if (l) { write(ss(), {t: l.t, exp: Date.now() + SESSION_TTL}); return l.t; }
+      const legacy = adoptLegacy();
+      if (legacy) { this.set(legacy, true); return legacy; }
+      return '';
+    },
+    set(token, remember) {
+      const t = String(token || '').trim();
+      if (!t) return false;
+      write(ss(), {t, exp: Date.now() + SESSION_TTL});
+      if (remember) write(ls(), {t, exp: Date.now() + REMEMBER_TTL});
+      else drop(ls());
+      return true;
+    },
+    remembered() { return !!read(ls()); },
+    clear() {
+      drop(ss()); drop(ls());
+      const store = ls();
+      if (store) LEGACY.forEach(k => safe(() => store.removeItem(k)));
+    },
+    looksValid(t) { return /^(ghp_|github_pat_)/.test(String(t || '').trim()); },
+    noteStatus(status) { if (status === 401) { this.clear(); return true; } return false; },
+  };
+})(window);
+</script>
 <script>
 /* =========================================================
    자산관리 대시보드 — 기기내(IndexedDB) 저장 / 외부전송 없음
@@ -3700,7 +3775,7 @@ async function renderReports(){
   // 검색: 뷰 전체를 다시 그리지 않고 리스트만 갱신 → 입력칸이 살아있어 한글 IME 조합이 끊기지 않음
   const s=$('#repSearch');s.oninput=()=>{reportSearch=s.value;const list=v.querySelector('.list');if(list){list.innerHTML=repListHtml();bindRepRows(list);}};
 }
-function repConnect(){const t=prompt('toss-reports 접근 토큰(github_pat_...) 붙여넣기\n· 보험 고객 가져오기·리포트 배포에 쓰는 동일 토큰');if(!t)return;localStorage.setItem(TOSS_PAT_KEY,t.trim());reportsLoaded=false;reportsErr='';renderReports();}
+function repConnect(){const t=prompt('toss-reports 접근 토큰(github_pat_...) 붙여넣기\n· 보험 고객 가져오기·리포트 배포에 쓰는 동일 토큰');if(!t)return;if(!tossSetPAT(t))return;reportsLoaded=false;reportsErr='';renderReports();}
 function repCopy(url){navigator.clipboard.writeText(url).then(()=>toast('링크 복사됨'),()=>toast('복사 실패'));}
 function closeRepModal(){$('#repModal').classList.add('hidden');}
 window.repCopy=repCopy;window.closeRepModal=closeRepModal;
@@ -3711,7 +3786,7 @@ let depCat=null, depFiles=[];
 function ensureTossPAT(){
   if(tossPAT())return true;
   const t=prompt('toss-reports 접근 토큰(github_pat_...) 붙여넣기\n· 보험 가져오기·리포트에 쓰는 동일 토큰');
-  if(!t)return false;localStorage.setItem(TOSS_PAT_KEY,t.trim());return !!tossPAT();
+  if(!t)return false;tossSetPAT(t);return !!tossPAT();
 }
 const UPLOAD_SVG='<svg viewBox="0 0 24 24" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>';
 function openDeployModal(){
@@ -3769,7 +3844,7 @@ async function deployRun(){
       let sha=null;try{const cur=await tossGet(fn);sha=cur&&cur.sha;}catch(e){if(e.status!==404)throw e;}
       await tossPutRetry(fn,utf8ToB64(html),(sha?'report: update ':'report: ')+fn,sha);
       ok.push(fn);log('✓ '+fn+' 업로드','ok');
-    }catch(e){log('✗ '+fn+' — '+(e.message||e),'err');if(e.status===401)localStorage.removeItem(TOSS_PAT_KEY);}}
+    }catch(e){log('✗ '+fn+' — '+(e.message||e),'err');if(e.status===401&&window.GHAuth)GHAuth.noteStatus(401);}}
   if(ok.length){
     try{const j=await tossGet('reports.json');const d=JSON.parse(b64ToUtf8(j.content));
       d.analysis=d.analysis||[];d.proposal=d.proposal||[];d.guide=d.guide||[];
@@ -4312,8 +4387,17 @@ async function doExport(){
    보험 고객 마이그레이션 (toss-reports/_crm/data.json → 통합 CRM)
    리포트 배포에 쓰는 동일 PAT 사용 · 채널 '보험' 부여 · 이름 기준 병합
    ========================================================= */
-const TOSS_OWNER='hyunseoung-ko',TOSS_REPO='toss-reports',TOSS_BRANCH='main',TOSS_PAT_KEY='toss_dashboard_pat',TOSS_CRM_PATH='_crm/data.json';
-function tossPAT(){return localStorage.getItem(TOSS_PAT_KEY)||'';}
+const TOSS_OWNER='hyunseoung-ko',TOSS_REPO='toss-reports',TOSS_BRANCH='main',TOSS_CRM_PATH='_crm/data.json';
+/* 토큰은 위 GHAuth 블록이 혼자 다룬다 — 저장 키는 여기서 알 필요가 없다.
+   토스 대시보드·고객관리·통합연금분석과 같은 값을 본다(오리진이 같아 저장소를 공유한다). */
+function tossPAT(){return window.GHAuth?GHAuth.get():'';}
+/* 토큰을 새로 받아 저장한다. 기본은 이번 세션만 — 이 기기에 남기려면 물어본다.
+   프롬프트 하나로 끝내던 자리라, 보관 기간까지 그 자리에서 정하게 한다. */
+function tossSetPAT(t){
+  t=String(t||'').trim(); if(!t||!window.GHAuth)return false;
+  const remember=confirm('이 기기에서 14일간 기억할까요?\n\n[확인] 14일간 기억 — 매번 붙여넣지 않아도 됩니다\n[취소] 이번 세션만 — 브라우저를 닫으면 사라집니다 (공용 PC 권장)');
+  return GHAuth.set(t,remember);
+}
 function b64ToUtf8(b64){const bin=atob(String(b64||'').replace(/\s/g,''));const u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return new TextDecoder().decode(u);}
 async function fetchTossCRM(token){
   const r=await fetch(`${GH_API}/repos/${TOSS_OWNER}/${TOSS_REPO}/contents/${TOSS_CRM_PATH}?ref=${TOSS_BRANCH}&t=`+Date.now(),
@@ -4325,11 +4409,18 @@ async function fetchTossCRM(token){
 }
 async function migrateInsurance(){
   let token=tossPAT();
-  if(!token){token=prompt('toss-reports 비공개 저장소 접근 토큰(github_pat_...)을 붙여넣으세요\n· 리포트 배포에 쓰는 토큰과 동일합니다');if(!token)return;token=token.trim();if(!token)return;localStorage.setItem(TOSS_PAT_KEY,token);}
+  if(!token){token=prompt('toss-reports 비공개 저장소 접근 토큰(github_pat_...)을 붙여넣으세요\n· 리포트 배포에 쓰는 토큰과 동일합니다');if(!token)return;token=String(token).trim();if(!token)return;tossSetPAT(token);}
   toast('보험 고객 불러오는 중...');
   let data;
   try{data=await fetchTossCRM(token);}
-  catch(e){if(e.status===401||e.status===403){localStorage.removeItem(TOSS_PAT_KEY);toast('토큰이 유효하지 않습니다 — 다시 시도하세요');}else toast('가져오기 실패: '+(e.message||e));return;}
+  /* 401과 403을 갈라 쓴다 — 예전에는 둘 다 토큰을 지웠는데, 403은 토큰이 멀쩡한 채
+     권한(저장소 범위·Contents 권한)이 모자란 상태다. 지워 버리면 같은 토큰을 다시
+     넣고 또 실패하게 되어 진짜 원인이 가려진다. */
+  catch(e){
+    if(e.status===401){window.GHAuth&&GHAuth.noteStatus(401);toast('토큰이 유효하지 않습니다 — 다시 시도하세요');}
+    else if(e.status===403)toast('이 토큰에 toss-reports 접근 권한이 없습니다 — Contents 읽기 권한을 확인하세요');
+    else toast('가져오기 실패: '+(e.message||e));
+    return;}
   if(!data||!Array.isArray(data.customers)){toast('보험 고객 데이터(_crm/data.json)를 찾지 못했습니다');return;}
   const hist=data.history||{};
   let added=0,merged=0;
