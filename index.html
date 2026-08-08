@@ -4225,19 +4225,32 @@ async function doUpload(){
    기기간 동기화 (E2EE · GitHub 비공개 repo)
    ========================================================= */
 const SYNC_KEY='ab_sync', SPASS_KEY='ab_sync_pass', SYNC_PATH='store.enc';
-function syncCfg(){try{return JSON.parse(localStorage.getItem(SYNC_KEY)||'null');}catch(e){return null;}}
-/* 암호 키: 수동 암호가 있으면 그것, 없으면 repo 기준으로 자동 생성(토큰만으로 사용) */
-function repoKey(){const c=syncCfg();return 'khs-wm-e2ee::'+(((c&&c.repo)||'').toLowerCase().trim());}
-function syncPass(){
-  const manual=localStorage.getItem(SPASS_KEY);
-  if(manual)return manual;
-  return repoKey();
+/* repo·enabled는 비밀이 아니라 평문으로 둔다. 토큰만 금고에서 꺼내 얹는다. */
+function syncCfg(){
+  let c=null;try{c=JSON.parse(localStorage.getItem(SYNC_KEY)||'null');}catch(e){return null;}
+  if(!c)return null;
+  const tok=(VAULT&&VAULT.token)||c.token||'';
+  return tok?{...c,token:tok}:c;
 }
-/* 복호화 후보 키 목록 — 기존 데이터가 어떤 키로 암호화됐든 자동 복구 */
+/* (레거시) repo 이름에서 만들어지는 기본 키.
+   ⚠ 이것은 <b>암호가 아니다</b> — 'khs-wm-e2ee::' + repo 이름이라 저장소 이름을 아는
+     사람이면 누구나 그대로 만들어 낼 수 있다. salt·PBKDF2 20만 회는 <b>모르는</b> 암호를
+     추측하기 어렵게 할 뿐, 알려진 문자열 앞에서는 아무 일도 하지 않는다.
+     즉 이 키로 암호화된 store.enc는 사실상 암호화되지 않은 것과 같다.
+   그럼에도 지우지 않는 이유: 이미 이 키로 올라간 데이터가 있다. 복호화 후보에서 빼면
+   그 데이터를 영영 못 연다. <b>읽기 전용 유산</b>으로만 남기고, 새로 쓸 때는 쓰지 않는다
+   (syncNow가 실제 암호로 다시 암호화해 올린다). */
+function repoKey(){const c=syncCfg();return 'khs-wm-e2ee::'+(((c&&c.repo)||'').toLowerCase().trim());}
+/** 사용자가 정한 진짜 동기화 암호. 없으면 '' — 그 상태가 곧 '암호화되지 않음'이다. */
+function realPass(){return (VAULT&&VAULT.pass)||localStorage.getItem(SPASS_KEY)||'';}
+/** 지금 암호화에 쓸 키. 암호가 없으면 레거시 기본 키로 떨어진다(동작은 유지하되 경고한다). */
+function syncPass(){return realPass()||repoKey();}
+/** 이 저장소가 추측 가능한 기본 키로 암호화되고 있는가 — 설정 화면에서 경고를 띄우는 기준 */
+function usingWeakKey(){return !realPass();}
+/* 복호화 후보 — 기존 데이터가 어떤 키로 암호화됐든 열리게 한다.
+   순서가 곧 우선순위다: 진짜 암호 → 옛 평문 자리 → 레거시 기본 키. */
 function passCandidates(){
-  const arr=[];const manual=localStorage.getItem(SPASS_KEY);
-  if(manual)arr.push(manual);
-  arr.push(repoKey());
+  const arr=[realPass(),localStorage.getItem(SPASS_KEY),repoKey()];
   return [...new Set(arr.filter(Boolean))];
 }
 /* 후보 키들을 차례로 시도해 복호화. 성공한 키를 반환(이후 재암호화·저장에 사용) */
@@ -4256,6 +4269,103 @@ async function encJSON(obj,pass){const salt=crypto.getRandomValues(new Uint8Arra
   return JSON.stringify({v:1,salt:b64eBuf(salt),iv:b64eBuf(iv),ct:b64eBuf(ct)});}
 async function decJSON(str,pass){const o=JSON.parse(str);const key=await deriveKey(pass,b64dBuf(o.salt));
   const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64dBuf(o.iv)},key,b64dBuf(o.ct));return JSON.parse(new TextDecoder().decode(pt));}
+
+/* ═══ 비밀값 금고 ═══════════════════════════════════════════
+   동기화 암호(E2EE 복호화 키)와 데이터 repo 토큰을 평문으로 localStorage에
+   두고 있었다. 둘 다 이 앱의 고객 데이터를 통째로 여는 열쇠다 —
+   브라우저 프로파일을 복사당하거나 개발자도구를 한 번 열리는 것만으로 나간다.
+
+   ── 왜 PIN으로 감싸지 않았나
+   PIN 파생키로 봉인하는 쪽이 프로파일 도난에 더 강하다. 그런데 이 앱에는
+   <b>생체인증 잠금해제</b>가 있고(unlockBio는 WebAuthn 검증만 할 뿐 키 재료를
+   주지 않는다), 잠금 해제 직후 boot()가 자동 동기화를 돈다. PIN으로 봉인하면
+   생체인증으로 들어온 사용자는 동기화 때마다 PIN을 다시 눌러야 한다.
+
+   ── 그래서 무엇을 쓰나
+   <b>추출 불가(non-extractable) AES-GCM 키</b>를 IndexedDB에 둔다.
+   extractable:false로 만든 CryptoKey는 원시 바이트를 JS로 꺼낼 수 없다 —
+   exportKey도 실패한다. 금고는 그 키로만 열린다.
+
+   ── 무엇이 좋아지고 무엇은 그대로인가 (솔직하게)
+   ✓ 평문이 사라진다. localStorage를 긁는 것만으로는 아무것도 못 얻는다
+     (개발자도구·확장프로그램·백업 파일·스크린샷·실수로 내보낸 덤프).
+   ✓ 금고 키 자체는 <b>훔쳐 갈 수 없다</b>. 복사해서 다른 곳에서 여는 것이 안 된다.
+   ✗ XSS는 여전히 막지 못한다. 이 페이지에서 스크립트가 돌면 그 키로 금고를
+     열어 값을 읽을 수 있다. 페이지 안에서 벌어지는 일은 저장 방식으로 못 막는다.
+   ✗ 프로파일을 통째로 복사하면 IndexedDB의 키도 함께 간다.
+   ═══════════════════════════════════════════════════════ */
+const VAULT_KEY='ab_vault', VAULT_KID='vaultKey';
+let VAULT=null;                       // {pass, token} — 열어 둔 사본
+
+/** 금고 키. 없으면 만든다. extractable:false — 원시 바이트를 꺼낼 길이 없다. */
+async function vaultKey(){
+  let k=await metaGet(VAULT_KID);
+  if(!k){
+    k=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+    await metaPut(VAULT_KID,k);
+  }
+  return k;
+}
+/** 금고를 열어 메모리에 올린다. 옛 평문 값이 남아 있으면 흡수한다.
+    ⚠ openDB() 이후에만 부를 것 — metaGet이 db를 쓴다. */
+async function vaultLoad(){
+  if(VAULT)return VAULT;
+  let v={};
+  try{
+    const raw=localStorage.getItem(VAULT_KEY);
+    if(raw){
+      const o=JSON.parse(raw),k=await vaultKey();
+      const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64dBuf(o.iv)},k,b64dBuf(o.ct));
+      v=JSON.parse(new TextDecoder().decode(pt))||{};
+    }
+  }catch(e){v={};}   // 키가 사라졌거나(전체 삭제) 깨진 금고 — 빈 금고로 시작한다
+  /* 옛 평문 자리에서 한 번 건져 온다. 이게 없으면 이 버전이 올라간 순간
+     동기화 암호를 잃어 '복호화 실패'가 뜬다 — 절대 그러면 안 된다. */
+  let dirty=false;
+  const oldPass=localStorage.getItem(SPASS_KEY);
+  if(oldPass&&!v.pass){v.pass=oldPass;dirty=true;}
+  let cfg=null;try{cfg=JSON.parse(localStorage.getItem(SYNC_KEY)||'null');}catch(e){}
+  if(cfg&&cfg.token&&!v.token){v.token=cfg.token;dirty=true;}
+  VAULT=v;
+  if(dirty)await vaultSeal();
+  return VAULT;
+}
+/** 메모리 금고를 다시 봉인해 저장한다. <b>쓰기에 성공한 뒤에만</b> 평문 자리를 지운다. */
+async function vaultSeal(){
+  try{
+    const k=await vaultKey(),iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},k,
+      new TextEncoder().encode(JSON.stringify(VAULT||{})));
+    localStorage.setItem(VAULT_KEY,JSON.stringify({v:1,iv:b64eBuf(iv),ct:b64eBuf(ct)}));
+  }catch(e){return false;}
+  // 봉인이 끝났으니 평문 사본을 거둔다 — 순서를 바꾸면 사고가 난다
+  try{
+    localStorage.removeItem(SPASS_KEY);
+    const cfg=JSON.parse(localStorage.getItem(SYNC_KEY)||'null');
+    if(cfg&&cfg.token){delete cfg.token;localStorage.setItem(SYNC_KEY,JSON.stringify(cfg));}
+  }catch(e){}
+  return true;
+}
+/** 값을 넣고 다시 봉인. 빈 값은 지운다. */
+async function vaultSet(patch){
+  await vaultLoad();
+  Object.assign(VAULT,patch||{});
+  Object.keys(VAULT).forEach(k=>{if(!VAULT[k])delete VAULT[k];});
+  return vaultSeal();
+}
+/** 금고를 비운다 — 전체 삭제처럼 이 기기의 자격증명까지 없애야 할 때.
+    (metaClear가 금고 키를 지우므로 봉인된 값도 어차피 못 연다. 흔적을 남기지 않는다.) */
+function vaultWipe(){VAULT=null;try{localStorage.removeItem(VAULT_KEY);}catch(e){}}
+
+/** 동기화 설정 중 <b>비밀이 아닌 것만</b> 평문에 쓴다.
+    ⚠ syncCfg()는 금고의 토큰을 <b>합쳐서</b> 돌려준다. 그 객체를 그대로 저장하면
+      방금 금고에 넣은 토큰이 평문 자리로 되살아난다 — 반드시 이 함수를 거칠 것. */
+function saveSyncCfg(patch){
+  let c=null;try{c=JSON.parse(localStorage.getItem(SYNC_KEY)||'null');}catch(e){}
+  const next={repo:'',enabled:false,...(c||{}),...(patch||{})};
+  delete next.token;
+  localStorage.setItem(SYNC_KEY,JSON.stringify(next));
+}
 
 const GH_API='https://api.github.com';
 async function ghGet(repo,path,token){const r=await fetch(`${GH_API}/repos/${repo}/contents/${encodeURIComponent(path)}`,{headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'}});
@@ -4297,7 +4407,14 @@ async function syncNow(silent){
   try{
     let remoteFile=await ghGet(cfg.repo,SYNC_PATH,cfg.token);
     let remote=[],remoteCrm=[],remoteDel={},remoteCrmDel={},remoteGm=null,sha=remoteFile?remoteFile.sha:null;
-    if(remoteFile&&remoteFile.content){try{const r=await decTry(remoteFile.content,passCandidates());const d=splitRemote(r.data);remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;remoteCrmDel=d.crmDel;remoteGm=d.gm;pass=r.pass;if(pass!==repoKey())localStorage.setItem(SPASS_KEY,pass);}catch(e){throw new Error('복호화 실패 — 기존 데이터의 동기화 암호가 필요합니다. 동기화 설정에서 이전에 쓰던 암호를 입력하세요');}}
+    if(remoteFile&&remoteFile.content){try{const r=await decTry(remoteFile.content,passCandidates());const d=splitRemote(r.data);remote=d.snaps;remoteCrm=d.crm;remoteDel=d.deleted;remoteCrmDel=d.crmDel;remoteGm=d.gm;pass=r.pass;
+      /* 열리는 데 성공한 키를 금고에 넣어 둔다(다음 기기·다음 실행에서 그대로 쓴다).
+         단 레거시 기본 키는 넣지 않는다 — 그건 암호가 아니라 저장소 이름의 함수다. */
+      if(pass!==repoKey())await vaultSet({pass});
+      /* 기본 키로 열렸는데 진짜 암호가 설정돼 있으면, 이번 쓰기부터 그 암호로 올린다.
+         이 한 줄이 '경고만 뜨는 상태'를 '실제로 다시 암호화된 상태'로 넘긴다. */
+      if(pass===repoKey()&&realPass())pass=realPass();
+    }catch(e){throw new Error('복호화 실패 — 기존 데이터의 동기화 암호가 필요합니다. 동기화 설정에서 이전에 쓰던 암호를 입력하세요');}}
     const local=await idbAll(),localCrm=await crmAll();
     let merged=mergeSnaps(local,remote),mergedCrm=mergeCrm(localCrm,remoteCrm);
     let mergedDel=mergeDelMap(DELDATES,remoteDel);
@@ -4335,15 +4452,28 @@ async function syncNow(silent){
   }catch(e){setSyncDot('err');syncing=false;if(!silent)toast(e.message||'동기화 실패');return false;}
 }
 
-function openSync(){const c=syncCfg()||{};$('#syRepo').value=c.repo||'Hyunseoung-Ko/kis-dashboard-data';$('#syToken').value=c.token||'';
-  $('#syPass').value=localStorage.getItem(SPASS_KEY)||'';
-  $('#syStatus').textContent=c.enabled?'✅ 동기화 켜져 있음':'현재 꺼짐';$('#syncModal').classList.remove('hidden');toggleDrawer(false);}
+/* 저장된 비밀값은 화면에 다시 꺼내 놓지 않는다 — 예전에는 토큰과 동기화 암호를
+   입력칸에 그대로 채워 넣었다. 어깨너머로 읽히고, 화면 공유·스크린샷에 그대로 남는다.
+   비워 두고 '설정됨'만 알린다. 바꾸려면 새로 입력하면 되고, 비운 채 저장하면 그대로 둔다. */
+function openSync(){const c=syncCfg()||{};$('#syRepo').value=c.repo||'Hyunseoung-Ko/kis-dashboard-data';
+  const hasTok=!!c.token,hasPass=!!realPass();
+  $('#syToken').value='';$('#syToken').placeholder=hasTok?'••• 저장됨 — 바꿀 때만 입력':'github_pat_...';
+  $('#syPass').value='';$('#syPass').placeholder=hasPass?'••• 저장됨 — 바꿀 때만 입력':'동기화 암호를 정하세요';
+  $('#syStatus').innerHTML=usingWeakKey()
+    ? '⚠️ <b>동기화 암호가 없습니다</b> — 지금은 저장소 이름에서 만들어지는 기본 키로 암호화됩니다. '
+      +'그 키는 누구나 똑같이 만들 수 있어, 이 저장소를 읽을 수 있는 사람은 <b>고객 데이터를 그대로 볼 수 있습니다</b>. '
+      +'아래 <b>동기화 암호</b>를 정해 저장하면 다음 동기화부터 그 암호로 다시 암호화됩니다.'
+    : (c.enabled?'✅ 동기화 켜져 있음':'현재 꺼짐');
+  $('#syncModal').classList.remove('hidden');toggleDrawer(false);}
 function bindSync(){
   // 순환 아이콘 = 즉시 동기화(가장 잦은 동작). 미설정 상태면 설정 모달로 안내.
   $('#btnSync').onclick=()=>{if(syncOn())syncNow(false);else openSync();};
   $('#btnSyncSet').onclick=openSync;
   $('#syClose').onclick=()=>$('#syncModal').classList.add('hidden');
-  $('#syTest').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim(),pass=$('#syPass').value;
+  /* 입력칸이 비어 있으면 '바꾸지 않는다'는 뜻이다 — 저장된 값을 그대로 쓴다 */
+  $('#syTest').onclick=async()=>{const repo=$('#syRepo').value.trim(),
+      token=$('#syToken').value.trim()||((syncCfg()||{}).token||''),
+      pass=$('#syPass').value||realPass();
     const S=t=>{$('#syStatus').textContent=t;};
     if(!repo||!token){S('⚠️ repo·토큰 입력하세요');return;}
     S('테스트 중...');
@@ -4353,7 +4483,7 @@ function bindSync(){
       // 데이터 파일(store.enc) 존재·복호화·내용 점검
       let f;try{f=await ghGet(repo,SYNC_PATH,token);}catch(e){S('⚠️ repo는 OK · store.enc 읽기 실패('+(e.message||'')+')');return;}
       if(!f||!f.content){S('✅ repo 연결 OK · 단, 저장된 동기화 데이터(store.enc) 없음 — 먼저 PC에서 [저장 & 지금 동기화]로 한투 데이터를 올리세요');return;}
-      const cands=[];if(pass)cands.push(pass);cands.push('khs-wm-e2ee::'+repo.toLowerCase());const sm=localStorage.getItem(SPASS_KEY);if(sm)cands.push(sm);
+      const cands=[pass,realPass(),localStorage.getItem(SPASS_KEY),'khs-wm-e2ee::'+repo.toLowerCase()];
       try{
         const d=await decTry(f.content,[...new Set(cands.filter(Boolean))]);
         const o=Array.isArray(d.data)?{snapshots:d.data,crm:[],deleted:{}}:d.data;
@@ -4367,12 +4497,28 @@ function bindSync(){
         S(msg);
       }catch(e){S('⚠️ store.enc 복호화 실패 — 동기화 암호가 기존과 다릅니다. PC에서 쓰던 동기화 암호를 정확히 입력하세요');}
     }catch(e){S('⚠️ 네트워크 오류');}};
-  $('#syOff').onclick=()=>{const c=syncCfg()||{};c.enabled=false;localStorage.setItem(SYNC_KEY,JSON.stringify(c));setSyncDot('');$('#syStatus').textContent='동기화 꺼짐';toast('동기화 꺼짐');};
-  $('#sySave').onclick=async()=>{const repo=$('#syRepo').value.trim(),token=$('#syToken').value.trim(),pass=$('#syPass').value;
+  $('#syOff').onclick=()=>{saveSyncCfg({enabled:false});setSyncDot('');$('#syStatus').textContent='동기화 꺼짐';toast('동기화 꺼짐');};
+  $('#sySave').onclick=async()=>{const repo=$('#syRepo').value.trim(),
+      token=$('#syToken').value.trim()||((syncCfg()||{}).token||''),
+      pass=$('#syPass').value;                      // 비우면 기존 암호를 그대로 둔다
     if(!repo||!token){$('#syStatus').textContent='⚠️ repo·토큰을 입력하세요';return;}
-    if(pass)localStorage.setItem(SPASS_KEY,pass);else localStorage.removeItem(SPASS_KEY);
-    localStorage.setItem(SYNC_KEY,JSON.stringify({repo,token,enabled:true}));
-    $('#syStatus').textContent='동기화 중...';const ok=await syncNow(false);$('#syStatus').textContent=ok?'✅ 동기화 완료 — 이제 자동 동기화됩니다':'⚠️ 실패 — repo/토큰/권한·동기화 암호 확인';};
+    /* 암호 없이 켜려는 경우 — 무엇이 벌어지는지 분명히 알리고 선택하게 한다.
+       막지는 않는다(기존 사용자가 갑자기 동기화를 못 켜면 안 된다). */
+    if(!pass&&!realPass()&&!confirm(
+      '동기화 암호를 정하지 않았습니다.\n\n'
+      +'이대로 두면 저장소 이름에서 만들어지는 기본 키로 암호화됩니다. '
+      +'그 키는 누구나 똑같이 만들 수 있어, 이 저장소를 읽을 수 있는 사람은 고객 데이터를 그대로 볼 수 있습니다.\n\n'
+      +'[확인] 그래도 이대로 켜기\n[취소] 돌아가서 암호 정하기'))return;
+    /* 비밀값은 금고에, repo·enabled만 평문으로. 금고 봉인이 실패하면 켜지 않는다 —
+       평문으로 되돌려 저장하느니 실패를 알리는 편이 낫다. */
+    const sealed=await vaultSet(pass?{token,pass}:{token});
+    if(!sealed){$('#syStatus').textContent='⚠️ 자격증명을 안전하게 저장하지 못했습니다 — 브라우저 저장소를 확인하세요';return;}
+    saveSyncCfg({repo,enabled:true});
+    $('#syStatus').textContent='동기화 중...';const ok=await syncNow(false);
+    $('#syStatus').textContent=ok
+      ?('✅ 동기화 완료 — 이제 자동 동기화됩니다'+(usingWeakKey()?' (⚠️ 여전히 기본 키로 암호화 중)':''))
+      :'⚠️ 실패 — repo/토큰/권한·동기화 암호 확인';
+    $('#syToken').value='';$('#syPass').value='';};
 }
 
 /* =========================================================
@@ -4516,7 +4662,11 @@ function bindGlobal(){
     const syncNote=wasSync?'\n\n※ 동기화가 켜져 있어 원격(store.enc) 사본은 남습니다. 삭제 후 동기화는 자동으로 꺼지며, 다시 켜면 원격 데이터가 복원됩니다.':'';
     if(!confirm('모든 스냅샷 + CRM(직접입력 영업정보)을 이 기기에서 삭제합니다. (백업 권장)'+syncNote+'\n계속할까요?'))return;
     await idbClear();await new Promise(res=>{const t=db.transaction('crm','readwrite').objectStore('crm').clear();t.onsuccess=()=>res();});await metaClear();DELDATES={};CRMDEL={};
-    if(wasSync){const c=syncCfg()||{};c.enabled=false;localStorage.setItem(SYNC_KEY,JSON.stringify(c));setSyncDot('');}
+    /* metaClear()가 금고 키까지 지웠다 — 봉인된 값은 이제 열 수 없다.
+       흔적만 남겨 두면 다음 실행에서 '복호화 실패'로 보이므로 금고도 함께 비운다.
+       전체 삭제는 이 기기의 자격증명까지 지우는 것이 맞다(다시 입력하면 된다). */
+    vaultWipe();
+    if(wasSync){saveSyncCfg({enabled:false});setSyncDot('');}
     toast('전체 삭제됨'+(wasSync?' · 동기화 꺼짐':''));reload();};
 }
 
@@ -5327,7 +5477,10 @@ document.addEventListener('touchend',e=>{if(_swX==null)return;const t=e.changedT
   if(_swX<=42 && dx>70 && Math.abs(dy)<55)goBack();_swX=null;},{passive:true});
 
 let booted=false;
-async function boot(){if(booted)return;booted=true;await openDB();bindGlobal();await reload();if(syncOn())syncNow(true);refreshHolidays();}
+/* ⚠ vaultLoad()는 openDB() 뒤·syncOn() 앞이어야 한다 — 금고 키가 IndexedDB에 있고,
+   동기화 토큰·암호가 그 금고에서 나오기 때문이다. 순서가 어긋나면 첫 동기화가
+   '토큰 없음'으로 조용히 건너뛰어진다. */
+async function boot(){if(booted)return;booted=true;await openDB();await vaultLoad();bindGlobal();await reload();if(syncOn())syncNow(true);refreshHolidays();}
 
 /* 물리 키보드로도 PIN 입력 가능 */
 document.addEventListener('keydown',e=>{
